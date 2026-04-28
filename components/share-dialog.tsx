@@ -1,0 +1,401 @@
+"use client"
+
+import { useState, useMemo } from "react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Search, X, Users, User as UserIcon, Check, Send } from "lucide-react"
+import { cn } from "@/lib/utils"
+import type { User, Group } from "@/lib/types"
+
+interface EntraUser {
+  id: string
+  name: string
+  email: string
+  department: string
+  type: 'user'
+}
+
+interface EntraGroup {
+  id: string
+  name: string
+  memberCount: number
+  type: 'group'
+}
+
+type EntraEntity = EntraUser | EntraGroup
+
+interface ShareDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  customerName: string
+  sharedUserIds?: string[]
+  sharedGroupIds?: string[]
+  storeUsers?: User[]
+  storeGroups?: Group[]
+  onShare: (entities: EntraEntity[]) => void
+}
+
+export function ShareDialog({ open, onOpenChange, customerName, sharedUserIds = [], sharedGroupIds = [], storeUsers = [], storeGroups = [], onShare }: ShareDialogProps) {
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedEntities, setSelectedEntities] = useState<EntraEntity[]>([])
+  const [isSharing, setIsSharing] = useState(false)
+  const [listMode, setListMode] = useState<'group' | 'user'>('group')
+
+  // Convert store User to EntraUser
+  const userToEntraUser = (user: User): EntraUser => ({
+    id: user.id,
+    name: user.displayName,
+    email: user.email || '',
+    department: 'Department',
+    type: 'user'
+  })
+
+  // Convert store Group to EntraGroup
+  const groupToEntraGroup = (group: Group): EntraGroup => ({
+    id: group.id,
+    name: group.name,
+    memberCount: 0,
+    type: 'group'
+  })
+
+  // Convert store data to searchable format
+  const allSearchUsers = useMemo(() => storeUsers.map(userToEntraUser), [storeUsers])
+  const allSearchGroups = useMemo(() => storeGroups.map(groupToEntraGroup), [storeGroups])
+
+  // Get already shared entities
+  const sharedEntities = useMemo(() => {
+    const shared: EntraEntity[] = []
+    
+    // Add shared users
+    sharedUserIds.forEach(userId => {
+      const user = allSearchUsers.find(u => u.id === userId)
+      if (user) shared.push(user)
+    })
+    
+    // Add shared groups
+    sharedGroupIds.forEach(groupId => {
+      const group = allSearchGroups.find(g => g.id === groupId)
+      if (group) shared.push(group)
+    })
+    
+    return shared
+  }, [sharedUserIds, sharedGroupIds, allSearchUsers, allSearchGroups])
+
+  // Search both users and groups by name or email
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return (listMode === 'group' ? allSearchGroups : allSearchUsers) as EntraEntity[]
+    }
+    
+    const query = searchQuery.toLowerCase()
+    
+    const matchedUsers = allSearchUsers.filter(
+      user => 
+        user.name.toLowerCase().includes(query) || 
+        user.email.toLowerCase().includes(query)
+    )
+    
+    const matchedGroups = allSearchGroups.filter(
+      group => group.name.toLowerCase().includes(query)
+    )
+    
+    return (listMode === 'group' ? matchedGroups : matchedUsers) as EntraEntity[]
+  }, [searchQuery, listMode, allSearchUsers, allSearchGroups])
+
+  const isSelected = (entity: EntraEntity) => {
+    return selectedEntities.some(e => e.id === entity.id)
+  }
+
+  const toggleSelection = (entity: EntraEntity) => {
+    if (isSelected(entity)) {
+      setSelectedEntities(prev => prev.filter(e => e.id !== entity.id))
+    } else {
+      setSelectedEntities(prev => [...prev, entity])
+    }
+  }
+
+  const removeSelection = (entityId: string) => {
+    setSelectedEntities(prev => prev.filter(e => e.id !== entityId))
+  }
+
+  const handleShare = async () => {
+    if (selectedEntities.length === 0) return
+    
+    setIsSharing(true)
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    setIsSharing(false)
+    
+    onShare(selectedEntities)
+    setSelectedEntities([])
+    setSearchQuery("")
+    onOpenChange(false)
+  }
+
+  const handleClose = () => {
+    setSelectedEntities([])
+    setSearchQuery("")
+    setListMode('group')
+    onOpenChange(false)
+  }
+
+  const getInitials = (name: string) => {
+    return name.slice(0, 2)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[900px] dark:bg-[#1c1b1b] dark:border-[#464554]">
+        <DialogHeader className="dark:border-b dark:border-[#464554]">
+          <DialogTitle className="dark:text-[#e5e2e1]">고객 정보 공유</DialogTitle>
+          <DialogDescription className="dark:text-[#c7c4d7]">
+            &quot;<span className="dark:text-[#c0c1ff]">{customerName}</span>&quot; 정보를 공유할 사용자 또는 그룹을 검색하세요.
+            <br />
+            <span className="text-xs dark:text-[#908fa0]">
+              Entra ID 조직도 연동 - 이름 또는 이메일로 검색
+            </span>
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid grid-cols-2 gap-4 dark:border-[#464554]">
+          {/* Left Column - Search and Selection */}
+          <div className="space-y-4 border-r dark:border-r-[#464554] pr-4">
+            {/* Search Input */}
+            <div className="relative group">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground dark:text-[#908fa0] dark:group-focus-within:text-[#c0c1ff] transition-colors" />
+              <Input
+                placeholder="이름, 이메일 또는 그룹명으로 검색..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 bg-secondary dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:placeholder:text-[#908fa0] focus-visible:dark:border-[#c0c1ff]"
+              />
+            </div>
+
+            <div className="flex gap-2 border-b dark:border-b-[#464554]">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className={listMode === 'group' ? 'border-primary text-primary bg-primary/5 dark:border-b-2 dark:border-b-[#c0c1ff] dark:border-transparent dark:bg-transparent dark:text-[#c0c1ff]' : 'border-transparent dark:border-transparent dark:text-[#908fa0] dark:hover:text-[#e5e2e1]'}
+                onClick={() => setListMode('group')}
+              >
+                그룹
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className={listMode === 'user' ? 'border-primary text-primary bg-primary/5 dark:border-b-2 dark:border-b-[#c0c1ff] dark:border-transparent dark:bg-transparent dark:text-[#c0c1ff]' : 'border-transparent dark:border-transparent dark:text-[#908fa0] dark:hover:text-[#e5e2e1]'}
+                onClick={() => setListMode('user')}
+              >
+                사용자
+              </Button>
+            </div>
+
+            {/* Selected Entities */}
+            {selectedEntities.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground dark:text-[#908fa0]">선택됨 ({selectedEntities.length})</p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedEntities.map((entity) => (
+                    <Badge
+                      key={entity.id}
+                      variant="secondary"
+                      className="flex items-center gap-1 py-1 px-2 dark:bg-[#2a2a2a] dark:text-[#c7c4d7]"
+                    >
+                      {entity.type === 'group' ? (
+                        <Users className="h-3 w-3" />
+                      ) : (
+                        <UserIcon className="h-3 w-3" />
+                      )}
+                      <span>{entity.name}</span>
+                      <button
+                        onClick={() => removeSelection(entity.id)}
+                        className="ml-1 hover:bg-muted dark:hover:bg-[#353534] rounded"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Search Results */}
+            <div className="border rounded-lg bg-secondary/30 dark:bg-[#0e0e0e] dark:border-[#464554]">
+              <ScrollArea className="h-[280px]">
+                {searchResults.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full py-8 text-center">
+                    <Users className="h-8 w-8 text-muted-foreground/50 dark:text-[#908fa0]/50 mb-2" />
+                    <p className="text-sm text-muted-foreground dark:text-[#908fa0]">
+                      검색 결과가 없습니다
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-2 space-y-1">
+                    {searchResults.map((entity) => (
+                      <button
+                        key={entity.id}
+                        onClick={() => toggleSelection(entity)}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left",
+                          isSelected(entity)
+                            ? "bg-primary/10 border border-primary/30 dark:bg-[#2a2a2a] dark:border-[#c0c1ff]"
+                            : "hover:bg-secondary dark:hover:bg-[#2a2a2a]"
+                        )}
+                      >
+                        <Avatar className="h-9 w-9">
+                          <AvatarFallback className={cn(
+                            "text-xs dark:bg-[#353534]",
+                            entity.type === 'group' 
+                              ? "bg-chart-2/20 text-chart-2 dark:text-[#c0c1ff]" 
+                              : "bg-primary/20 text-primary dark:text-[#c0c1ff]"
+                          )}>
+                            {entity.type === 'group' ? (
+                              <Users className="h-4 w-4" />
+                            ) : (
+                              getInitials(entity.name)
+                            )}
+                          </AvatarFallback>
+                        </Avatar>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium truncate dark:text-[#e5e2e1]">{entity.name}</span>
+                            {entity.type === 'group' && (
+                              <Badge variant="outline" className="text-xs py-0 dark:border-[#464554] dark:text-[#c7c4d7]">
+                                그룹
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate dark:text-[#908fa0]">
+                            {entity.type === 'user' 
+                              ? `${entity.email} · ${entity.department}`
+                              : `${entity.memberCount}명의 멤버`
+                            }
+                          </p>
+                        </div>
+                        
+                        {isSelected(entity) && (
+                          <Check className="h-4 w-4 text-primary dark:text-[#c0c1ff] flex-shrink-0" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
+          </div>
+
+          {/* Right Column - Already Shared */}
+          <div className="space-y-4 pl-4 dark:border-l dark:border-l-[#464554]">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold text-muted-foreground dark:text-[#908fa0] uppercase tracking-wider">공유 대상 조회</p>
+              <span className="text-xs font-semibold text-on-surface-variant bg-secondary dark:bg-[#2a2a2a] dark:text-[#c7c4d7] px-2 py-0.5 rounded">{sharedEntities.length} selected</span>
+            </div>
+            <div className="border rounded-lg bg-secondary/30 dark:bg-[#0e0e0e] dark:border-[#464554]">
+              <ScrollArea className="h-[400px]">
+                {sharedEntities.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full py-8 text-center">
+                    <div className="w-20 h-20 bg-secondary dark:bg-[#353534] rounded-full flex items-center justify-center mb-4 border border-border dark:border-[#464554]">
+                      <Users className="h-8 w-8 text-muted-foreground/50 dark:text-[#908fa0]/50" />
+                    </div>
+                    <p className="text-sm text-muted-foreground dark:text-[#c7c4d7] font-medium">
+                      공유된 그룹/사용자가 없습니다
+                    </p>
+                    <p className="text-xs text-muted-foreground dark:text-[#908fa0] mt-2 max-w-[200px]">
+                      왼쪽 목록에서 공유할 대상의 체크박스를 선택해주세요.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-2 space-y-1">
+                    {sharedEntities.map((entity) => (
+                      <div
+                        key={entity.id}
+                        className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 dark:bg-[#2a2a2a]"
+                      >
+                        <Avatar className="h-9 w-9">
+                          <AvatarFallback className={cn(
+                            "text-xs dark:bg-[#353534]",
+                            entity.type === 'group' 
+                              ? "bg-chart-2/20 text-chart-2 dark:text-[#c0c1ff]" 
+                              : "bg-primary/20 text-primary dark:text-[#c0c1ff]"
+                          )}>
+                            {entity.type === 'group' ? (
+                              <Users className="h-4 w-4" />
+                            ) : (
+                              getInitials(entity.name)
+                            )}
+                          </AvatarFallback>
+                        </Avatar>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium truncate dark:text-[#e5e2e1]">{entity.name}</span>
+                            {entity.type === 'group' && (
+                              <Badge variant="outline" className="text-xs py-0 dark:border-[#464554] dark:text-[#c7c4d7]">
+                                그룹
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate dark:text-[#908fa0]">
+                            {entity.type === 'user' 
+                              ? `${entity.email} · ${entity.department}`
+                              : `${entity.memberCount}명의 멤버`
+                            }
+                          </p>
+                        </div>
+                        
+                        <Check className="h-4 w-4 text-green-600 dark:text-[#c0c1ff] flex-shrink-0" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex justify-between items-center pt-4 px-6 pb-6 border-t dark:border-t-[#464554] bg-secondary dark:bg-[#0e0e0e]">
+          <div className="flex items-center gap-2 text-muted-foreground dark:text-[#908fa0]">
+            <span className="text-xs">공유된 데이터는 즉시 열람이 가능합니다.</span>
+          </div>
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              onClick={handleClose}
+              className="dark:bg-transparent dark:border-[#464554] dark:text-[#c7c4d7] dark:hover:bg-[#2a2a2a]"
+            >
+              취소
+            </Button>
+            <Button 
+              onClick={handleShare} 
+              disabled={selectedEntities.length === 0 || isSharing}
+              className="dark:bg-[#6366F1] dark:hover:opacity-90"
+            >
+              {isSharing ? (
+                <>처리 중...</>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  공유 ({selectedEntities.length})
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
