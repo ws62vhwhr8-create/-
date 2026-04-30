@@ -32,8 +32,7 @@ export const initializeCosmosDB = async () => {
 
     // Create container if it doesn't exist
     const { container: cont } = await database.containers.createIfNotExists(
-      { id: containerId, partitionKey: '/milestoneId' },
-      { offerThroughput: 400 }
+      { id: containerId, partitionKey: '/milestoneId' }
     )
     container = cont
 

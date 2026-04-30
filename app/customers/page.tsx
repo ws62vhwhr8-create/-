@@ -495,7 +495,7 @@ export default function CustomersPage() {
               </div>
             </div>
 
-            <DialogFooter className="dark:border-t dark:border-t-[#464554]">
+            <DialogFooter className="dark:border-t dark:border-t-[#464554] pt-6">
               <Button variant="outline" onClick={() => setIsCreateOpen(false)} className="dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]">취소</Button>
               <Button onClick={handleCreate} className="dark:bg-primary dark:text-white dark:hover:bg-primary/90">등록</Button>
             </DialogFooter>
@@ -507,8 +507,9 @@ export default function CustomersPage() {
           open={isOwnerPickerOpen}
           onOpenChange={setIsOwnerPickerOpen}
           users={users}
+          groups={groups}
           selectedOwner={formData.ownerName}
-          onConfirm={(ownerName) => setFormData({ ...formData, ownerName })}
+          onConfirm={(owners) => setFormData({ ...formData, ownerName: owners.map(o => o.name).join(', ') })}
         />
 
         {/* Share Dialog */}
@@ -527,19 +528,19 @@ export default function CustomersPage() {
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent className="bg-white">
-            <AlertDialogHeader>
-              <AlertDialogTitle>고객 삭제</AlertDialogTitle>
-              <AlertDialogDescription>
+          <AlertDialogContent className="bg-white dark:bg-[#1c1b1b] dark:border-[#464554]">
+            <AlertDialogHeader className="pb-4 dark:border-b dark:border-[#464554]">
+              <AlertDialogTitle className="dark:text-[#e5e2e1]">고객 삭제</AlertDialogTitle>
+              <AlertDialogDescription className="dark:text-[#c7c4d7]">
                 정말로 &quot;{customerToDelete?.companyName}&quot;을(를) 삭제하시겠습니까?
                 모든 마일스톤 데이터가 함께 삭제됩니다.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogFooter className="pt-4">
+              <AlertDialogCancel className="dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]">취소</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleDeleteConfirm}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 dark:border dark:border-[#464554] dark:bg-[#0e0e0e] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"
               >
                 삭제
               </AlertDialogAction>

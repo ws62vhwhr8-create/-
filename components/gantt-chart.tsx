@@ -17,6 +17,19 @@ const getStatusColor = (status: Milestone['status']) => {
   }
 }
 
+const getStatusBarStyle = (status: Milestone['status']) => {
+  switch (status) {
+    case 'completed':
+      return { backgroundColor: '#4ade80', borderColor: '#22c55e' }
+    case 'in-progress':
+      return { backgroundColor: '#60a5fa', borderColor: '#3b82f6' }
+    case 'overdue':
+      return { backgroundColor: '#f87171', borderColor: '#ef4444' }
+    default:
+      return { backgroundColor: '#64748b', borderColor: '#475569' }
+  }
+}
+
 export default function GanttChart({ customer }: { customer: Customer }) {
   const [isExporting, setIsExporting] = useState(false)
 
@@ -365,8 +378,11 @@ export default function GanttChart({ customer }: { customer: Customer }) {
               </div>
               <div className="flex-1 h-7 bg-slate-700 rounded relative border border-slate-600">
                 <div
-                  className={`absolute h-full rounded transition-all border border-opacity-50 ${getStatusColor(milestone.status)}`}
-                  style={getBarPosition(milestone, index)}
+                  className={`absolute h-full rounded transition-all border ${getStatusColor(milestone.status)}`}
+                  style={{
+                    ...getBarPosition(milestone, index),
+                    ...getStatusBarStyle(milestone.status),
+                  }}
                 />
               </div>
             </div>
@@ -376,19 +392,19 @@ export default function GanttChart({ customer }: { customer: Customer }) {
       
       <div className="flex items-center justify-center gap-6 pt-6 text-xs text-slate-300">
         <div className="flex items-center gap-2">
-          <div className="h-3 w-3 rounded bg-chart-1" />
+          <div className="h-3 w-3 rounded" style={{ backgroundColor: '#4ade80' }} />
           <span>완료</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="h-3 w-3 rounded bg-chart-2" />
+          <div className="h-3 w-3 rounded" style={{ backgroundColor: '#60a5fa' }} />
           <span>진행중</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="h-3 w-3 rounded bg-chart-5" />
+          <div className="h-3 w-3 rounded" style={{ backgroundColor: '#f87171' }} />
           <span>지연</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="h-3 w-3 rounded bg-slate-500" />
+          <div className="h-3 w-3 rounded" style={{ backgroundColor: '#64748b' }} />
           <span>대기</span>
         </div>
       </div>

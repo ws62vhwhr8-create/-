@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { initializeCosmosDB, getContainer, MilestoneFile } from '@/lib/cosmos'
+import { syncMilestoneFileToSharePoint } from '@/lib/microsoft-graph'
 
 export async function GET(request: NextRequest) {
   try {
@@ -76,6 +77,22 @@ export async function POST(request: NextRequest) {
       }
 
       const { resource } = await container.items.create(file)
+
+      try {
+        await syncMilestoneFileToSharePoint({
+          milestoneId,
+          noteId: noteId || null,
+          kind,
+          fileName,
+          isFolder: Boolean(isFolder),
+          base64Content,
+          fileType,
+        })
+      } catch (sharePointError) {
+        await container.item(file.id, file.milestoneId).delete().catch(() => undefined)
+        const detail = sharePointError instanceof Error ? sharePointError.message : 'Unknown SharePoint sync error'
+        throw new Error(`SharePoint 동기화 실패: ${detail}`)
+      }
 
       return NextResponse.json(resource, { status: 201 })
     } catch (cosmosError) {

@@ -378,74 +378,33 @@ export default function CustomerDetailPage({
   }
 
   const addChildMilestone = (parentMilestoneId: string) => {
-    if (isEditing) {
-      setEditingMilestones((prev) => {
-        const parentIndex = prev.findIndex((milestone) => milestone.id === parentMilestoneId)
-        if (parentIndex < 0) return prev
+    setEditingMilestones((prev) => {
+      const parentIndex = prev.findIndex((milestone) => milestone.id === parentMilestoneId)
+      if (parentIndex < 0) return prev
 
-        const parentMilestone = prev[parentIndex]
-        if ((parentMilestone.stageLevel ?? 0) >= 2) return prev
+      const parentMilestone = prev[parentIndex]
+      if ((parentMilestone.stageLevel ?? 0) >= 2) return prev
 
-        const childMilestone: EditableMilestone = {
-          ...parentMilestone,
-          id: crypto.randomUUID(),
-          stageId: crypto.randomUUID(),
-          stageName: '',
-          stageLevel: (parentMilestone.stageLevel ?? 0) + 1,
-          status: 'pending',
-          notes: [],
-        }
+      const childMilestone: EditableMilestone = {
+        ...parentMilestone,
+        id: crypto.randomUUID(),
+        stageId: crypto.randomUUID(),
+        stageName: '',
+        stageLevel: (parentMilestone.stageLevel ?? 0) + 1,
+        status: 'pending',
+        notes: [],
+      }
 
-        let insertIndex = parentIndex + 1
-        while (insertIndex < prev.length && (prev[insertIndex].stageLevel ?? 0) > (parentMilestone.stageLevel ?? 0)) {
-          insertIndex += 1
-        }
+      let insertIndex = parentIndex + 1
+      while (insertIndex < prev.length && (prev[insertIndex].stageLevel ?? 0) > (parentMilestone.stageLevel ?? 0)) {
+        insertIndex += 1
+      }
 
-        return [
-          ...prev.slice(0, insertIndex),
-          childMilestone,
-          ...prev.slice(insertIndex),
-        ]
-      })
-      setExpandedMilestones((prev) => new Set(prev).add(parentMilestoneId))
-      return
-    }
-
-    if (!customer) return
-
-    const parentIndex = customer.milestones.findIndex((milestone) => milestone.id === parentMilestoneId)
-    if (parentIndex < 0) return
-
-    const parentMilestone = customer.milestones[parentIndex]
-    if ((parentMilestone.stageLevel ?? 0) >= 2) return
-
-    const childMilestone: Milestone = {
-      ...parentMilestone,
-      id: crypto.randomUUID(),
-      stageId: crypto.randomUUID(),
-      stageName: '새 하위 단계',
-      stageLevel: (parentMilestone.stageLevel ?? 0) + 1,
-      status: 'pending',
-      notes: [],
-    }
-
-    let insertIndex = parentIndex + 1
-    while (
-      insertIndex < customer.milestones.length
-      && (customer.milestones[insertIndex].stageLevel ?? 0) > (parentMilestone.stageLevel ?? 0)
-    ) {
-      insertIndex += 1
-    }
-
-    const nextMilestones = [
-      ...customer.milestones.slice(0, insertIndex),
-      childMilestone,
-      ...customer.milestones.slice(insertIndex),
-    ]
-
-    updateCustomer(customer.id, {
-      milestones: nextMilestones,
-      status: calculateCustomerStatus(nextMilestones),
+      return [
+        ...prev.slice(0, insertIndex),
+        childMilestone,
+        ...prev.slice(insertIndex),
+      ]
     })
 
     setExpandedMilestones((prev) => new Set(prev).add(parentMilestoneId))
@@ -1519,27 +1478,13 @@ export default function CustomerDetailPage({
                                   </Button>
                                   <StatusIcon status={milestone.status} />
                                   {!isEditing ? (
-                                    <>
-                                      <button
-                                        type="button"
-                                        className="truncate text-left hover:underline"
-                                        onClick={() => openMilestoneDetail(milestone.id)}
-                                      >
-                                        {milestone.stageName}
-                                      </button>
-                                      {(milestone.stageLevel ?? 0) < 2 && (
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8 shrink-0"
-                                          onClick={() => addChildMilestone(milestone.id)}
-                                          title="하위 단계 추가"
-                                        >
-                                          <Plus className="h-4 w-4" />
-                                        </Button>
-                                      )}
-                                    </>
+                                    <button
+                                      type="button"
+                                      className="truncate text-left hover:underline"
+                                      onClick={() => openMilestoneDetail(milestone.id)}
+                                    >
+                                      {milestone.stageName}
+                                    </button>
                                   ) : (
                                     <>
                                       <Input

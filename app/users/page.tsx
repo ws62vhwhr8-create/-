@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Navigation } from "@/components/navigation"
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
@@ -20,21 +20,12 @@ import { Plus, Trash2, Mail, Shield, Search } from "lucide-react"
 import EntraPicker from '@/components/entra-picker'
 import type { PickerUser } from '@/components/entra-picker'
 import { useAppStore } from '@/lib/store'
-import { useTheme } from "next-themes"
 
 export default function UsersPage() {
-  const { resolvedTheme } = useTheme()
   const { users, groups, customers, addUser, updateUser, deleteUser } = useAppStore()
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [assignedQuery, setAssignedQuery] = useState("")
   const [userTypeFilter, setUserTypeFilter] = useState<'all' | 'user' | 'owner'>('all')
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  const isDarkMode = mounted && resolvedTheme === 'dark'
 
   // 사용자 표기 정규화: 중복 성/이름 패턴과 불필요 공백 제거
   const getCleanName = (name: string) => {
@@ -163,8 +154,8 @@ export default function UsersPage() {
               </div>
             </div>
 
-            <div className="border rounded-lg overflow-hidden w-full bg-white border-[#E2E8F0] shadow-sm dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)]">
-              <div className="flex flex-col gap-3 border-b border-[#E2E8F0] dark:border-border px-8 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="w-full rounded-lg border border-[#E2E8F0] bg-white shadow-sm dark:border-[#333333] dark:border-white/15 dark:bg-[#1E1E1E] dark:bg-[#1E1E1E]/60 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)]">
+              <div className="flex flex-col gap-3 border-b border-[#E2E8F0] px-8 py-4 dark:border-[#333333] sm:flex-row sm:items-center sm:justify-between">
                 <div className="relative w-full sm:max-w-sm">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748B] dark:text-[#908fa0]" />
                   <Input
@@ -185,25 +176,23 @@ export default function UsersPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <table className="w-full border-collapse">
-                <thead
-                  className="bg-[#F8FAFC] border-b border-[#E2E8F0] dark:border-border sticky top-0"
-                  style={isDarkMode ? { backgroundColor: '#0e0e0e' } : undefined}
-                >
-                  <tr style={isDarkMode ? { backgroundColor: '#0e0e0e' } : undefined}>
-                    <th className="text-left py-4 px-8 font-bold text-sm w-[30%] text-[#64748B] dark:text-[#908fa0]" style={isDarkMode ? { backgroundColor: '#0e0e0e' } : undefined}>이름</th>
-                    <th className="text-left py-4 px-8 font-bold text-sm w-[40%] text-[#64748B] dark:text-[#908fa0]" style={isDarkMode ? { backgroundColor: '#0e0e0e' } : undefined}>이메일</th>
-                    <th className="text-left py-4 px-8 font-bold text-sm w-[20%] text-[#64748B] dark:text-[#908fa0]" style={isDarkMode ? { backgroundColor: '#0e0e0e' } : undefined}>역할</th>
-                    <th className="text-center py-4 px-8 font-bold text-sm w-[10%] text-[#64748B] dark:text-[#908fa0]" style={isDarkMode ? { backgroundColor: '#0e0e0e' } : undefined}>작업</th>
-                  </tr>
-                </thead>
+              <div className="overflow-hidden rounded-b-lg border-t border-border dark:border-[#333333]">
+                <table className="w-full border-collapse">
+                  <thead className="border-b border-[#E2E8F0] bg-secondary/50 dark:border-[#333333] dark:bg-[#0e0e0e]">
+                    <tr className="bg-secondary/50 hover:bg-secondary/50 dark:bg-[#0e0e0e] dark:hover:bg-[#0e0e0e]">
+                      <th className="w-[30%] px-8 py-4 text-left text-sm font-bold text-[#64748B] dark:text-[#908fa0] dark:uppercase dark:tracking-wider">이름</th>
+                      <th className="w-[40%] px-8 py-4 text-left text-sm font-bold text-[#64748B] dark:text-[#908fa0] dark:uppercase dark:tracking-wider">이메일</th>
+                      <th className="w-[20%] px-8 py-4 text-left text-sm font-bold text-[#64748B] dark:text-[#908fa0] dark:uppercase dark:tracking-wider">역할</th>
+                      <th className="w-[10%] px-8 py-4 text-center text-sm font-bold text-[#64748B] dark:text-[#908fa0]">작업</th>
+                    </tr>
+                  </thead>
                 <tbody>
                   {filteredUsers.map((user) => {
                     // 렌더링 직전에 이름을 한 번 더 정제
                     const cleanName = getCleanName(user.displayName);
 
                     return (
-                      <tr key={user.id} className="border-b border-[#E2E8F0] dark:border-border hover:bg-[#F8FAFC] dark:hover:bg-secondary/30 transition-colors">
+                      <tr key={user.id} className="border-b border-[#E2E8F0] transition-colors hover:bg-secondary/30 dark:border-[#333333] dark:hover:bg-[#323232]">
                         <td className="py-5 px-8">
                           <span className="font-bold text-base text-slate-900 dark:text-[#e5e2e1]">{cleanName}</span>
                         </td>
@@ -258,7 +247,8 @@ export default function UsersPage() {
                     </tr>
                   )}
                 </tbody>
-              </table>
+                </table>
+              </div>
             </div>
           </div>
         </main>

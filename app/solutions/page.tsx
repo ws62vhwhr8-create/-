@@ -350,30 +350,30 @@ export default function SolutionsPage() {
         {/* 통합 추가/수정 다이얼로그 (사용자 조절 가능) */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent
-            className="min-w-[520px] min-h-[320px] max-w-[90vw] max-h-[90vh] overflow-auto resize rounded-[32px] bg-white p-10"
+            className="min-w-[520px] min-h-[320px] max-w-[90vw] max-h-[90vh] overflow-auto resize rounded-[32px] bg-white p-10 dark:bg-[#1c1b1b] dark:border-[#464554]"
             style={{ boxSizing: 'border-box' }}
           >
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold">{editingSolution ? "솔루션 정보 수정" : "새 솔루션 설계"}</DialogTitle>
+            <DialogHeader className="pb-4 dark:border-b dark:border-[#464554]">
+              <DialogTitle className="text-2xl font-bold dark:text-[#e5e2e1]">{editingSolution ? "솔루션 정보 수정" : "새 솔루션 설계"}</DialogTitle>
             </DialogHeader>
             
             <div className="space-y-8 py-4">
               {/* 기본 정보 */}
               <div className="grid gap-6">
                 <div className="space-y-2">
-                  <Label className="text-sm font-bold text-gray-700">솔루션명</Label>
-                  <Input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="솔루션 이름을 입력하세요" className="rounded-xl h-12" />
+                  <Label className="text-sm font-bold text-gray-700 dark:text-[#e5e2e1]">솔루션명</Label>
+                  <Input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="솔루션 이름을 입력하세요" className="rounded-xl h-12 dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:placeholder:text-[#908fa0]" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm font-bold text-gray-700">솔루션 설명</Label>
-                  <Textarea value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} placeholder="솔루션에 대한 상세 설명을 입력하세요" className="rounded-xl min-h-[100px] resize-none" />
+                  <Label className="text-sm font-bold text-gray-700 dark:text-[#e5e2e1]">솔루션 설명</Label>
+                  <Textarea value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} placeholder="솔루션에 대한 상세 설명을 입력하세요" className="rounded-xl min-h-[100px] resize-none dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:placeholder:text-[#908fa0]" />
                 </div>
               </div>
 
               {/* 워크플로우 설계 */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label className="text-sm font-bold text-gray-700">워크플로우 설계 (총 {totalDuration}일)</Label>
+                  <Label className="text-sm font-bold text-gray-700 dark:text-[#e5e2e1]">워크플로우 설계 (총 {totalDuration}일)</Label>
                   <Button type="button" variant="outline" size="sm" onClick={addStage} className="rounded-full gap-1 h-8 text-xs"><Plus className="h-3 w-3"/> 단계 추가</Button>
                 </div>
                 
@@ -382,34 +382,34 @@ export default function SolutionsPage() {
                   {formData.stages.map((stage, stageIndex) => (
                     <div key={stage.id}>
                       {/* 1레벨 단계 */}
-                      <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                      <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-2xl border border-gray-100 dark:bg-[#0e0e0e] dark:border-[#464554]">
                         {stage.children && stage.children.length > 0 && (
                           <button
                             onClick={() => toggleExpand(stage.id)}
-                            className="w-6 h-6 flex items-center justify-center hover:bg-gray-200 rounded transition-colors"
+                            className="w-6 h-6 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-[#2a2a2a] rounded transition-colors"
                           >
                             {expandedStages.has(stage.id) ? (
-                              <ChevronDown className="h-4 w-4 text-gray-400" />
+                              <ChevronDown className="h-4 w-4 text-gray-400 dark:text-[#908fa0]" />
                             ) : (
-                              <ChevronRight className="h-4 w-4 text-gray-400" />
+                              <ChevronRight className="h-4 w-4 text-gray-400 dark:text-[#908fa0]" />
                             )}
                           </button>
                         )}
                         {!stage.children || stage.children.length === 0 && <div className="w-6" />}
                         
-                        <span className="w-8 h-8 flex items-center justify-center bg-white rounded-full text-xs font-bold text-gray-400 border border-gray-200">{stageIndex + 1}</span>
-                        <Input value={stage.name} onChange={(e) => handleUpdateStage(stage.id, 'name', e.target.value)} placeholder="1단계명 (예: 기획)" className="flex-1 bg-white border-none shadow-none focus-visible:ring-1" />
+                        <span className="w-8 h-8 flex items-center justify-center bg-white rounded-full text-xs font-bold text-gray-400 border border-gray-200 dark:bg-[#1E1E1E] dark:text-[#908fa0] dark:border-[#464554]">{stageIndex + 1}</span>
+                        <Input value={stage.name} onChange={(e) => handleUpdateStage(stage.id, 'name', e.target.value)} placeholder="1단계명 (예: 기획)" className="flex-1 bg-white border-none shadow-none focus-visible:ring-1 dark:bg-[#1E1E1E] dark:text-[#e5e2e1] dark:placeholder:text-[#908fa0]" />
                         <div className="flex items-center gap-2 w-24 shrink-0">
                           <Input type="number" value={stage.durationDays} onChange={(e) => handleUpdateStage(stage.id, 'durationDays', parseInt(e.target.value) || 0)} className="bg-white dark:bg-[#1E1E1E] dark:border-[#464554]/50 dark:text-[#e5e2e1] text-center border-none shadow-none" />
                           <span className="text-xs font-bold text-gray-400 dark:text-[#c7c4d7]">일</span>
                         </div>
                         <div className="flex gap-2 shrink-0">
                           {(stage.level ?? 0) < 2 && (
-                            <Button variant="ghost" size="icon" onClick={() => addChildStage(stage.id)} className="text-gray-300 hover:text-blue-500 h-6 w-6" title="하위 단계 추가">
+                            <Button variant="ghost" size="icon" onClick={() => addChildStage(stage.id)} className="text-gray-300 hover:text-blue-500 dark:text-[#908fa0] dark:hover:text-[#c0c1ff] h-6 w-6" title="하위 단계 추가">
                               <Plus className="h-3.5 w-3.5"/>
                             </Button>
                           )}
-                          <Button variant="ghost" size="icon" onClick={() => handleRemoveStage(stage.id)} className="text-gray-300 hover:text-red-500 h-6 w-6">
+                          <Button variant="ghost" size="icon" onClick={() => handleRemoveStage(stage.id)} className="text-gray-300 hover:text-red-500 dark:text-[#908fa0] dark:hover:text-[#ffb4ab] h-6 w-6">
                             <X className="h-4 w-4"/>
                           </Button>
                         </div>
@@ -418,34 +418,34 @@ export default function SolutionsPage() {
                       {/* 2레벨 단계 */}
                       {expandedStages.has(stage.id) && stage.children && stage.children.map((child2, child2Index) => (
                         <div key={child2.id}>
-                          <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-2xl border border-blue-100 ml-4 mt-2">
+                          <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-2xl border border-blue-100 ml-4 mt-2 dark:bg-[#121827] dark:border-[#2c3b55]">
                             {child2.children && child2.children.length > 0 && (
                               <button
                                 onClick={() => toggleExpand(child2.id)}
-                                className="w-6 h-6 flex items-center justify-center hover:bg-blue-200 rounded transition-colors"
+                                className="w-6 h-6 flex items-center justify-center hover:bg-blue-200 dark:hover:bg-[#1f2a40] rounded transition-colors"
                               >
                                 {expandedStages.has(child2.id) ? (
-                                  <ChevronDown className="h-4 w-4 text-blue-400" />
+                                  <ChevronDown className="h-4 w-4 text-blue-400 dark:text-[#8db6ff]" />
                                 ) : (
-                                  <ChevronRight className="h-4 w-4 text-blue-400" />
+                                  <ChevronRight className="h-4 w-4 text-blue-400 dark:text-[#8db6ff]" />
                                 )}
                               </button>
                             )}
                             {!child2.children || child2.children.length === 0 && <div className="w-6" />}
                             
-                            <span className="min-w-8 h-8 px-2 flex items-center justify-center bg-white rounded-full text-xs font-bold text-blue-400 border border-blue-200">{`${stageIndex + 1}-${child2Index + 1}`}</span>
-                            <Input value={child2.name} onChange={(e) => handleUpdateStage(child2.id, 'name', e.target.value)} placeholder="1-X단계명" className="flex-1 bg-white border-none shadow-none focus-visible:ring-1" />
+                            <span className="min-w-8 h-8 px-2 flex items-center justify-center bg-white rounded-full text-xs font-bold text-blue-400 border border-blue-200 dark:bg-[#1E1E1E] dark:text-[#8db6ff] dark:border-[#2c3b55]">{`${stageIndex + 1}-${child2Index + 1}`}</span>
+                            <Input value={child2.name} onChange={(e) => handleUpdateStage(child2.id, 'name', e.target.value)} placeholder="1-X단계명" className="flex-1 bg-white border-none shadow-none focus-visible:ring-1 dark:bg-[#1E1E1E] dark:text-[#e5e2e1] dark:placeholder:text-[#908fa0]" />
                             <div className="flex items-center gap-2 w-24 shrink-0">
                               <Input type="number" value={child2.durationDays} onChange={(e) => handleUpdateStage(child2.id, 'durationDays', parseInt(e.target.value) || 0)} className="bg-white dark:bg-[#1E1E1E] dark:border-[#464554]/50 dark:text-[#e5e2e1] text-center border-none shadow-none" />
                               <span className="text-xs font-bold text-blue-400 dark:text-[#c0c1ff]">일</span>
                             </div>
                             <div className="flex gap-2 shrink-0">
                               {(child2.level ?? 0) < 2 && (
-                                <Button variant="ghost" size="icon" onClick={() => addChildStage(child2.id)} className="text-blue-300 hover:text-blue-600 h-6 w-6" title="3단계 추가">
+                                <Button variant="ghost" size="icon" onClick={() => addChildStage(child2.id)} className="text-blue-300 hover:text-blue-600 dark:text-[#8db6ff] dark:hover:text-[#c0c1ff] h-6 w-6" title="3단계 추가">
                                   <Plus className="h-3.5 w-3.5"/>
                                 </Button>
                               )}
-                              <Button variant="ghost" size="icon" onClick={() => handleRemoveStage(child2.id)} className="text-blue-300 hover:text-red-500 h-6 w-6">
+                              <Button variant="ghost" size="icon" onClick={() => handleRemoveStage(child2.id)} className="text-blue-300 hover:text-red-500 dark:text-[#8db6ff] dark:hover:text-[#ffb4ab] h-6 w-6">
                                 <X className="h-4 w-4"/>
                               </Button>
                             </div>
@@ -453,15 +453,15 @@ export default function SolutionsPage() {
 
                           {/* 3레벨 단계 */}
                           {expandedStages.has(child2.id) && child2.children && child2.children.map((child3, child3Index) => (
-                            <div key={child3.id} className="flex items-center gap-3 bg-purple-50 p-3 rounded-2xl border border-purple-100 ml-8 mt-2">
+                            <div key={child3.id} className="flex items-center gap-3 bg-purple-50 p-3 rounded-2xl border border-purple-100 ml-8 mt-2 dark:bg-[#1f1526] dark:border-[#4a3458]">
                               <div className="w-6" />
-                              <span className="min-w-8 h-8 px-2 flex items-center justify-center bg-white rounded-full text-xs font-bold text-purple-400 border border-purple-200">{`${stageIndex + 1}-${child2Index + 1}-${child3Index + 1}`}</span>
-                              <Input value={child3.name} onChange={(e) => handleUpdateStage(child3.id, 'name', e.target.value)} placeholder="1-X-X단계명" className="flex-1 bg-white border-none shadow-none focus-visible:ring-1" />
+                              <span className="min-w-8 h-8 px-2 flex items-center justify-center bg-white rounded-full text-xs font-bold text-purple-400 border border-purple-200 dark:bg-[#1E1E1E] dark:text-[#ddb7ff] dark:border-[#4a3458]">{`${stageIndex + 1}-${child2Index + 1}-${child3Index + 1}`}</span>
+                              <Input value={child3.name} onChange={(e) => handleUpdateStage(child3.id, 'name', e.target.value)} placeholder="1-X-X단계명" className="flex-1 bg-white border-none shadow-none focus-visible:ring-1 dark:bg-[#1E1E1E] dark:text-[#e5e2e1] dark:placeholder:text-[#908fa0]" />
                               <div className="flex items-center gap-2 w-24 shrink-0">
                                 <Input type="number" value={child3.durationDays} onChange={(e) => handleUpdateStage(child3.id, 'durationDays', parseInt(e.target.value) || 0)} className="bg-white dark:bg-[#1E1E1E] dark:border-[#464554]/50 dark:text-[#e5e2e1] text-center border-none shadow-none" />
                                 <span className="text-xs font-bold text-purple-400 dark:text-[#ddb7ff]">일</span>
                               </div>
-                              <Button variant="ghost" size="icon" onClick={() => handleRemoveStage(child3.id)} className="text-purple-300 hover:text-red-500 h-6 w-6">
+                              <Button variant="ghost" size="icon" onClick={() => handleRemoveStage(child3.id)} className="text-purple-300 hover:text-red-500 dark:text-[#ddb7ff] dark:hover:text-[#ffb4ab] h-6 w-6">
                                 <X className="h-4 w-4"/>
                               </Button>
                             </div>
@@ -474,11 +474,11 @@ export default function SolutionsPage() {
               </div>
 
               {/* 권한 관리 */}
-              <div className="space-y-4 pt-4 border-t border-gray-100">
-                <Label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+              <div className="space-y-4 pt-4 border-t border-gray-100 dark:border-[#464554]">
+                <Label className="text-sm font-bold text-gray-700 dark:text-[#e5e2e1] flex items-center gap-2">
                   <Users className="h-4 w-4"/> 접근 권한 설정
                 </Label>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-400 dark:text-[#908fa0]">
                   특정 사용자나 그룹을 지정하지 않으면 조직의 모든 멤버가 이 솔루션을 사용할 수 있습니다.
                 </p>
                 <div className="flex gap-2">
@@ -502,8 +502,8 @@ export default function SolutionsPage() {
                   </Button>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[11px] font-bold text-gray-400 uppercase">{accessListMode === 'group' ? '그룹 지정' : '사용자 지정'}</Label>
-                  <div className="h-[140px] overflow-y-auto rounded-xl border border-gray-200 p-2 space-y-1 bg-gray-50/50 custom-scrollbar">
+                  <Label className="text-[11px] font-bold text-gray-400 dark:text-[#908fa0] uppercase">{accessListMode === 'group' ? '그룹 지정' : '사용자 지정'}</Label>
+                  <div className="h-[140px] overflow-y-auto rounded-xl border border-gray-200 p-2 space-y-1 bg-gray-50/50 dark:bg-[#0e0e0e] dark:border-[#464554] custom-scrollbar">
                     {accessListMode === 'user' ? (
                       users.map(u => {
                         const selected = formData.userIds.includes(u.id)
@@ -518,11 +518,11 @@ export default function SolutionsPage() {
                                 setFormData({ ...formData, userIds: [...formData.userIds, u.id] })
                               }
                             }}
-                            className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg transition-all border text-left ${selected ? 'bg-white border-gray-300 shadow-sm' : 'border-transparent hover:bg-white hover:shadow-sm hover:border-gray-100'}`}
+                            className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg transition-all border text-left ${selected ? 'bg-white border-gray-300 shadow-sm dark:bg-[#2a2a2a] dark:border-[#c0c1ff]/40' : 'border-transparent hover:bg-white hover:shadow-sm hover:border-gray-100 dark:hover:bg-[#2a2a2a] dark:hover:border-[#464554]'}`}
                           >
-                            <User className={`h-4 w-4 ${selected ? 'text-[#111827]' : 'text-gray-400'}`} />
-                            <span className="text-sm font-medium text-gray-700 flex-1 truncate">{u.displayName}</span>
-                            {selected && <Check className="h-4 w-4 text-[#111827]" />}
+                            <User className={`h-4 w-4 ${selected ? 'text-[#111827] dark:text-[#c0c1ff]' : 'text-gray-400 dark:text-[#908fa0]'}`} />
+                            <span className="text-sm font-medium text-gray-700 dark:text-[#e5e2e1] flex-1 truncate">{u.displayName}</span>
+                            {selected && <Check className="h-4 w-4 text-[#111827] dark:text-[#c0c1ff]" />}
                           </button>
                         )
                       })
@@ -540,16 +540,16 @@ export default function SolutionsPage() {
                                 setFormData({ ...formData, groupIds: [...formData.groupIds, g.id] })
                               }
                             }}
-                            className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg transition-all border text-left ${selected ? 'bg-white border-gray-300 shadow-sm' : 'border-transparent hover:bg-white hover:shadow-sm hover:border-gray-100'}`}
+                            className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg transition-all border text-left ${selected ? 'bg-white border-gray-300 shadow-sm dark:bg-[#2a2a2a] dark:border-[#c0c1ff]/40' : 'border-transparent hover:bg-white hover:shadow-sm hover:border-gray-100 dark:hover:bg-[#2a2a2a] dark:hover:border-[#464554]'}`}
                           >
-                            <Users className={`h-4 w-4 ${selected ? 'text-[#111827]' : 'text-gray-400'}`} />
-                            <span className="text-sm font-medium text-gray-700 flex-1 truncate">{g.name}</span>
-                            {selected && <Check className="h-4 w-4 text-[#111827]" />}
+                            <Users className={`h-4 w-4 ${selected ? 'text-[#111827] dark:text-[#c0c1ff]' : 'text-gray-400 dark:text-[#908fa0]'}`} />
+                            <span className="text-sm font-medium text-gray-700 dark:text-[#e5e2e1] flex-1 truncate">{g.name}</span>
+                            {selected && <Check className="h-4 w-4 text-[#111827] dark:text-[#c0c1ff]" />}
                           </button>
                         )
                       })
                     ) : (
-                      <div className="h-full flex items-center justify-center text-xs font-medium text-gray-400">
+                      <div className="h-full flex items-center justify-center text-xs font-medium text-gray-400 dark:text-[#908fa0]">
                         등록된 그룹이 없습니다.
                       </div>
                     )}
@@ -558,9 +558,9 @@ export default function SolutionsPage() {
               </div>
             </div>
 
-            <DialogFooter className="mt-8 gap-3">
-              <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="rounded-full px-8 font-bold">취소</Button>
-              <Button onClick={handleSave} className="rounded-full px-10 font-bold bg-[#111827] text-white hover:bg-gray-800">설계 완료 및 저장</Button>
+            <DialogFooter className="mt-8 gap-3 pt-4 dark:border-t dark:border-[#464554]">
+              <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="rounded-full px-8 font-bold dark:bg-[#0e0e0e] dark:border dark:border-[#464554] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]">취소</Button>
+              <Button onClick={handleSave} className="rounded-full px-10 font-bold bg-[#111827] text-white hover:bg-gray-800 dark:bg-[#c0c1ff] dark:text-[#1c1b1b] dark:hover:bg-[#b3b5ff]">설계 완료 및 저장</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
