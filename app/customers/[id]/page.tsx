@@ -173,6 +173,7 @@ export default function CustomerDetailPage({
   const [editedOwner, setEditedOwner] = useState('')
   const [editingMilestones, setEditingMilestones] = useState<EditableMilestone[]>([])
   const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set())
+  const [collapsedParents, setCollapsedParents] = useState<Set<string>>(new Set())
   const [activeTab, setActiveTab] = useState("table")
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null)
   const [noteEditTarget, setNoteEditTarget] = useState<string | null>(null)
@@ -1493,6 +1494,24 @@ export default function CustomerDetailPage({
                           {displayedMilestones.map((milestone, index) => {
                             const sourceMilestone = customer.milestones.find((item) => item.id === milestone.id)
 
+                            const isRowVisible = (() => {
+                              const level = milestone.stageLevel ?? 0
+                              if (level === 0) return true
+                              const checkVisible = (idx: number): boolean => {
+                                const lv = displayedMilestones[idx].stageLevel ?? 0
+                                for (let i = idx - 1; i >= 0; i--) {
+                                  const pLv = displayedMilestones[i].stageLevel ?? 0
+                                  if (pLv < lv) {
+                                    if (collapsedParents.has(displayedMilestones[i].id)) return false
+                                    return checkVisible(i)
+                                  }
+                                }
+                                return true
+                              }
+                              return checkVisible(index)
+                            })()
+                            if (!isRowVisible) return null
+
                             return (
                             <Fragment key={milestone.id}>
                             <TableRow className="hover:bg-secondary/30 dark:hover:bg-[#1c1b1b] h-14">
@@ -1509,13 +1528,26 @@ export default function CustomerDetailPage({
                                     variant="ghost"
                                     size="icon"
                                     className="h-6 w-6"
-                                    onClick={() => toggleMilestoneAccordion(milestone.id)}
+                                    onClick={() => {
+                                      const hasChild = index + 1 < displayedMilestones.length && (displayedMilestones[index + 1].stageLevel ?? 0) > (milestone.stageLevel ?? 0)
+                                      if (hasChild) {
+                                        setCollapsedParents((prev) => {
+                                          const next = new Set(prev)
+                                          if (next.has(milestone.id)) { next.delete(milestone.id) } else { next.add(milestone.id) }
+                                          return next
+                                        })
+                                      } else {
+                                        toggleMilestoneAccordion(milestone.id)
+                                      }
+                                    }}
                                   >
-                                    {expandedMilestones.has(milestone.id) ? (
-                                      <ChevronDown className="h-4 w-4" />
-                                    ) : (
-                                      <ChevronRight className="h-4 w-4" />
-                                    )}
+                                    {(() => {
+                                      const hasChild = index + 1 < displayedMilestones.length && (displayedMilestones[index + 1].stageLevel ?? 0) > (milestone.stageLevel ?? 0)
+                                      if (hasChild) {
+                                        return collapsedParents.has(milestone.id) ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                                      }
+                                      return expandedMilestones.has(milestone.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
+                                    })()}
                                   </Button>
                                   <StatusIcon status={milestone.status} />
                                   {!isEditing ? (
