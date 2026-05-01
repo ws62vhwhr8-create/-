@@ -25,63 +25,67 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { format, differenceInDays, startOfDay, min, max, eachMonthOfInterval, startOfMonth, endOfMonth } from "date-fns"
-import { ko } from "date-fns/locale"
-import { 
-  ArrowLeft, 
-  Calendar, 
-  Building2, 
-  Download, 
-  Upload,
-  Folder,
-  FolderPlus,
-  FileText,
-  Trash2,
-  CheckCircle2,
-  Clock,
-  AlertTriangle,
-  Circle,
-  Edit2,
-  Check,
-  X,
-  ChevronDown,
-  ChevronRight,
-  Pencil,
-  Plus,
-  MoreVertical
+                                  ) : (
+                                    ) : (
+                                      <>
+                                        <div
+                                          className="mt-2 space-y-1 overflow-y-scroll pr-1"
+                                          style={{ height: `${workflowStagesHeight}px` }}
+                                        >
+                                          {stageMilestones.map((milestone, index) => {
+                                            const folderBrightnessClass = (milestone.stageLevel ?? 0) === 0
+                                              ? 'bg-secondary/20 dark:bg-[#212020]'
+                                              : (milestone.stageLevel ?? 0) === 1
+                                                ? 'bg-secondary/10 dark:bg-[#191818]'
+                                                : 'bg-secondary/3 dark:bg-[#121111]'
+
+                                            return (
+                                              <button
+                                                key={milestone.id}
+                                                type="button"
+                                                className={`w-full rounded-md border px-2 py-2 text-left text-sm transition-colors ${selectedMilestone?.id === milestone.id ? 'border-primary bg-secondary/65 dark:bg-[#3a3939]' : `border-border ${folderBrightnessClass}`} hover:bg-secondary/60 dark:hover:bg-[#2a2929]`}
+                                                onClick={() => {
+                                                  setSelectedMilestoneId(milestone.id)
+                                                  setSelectedFileTarget({
+                                                    milestoneId: milestone.id,
+                                                    noteId: null,
+                                                    kind: 'stage',
+                                                    label: milestone.stageName,
+                                                  })
+                                                }}
+                                              >
+                                                <div
+                                                  className="flex min-w-0 items-center gap-2"
+                                                  style={{ paddingLeft: `${(milestone.stageLevel ?? 0) * 12}px` }}
+                                                >
+                                                  <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                                  <span className="inline-flex shrink-0 rounded border border-border px-1 font-mono text-[11px]">
+                                                    {getStageLabel(stageMilestones, index)}
+                                                  </span>
+                                                  <span className="truncate">{milestone.stageName}</span>
+                                                </div>
+                                              </button>
+                                            )
+                                          })}
+                                        </div>
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="mt-2 h-6 w-full cursor-row-resize text-[11px] text-muted-foreground"
+                                          onMouseDown={(event) => {
+                                            event.preventDefault()
+                                            workflowResizeStartYRef.current = event.clientY
+                                            workflowResizeStartHeightRef.current = workflowStagesHeight
+                                            setIsWorkflowStagesResizing(true)
+                                          }}
+                                          title="드래그해서 영역 높이 조절"
+                                        >
+                                          드래그해서 영역 높이 조절
+                                        </Button>
+                                      </>
+                                    )
+                                  )
 } from "lucide-react"
 import Link from "next/link"
 import * as XLSX from "xlsx"
@@ -91,7 +95,7 @@ import dynamic from 'next/dynamic'
 const GanttChart = dynamic(() => import('@/components/gantt-chart'), {
   ssr: false,
   loading: () => (
-    <Card className="bg-card border-border">
+    <Card className="bg-secondary/30 border-border dark:bg-[#171616] dark:border-[#333333]">
       <CardHeader>
         <CardTitle>타임라인 뷰</CardTitle>
         <CardDescription>마일스톤 일정을 시각적으로 확인합니다.</CardDescription>
@@ -173,7 +177,6 @@ export default function CustomerDetailPage({
   const [editedOwner, setEditedOwner] = useState('')
   const [editingMilestones, setEditingMilestones] = useState<EditableMilestone[]>([])
   const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set())
-  const [collapsedParents, setCollapsedParents] = useState<Set<string>>(new Set())
   const [activeTab, setActiveTab] = useState("table")
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null)
   const [noteEditTarget, setNoteEditTarget] = useState<string | null>(null)
@@ -190,6 +193,8 @@ export default function CustomerDetailPage({
   const [selectedFileTarget, setSelectedFileTarget] = useState<FileLibraryTarget | null>(null)
   const [libraryByTarget, setLibraryByTarget] = useState<Record<string, MilestoneFile[]>>({})
   const [fileSearchQuery, setFileSearchQuery] = useState('')
+  const [isStageFolderCollapsed, setIsStageFolderCollapsed] = useState(false)
+  const [stageFolderHeight, setStageFolderHeight] = useState(192)
   const [isCreateFolderDialogOpen, setIsCreateFolderDialogOpen] = useState(false)
   const [folderNameDraft, setFolderNameDraft] = useState('')
   const [folderTarget, setFolderTarget] = useState<FileLibraryTarget | null>(null)
@@ -379,6 +384,7 @@ export default function CustomerDetailPage({
   }
 
   const addChildMilestone = (parentMilestoneId: string) => {
+    console.log('DEBUG addChildMilestone called, isEditing=', isEditing, 'parentMilestoneId=', parentMilestoneId)
     if (isEditing) {
       setEditingMilestones((prev) => {
         const parentIndex = prev.findIndex((milestone) => milestone.id === parentMilestoneId)
@@ -412,13 +418,14 @@ export default function CustomerDetailPage({
       return
     }
 
-    if (!customer) return
+    if (!customer) { console.log('DEBUG: no customer'); return }
 
     const parentIndex = customer.milestones.findIndex((milestone) => milestone.id === parentMilestoneId)
-    if (parentIndex < 0) return
+    if (parentIndex < 0) { console.log('DEBUG: parentIndex < 0, parentMilestoneId=', parentMilestoneId, 'milestones=', customer.milestones.map(m => m.id)); return }
 
     const parentMilestone = customer.milestones[parentIndex]
-    if ((parentMilestone.stageLevel ?? 0) >= 2) return
+    if ((parentMilestone.stageLevel ?? 0) >= 2) { console.log('DEBUG: stageLevel >= 2', parentMilestone.stageLevel); return }
+    console.log('DEBUG: calling updateCustomer, parentIndex=', parentIndex, 'stageLevel=', parentMilestone.stageLevel)
 
     const childMilestone: Milestone = {
       ...parentMilestone,
@@ -524,6 +531,26 @@ export default function CustomerDetailPage({
       }
       return next
     })
+  }
+
+  const isMilestoneRowVisible = (
+    milestones: Array<{ id: string; stageLevel?: number }>,
+    index: number,
+    expandedIds: Set<string>,
+  ) => {
+    const level = milestones[index].stageLevel ?? 0
+    if (level === 0) return true
+
+    let expectedAncestorLevel = level - 1
+    for (let cursor = index - 1; cursor >= 0 && expectedAncestorLevel >= 0; cursor -= 1) {
+      const cursorLevel = milestones[cursor].stageLevel ?? 0
+      if (cursorLevel === expectedAncestorLevel) {
+        if (!expandedIds.has(milestones[cursor].id)) return false
+        expectedAncestorLevel -= 1
+      }
+    }
+
+    return expectedAncestorLevel < 0
   }
 
   const openMilestoneDetail = (milestoneId: string) => {
@@ -770,15 +797,19 @@ export default function CustomerDetailPage({
       if (!response.ok) throw new Error('Failed to delete file')
       
       const key = getFileTargetKey(target)
-      setLibraryByTarget((prev) => ({
-        ...prev,
-        [key]: (prev[key] ?? []).filter((item) => item.id !== fileId),
-      }))
+      if (isMountedRef.current) {
+        setLibraryByTarget((prev) => ({
+          ...prev,
+          [key]: (prev[key] ?? []).filter((item) => item.id !== fileId),
+        }))
+      }
     } catch (error) {
       console.error('Error deleting file:', error)
       alert('파일 삭제 중 오류가 발생했습니다.')
     } finally {
-      setIsLoadingFiles(false)
+      if (isMountedRef.current) {
+        setIsLoadingFiles(false)
+      }
     }
   }
 
@@ -936,6 +967,7 @@ export default function CustomerDetailPage({
 
   const deleteNote = (milestone: Milestone, noteId: string) => {
     if (!customer) return
+    if (!confirm('정말로 이 액션 아이템을 삭제하시겠습니까? 하위 항목도 함께 삭제됩니다.')) return
     const currentNotes = milestone.notes ?? []
     const targetIds = new Set([noteId, ...getDescendantIds(currentNotes, noteId)])
 
@@ -1465,12 +1497,12 @@ export default function CustomerDetailPage({
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
               <TabsList className="bg-secondary/70 dark:bg-[#1c1b1b] border border-border dark:border-[#333333]">
                 <TabsTrigger value="table" className="dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-indigo-400 dark:data-[state=active]:border-b-2 dark:data-[state=active]:border-indigo-500 dark:text-[#c7c4d7]">마일스톤 테이블</TabsTrigger>
-                <TabsTrigger value="milestone-detail" className="dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-indigo-400 dark:data-[state=active]:border-b-2 dark:data-[state=active]:border-indigo-500 dark:text-[#c7c4d7]">마일스톤 단계별 상세</TabsTrigger>
-                <TabsTrigger value="gantt" className="dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-indigo-400 dark:data-[state=active]:border-b-2 dark:data-[state=active]:border-indigo-500 dark:text-[#c7c4d7]">간트 차트</TabsTrigger>
+                <TabsTrigger value="milestone-detail" className="dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-indigo-400 dark:data-[state=active]:border-b-2 dark:data-[state=active]:border-indigo-500 dark:text-[#c7c4d7]">공유된 파일</TabsTrigger>
+                <TabsTrigger value="gantt" className="dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-indigo-400 dark:data-[state=active]:border-b-2 dark:data-[state=active]:border-indigo-500 dark:text-[#c7c4d7]">간이 WBS</TabsTrigger>
               </TabsList>
               
               <TabsContent value="table">
-                <Card className="bg-white border-[#E2E8F0] shadow-sm dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)]">
+                <Card className="bg-secondary/30 border-border shadow-sm dark:bg-[#171616] dark:border-[#333333]">
                   <CardHeader>
                     <CardTitle className="dark:text-[#e5e2e1]">마일스톤 목록</CardTitle>
                     <CardDescription className="dark:text-[#908fa0]">각 단계의 진행 상태를 관리합니다.</CardDescription>
@@ -1492,29 +1524,14 @@ export default function CustomerDetailPage({
                         </TableHeader>
                         <TableBody>
                           {displayedMilestones.map((milestone, index) => {
-                            const sourceMilestone = customer.milestones.find((item) => item.id === milestone.id)
+                            const isVisible = isMilestoneRowVisible(displayedMilestones, index, expandedMilestones)
+                            if (!isVisible) return null
 
-                            const isRowVisible = (() => {
-                              const level = milestone.stageLevel ?? 0
-                              if (level === 0) return true
-                              const checkVisible = (idx: number): boolean => {
-                                const lv = displayedMilestones[idx].stageLevel ?? 0
-                                for (let i = idx - 1; i >= 0; i--) {
-                                  const pLv = displayedMilestones[i].stageLevel ?? 0
-                                  if (pLv < lv) {
-                                    if (collapsedParents.has(displayedMilestones[i].id)) return false
-                                    return checkVisible(i)
-                                  }
-                                }
-                                return true
-                              }
-                              return checkVisible(index)
-                            })()
-                            if (!isRowVisible) return null
+                            const sourceMilestone = customer.milestones.find((item) => item.id === milestone.id)
 
                             return (
                             <Fragment key={milestone.id}>
-                            <TableRow className="hover:bg-secondary/30 dark:hover:bg-[#1c1b1b] h-14">
+                            <TableRow className="hover:bg-secondary/30 dark:hover:bg-[#323232] h-14">
                               <TableCell className="py-3">
                                 <Badge variant="outline" className="font-mono text-xs whitespace-nowrap">{getStageLabel(displayedMilestones, index)}</Badge>
                               </TableCell>
@@ -1528,26 +1545,13 @@ export default function CustomerDetailPage({
                                     variant="ghost"
                                     size="icon"
                                     className="h-6 w-6"
-                                    onClick={() => {
-                                      const hasChild = index + 1 < displayedMilestones.length && (displayedMilestones[index + 1].stageLevel ?? 0) > (milestone.stageLevel ?? 0)
-                                      if (hasChild) {
-                                        setCollapsedParents((prev) => {
-                                          const next = new Set(prev)
-                                          if (next.has(milestone.id)) { next.delete(milestone.id) } else { next.add(milestone.id) }
-                                          return next
-                                        })
-                                      } else {
-                                        toggleMilestoneAccordion(milestone.id)
-                                      }
-                                    }}
+                                    onClick={() => toggleMilestoneAccordion(milestone.id)}
                                   >
-                                    {(() => {
-                                      const hasChild = index + 1 < displayedMilestones.length && (displayedMilestones[index + 1].stageLevel ?? 0) > (milestone.stageLevel ?? 0)
-                                      if (hasChild) {
-                                        return collapsedParents.has(milestone.id) ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
-                                      }
-                                      return expandedMilestones.has(milestone.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
-                                    })()}
+                                    {expandedMilestones.has(milestone.id) ? (
+                                      <ChevronDown className="h-4 w-4" />
+                                    ) : (
+                                      <ChevronRight className="h-4 w-4" />
+                                    )}
                                   </Button>
                                   <StatusIcon status={milestone.status} />
                                   {!isEditing ? (
@@ -1738,9 +1742,9 @@ export default function CustomerDetailPage({
               </TabsContent>
 
               <TabsContent value="milestone-detail">
-                <Card className="bg-card border-border">
+                <Card className="bg-secondary/30 border-border dark:bg-[#171616] dark:border-[#333333]">
                   <CardHeader>
-                    <CardTitle>마일스톤 단계별 상세</CardTitle>
+                    <CardTitle>공유된 파일</CardTitle>
                     <CardDescription>마일스톤 목록에서 단계/액션아이템을 클릭해 파일 라이브러리를 관리합니다.</CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -1749,20 +1753,6 @@ export default function CustomerDetailPage({
                       if (!selectedMilestone) {
                         return <p className="text-sm text-muted-foreground">마일스톤 단계를 선택해주세요.</p>
                       }
-
-                      const collectActionItems = (
-                        notes: MilestoneNote[],
-                        parentNoteId: string | null,
-                        prefix: string
-                      ): Array<{ note: MilestoneNote; label: string }> => {
-                        const children = notes.filter((note) => (note.parentNoteId ?? null) === parentNoteId)
-                        return children.flatMap((note, index) => {
-                          const label = prefix ? `${prefix}-${index + 1}` : `${index + 1}`
-                          return [{ note, label }, ...collectActionItems(notes, note.id, label)]
-                        })
-                      }
-
-                      const actionItems = collectActionItems(selectedMilestone.notes ?? [], null, '')
 
                       const currentTarget = (
                         selectedFileTarget && selectedFileTarget.milestoneId === selectedMilestone.id
@@ -1785,48 +1775,70 @@ export default function CustomerDetailPage({
 
                       return (
                         <div className="space-y-4">
-                          <div className="grid gap-4 md:grid-cols-2">
+                          <div>
                             <div className="rounded-lg border border-border bg-secondary/20 p-4 dark:bg-[#1E1E1E] dark:border-[#333333]">
-                              <p className="text-xs text-muted-foreground">단계</p>
-                              <button
-                                type="button"
-                                className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2 text-left text-sm font-medium hover:bg-secondary"
-                                onClick={() => setSelectedFileTarget({
-                                  milestoneId: selectedMilestone.id,
-                                  noteId: null,
-                                  kind: 'stage',
-                                  label: selectedMilestone.stageName,
-                                })}
-                              >
-                                {selectedMilestone.stageName}
-                              </button>
-                              <p className="mt-2 text-xs text-muted-foreground">
-                                마감일 {format(selectedMilestone.dueDate, 'yyyy.MM.dd', { locale: ko })}
-                              </p>
-                            </div>
-
-                            <div className="rounded-lg border border-border bg-secondary/20 p-4 dark:bg-[#1E1E1E] dark:border-[#333333]">
-                              <p className="text-xs text-muted-foreground">액션아이템</p>
-                              {actionItems.length === 0 ? (
-                                <p className="mt-2 text-sm text-muted-foreground">등록된 액션 아이템이 없습니다.</p>
-                              ) : (
-                                <div className="mt-2 max-h-48 space-y-2 overflow-y-auto pr-1">
-                                  {actionItems.map(({ note, label }) => (
-                                    <button
-                                      key={note.id}
-                                      type="button"
-                                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-secondary"
-                                      onClick={() => setSelectedFileTarget({
-                                        milestoneId: selectedMilestone.id,
-                                        noteId: note.id,
-                                        kind: 'action-item',
-                                        label: note.content,
-                                      })}
-                                    >
-                                      <span className="mr-2 inline-flex rounded border border-border px-1 font-mono text-[11px]">{label}</span>
-                                      <span className="align-middle">{note.content}</span>
-                                    </button>
-                                  ))}
+                              <div className="flex items-center justify-between">
+                                <p className="text-xs text-muted-foreground">단계 (폴더)</p>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => setIsStageFolderCollapsed((prev) => !prev)}
+                                >
+                                  {isStageFolderCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                </Button>
+                              </div>
+                              {!isStageFolderCollapsed && (
+                                <div className="group/folder relative mt-2">
+                                  <div
+                                    className="space-y-2 overflow-y-auto pr-1"
+                                    style={{ height: stageFolderHeight }}
+                                  >
+                                    {customer.milestones.map((milestone, index) => (
+                                      <button
+                                        key={milestone.id}
+                                        type="button"
+                                        className={`w-full rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-secondary dark:hover:bg-[#323232]${milestone.id === selectedMilestoneId ? ' dark:bg-[#323232]' : ''}`}
+                                        style={{ paddingLeft: `${12 + ((milestone.stageLevel ?? 0) * 16)}px` }}
+                                        onClick={() => {
+                                          setSelectedMilestoneId(milestone.id)
+                                          setSelectedFileTarget({
+                                            milestoneId: milestone.id,
+                                            noteId: null,
+                                            kind: 'stage',
+                                            label: milestone.stageName,
+                                          })
+                                        }}
+                                      >
+                                        <span className="mr-2 inline-flex rounded border border-border px-1 font-mono text-[11px]">{getStageLabel(customer.milestones, index)}</span>
+                                        <span className="inline-flex items-center gap-2 align-middle">
+                                          <Folder className="h-4 w-4 text-muted-foreground" />
+                                          <span className="truncate">{milestone.stageName}</span>
+                                        </span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <div
+                                    className="absolute bottom-0 left-0 right-0 h-2 cursor-row-resize opacity-0 transition-opacity group-hover/folder:opacity-100 flex items-center justify-center"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault()
+                                      const startY = e.clientY
+                                      const startH = stageFolderHeight
+                                      const onMove = (ev: MouseEvent) => {
+                                        const next = Math.max(64, startH + ev.clientY - startY)
+                                        setStageFolderHeight(next)
+                                      }
+                                      const onUp = () => {
+                                        window.removeEventListener('mousemove', onMove)
+                                        window.removeEventListener('mouseup', onUp)
+                                      }
+                                      window.addEventListener('mousemove', onMove)
+                                      window.addEventListener('mouseup', onUp)
+                                    }}
+                                  >
+                                    <div className="h-1 w-10 rounded-full bg-border" />
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -1950,7 +1962,7 @@ export default function CustomerDetailPage({
               </TabsContent>
               
               <TabsContent value="gantt">
-                <Card className="bg-card border-border">
+                <Card className="bg-secondary/30 border-border dark:bg-[#171616] dark:border-[#333333]">
                   <CardHeader>
                     <CardTitle>타임라인 뷰</CardTitle>
                     <CardDescription>마일스톤 일정을 시각적으로 확인합니다.</CardDescription>
