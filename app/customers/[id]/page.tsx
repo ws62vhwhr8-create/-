@@ -25,67 +25,63 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-                                  ) : (
-                                    ) : (
-                                      <>
-                                        <div
-                                          className="mt-2 space-y-1 overflow-y-scroll pr-1"
-                                          style={{ height: `${workflowStagesHeight}px` }}
-                                        >
-                                          {stageMilestones.map((milestone, index) => {
-                                            const folderBrightnessClass = (milestone.stageLevel ?? 0) === 0
-                                              ? 'bg-secondary/20 dark:bg-[#212020]'
-                                              : (milestone.stageLevel ?? 0) === 1
-                                                ? 'bg-secondary/10 dark:bg-[#191818]'
-                                                : 'bg-secondary/3 dark:bg-[#121111]'
-
-                                            return (
-                                              <button
-                                                key={milestone.id}
-                                                type="button"
-                                                className={`w-full rounded-md border px-2 py-2 text-left text-sm transition-colors ${selectedMilestone?.id === milestone.id ? 'border-primary bg-secondary/65 dark:bg-[#3a3939]' : `border-border ${folderBrightnessClass}`} hover:bg-secondary/60 dark:hover:bg-[#2a2929]`}
-                                                onClick={() => {
-                                                  setSelectedMilestoneId(milestone.id)
-                                                  setSelectedFileTarget({
-                                                    milestoneId: milestone.id,
-                                                    noteId: null,
-                                                    kind: 'stage',
-                                                    label: milestone.stageName,
-                                                  })
-                                                }}
-                                              >
-                                                <div
-                                                  className="flex min-w-0 items-center gap-2"
-                                                  style={{ paddingLeft: `${(milestone.stageLevel ?? 0) * 12}px` }}
-                                                >
-                                                  <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                                  <span className="inline-flex shrink-0 rounded border border-border px-1 font-mono text-[11px]">
-                                                    {getStageLabel(stageMilestones, index)}
-                                                  </span>
-                                                  <span className="truncate">{milestone.stageName}</span>
-                                                </div>
-                                              </button>
-                                            )
-                                          })}
-                                        </div>
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="sm"
-                                          className="mt-2 h-6 w-full cursor-row-resize text-[11px] text-muted-foreground"
-                                          onMouseDown={(event) => {
-                                            event.preventDefault()
-                                            workflowResizeStartYRef.current = event.clientY
-                                            workflowResizeStartHeightRef.current = workflowStagesHeight
-                                            setIsWorkflowStagesResizing(true)
-                                          }}
-                                          title="드래그해서 영역 높이 조절"
-                                        >
-                                          드래그해서 영역 높이 조절
-                                        </Button>
-                                      </>
-                                    )
-                                  )
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { format, differenceInDays, startOfDay, min, max, eachMonthOfInterval, startOfMonth, endOfMonth } from "date-fns"
+import { ko } from "date-fns/locale"
+import {
+  ArrowLeft,
+  AlertTriangle,
+  Building2,
+  Calendar,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Circle,
+  Clock,
+  Download,
+  Edit2,
+  FileText,
+  Folder,
+  FolderPlus,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Trash2,
+  Upload,
+  X,
 } from "lucide-react"
 import Link from "next/link"
 import * as XLSX from "xlsx"
@@ -200,6 +196,7 @@ export default function CustomerDetailPage({
   const [folderTarget, setFolderTarget] = useState<FileLibraryTarget | null>(null)
   const [selectedFileForViewer, setSelectedFileForViewer] = useState<MilestoneFile | null>(null)
   const [isLoadingFiles, setIsLoadingFiles] = useState(false)
+  const isMountedRef = useRef(true)
   
   const customer = customers.find(c => c.id === id)
   const displayedMilestones = isEditing ? editingMilestones : (customer?.milestones ?? [])
@@ -233,7 +230,13 @@ export default function CustomerDetailPage({
 
     return users.filter(u => availableUserSet.has(u.id))
   }, [customer, users])
-  
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
   // Initialize edit fields when customer loads or editing mode changes
   useEffect(() => {
     if (customer && isEditing) {
