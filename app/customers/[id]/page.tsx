@@ -2,6 +2,7 @@
 
 import { Fragment, use, useState, useMemo, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { toast } from "sonner"
 import { Navigation } from "@/components/navigation"
 import { SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
 import { useAppStore } from "@/lib/store"
@@ -208,6 +209,13 @@ export default function CustomerDetailPage({
     kept: EditableMilestone[]
   } | null>(null)
   const [isExcelConfirmOpen, setIsExcelConfirmOpen] = useState(false)
+  const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false)
+  const [isDeleteMilestoneConfirmOpen, setIsDeleteMilestoneConfirmOpen] = useState(false)
+  const [deleteMilestoneTargetId, setDeleteMilestoneTargetId] = useState<string | null>(null)
+  const [isDeleteFileConfirmOpen, setIsDeleteFileConfirmOpen] = useState(false)
+  const [deleteFileTarget, setDeleteFileTarget] = useState<{ target: FileLibraryTarget; fileId: string } | null>(null)
+  const [isDeleteNoteConfirmOpen, setIsDeleteNoteConfirmOpen] = useState(false)
+  const [deleteNoteTarget, setDeleteNoteTarget] = useState<{ milestone: Milestone; noteId: string } | null>(null)
   const isMountedRef = useRef(true)
   
   const customer = customers.find(c => c.id === id)
@@ -447,11 +455,21 @@ export default function CustomerDetailPage({
     setIsEditing(false)
     // Remove edit query parameter
     router.push(`/customers/${customer.id}`)
+    toast.success("변경사항이 저장되었습니다")
   }
   
   const handleCancelEdits = () => {
+    if (editingMilestones.length > 0) {
+      setIsCancelConfirmOpen(true)
+    } else {
+      setIsEditing(false)
+    }
+  }
+
+  const handleCancelConfirmed = () => {
     setIsEditing(false)
     setEditingMilestones([])
+    setIsCancelConfirmOpen(false)
   }
 
   const updateEditingMilestone = (milestoneId: string, updates: Partial<EditableMilestone>) => {
@@ -583,7 +601,15 @@ export default function CustomerDetailPage({
   }
 
   const handleDeleteMilestoneRow = (milestoneId: string) => {
-    if (!confirm('정말로 이 단계를 삭제하시겠습니까? 하위 단계도 함께 삭제됩니다.')) return
+    setDeleteMilestoneTargetId(milestoneId)
+    setIsDeleteMilestoneConfirmOpen(true)
+  }
+
+  const handleDeleteMilestoneConfirmed = () => {
+    const milestoneId = deleteMilestoneTargetId
+    setIsDeleteMilestoneConfirmOpen(false)
+    setDeleteMilestoneTargetId(null)
+    if (!milestoneId) return
 
     if (isEditing) {
       const { nextMilestones, removedIds } = removeMilestoneBranch(editingMilestones, milestoneId)
@@ -735,7 +761,7 @@ export default function CustomerDetailPage({
       }
     } catch (error) {
       console.error('Error downloading file:', error)
-      alert('파일 다운로드 중 오류가 발생했습니다.')
+      toast.error('파일 다운로드 중 오류가 발생했습니다.')
     }
   }
 
@@ -838,7 +864,7 @@ export default function CustomerDetailPage({
     } catch (error) {
       console.error('Error uploading file:', error)
       const errorMessage = error instanceof Error ? error.message : '파일 업로드 중 오류가 발생했습니다.'
-      alert(errorMessage)
+      toast.error(errorMessage)
     } finally {
       setIsLoadingFiles(false)
     }
@@ -886,7 +912,7 @@ export default function CustomerDetailPage({
     } catch (error) {
       console.error('Error creating folder:', error)
       const errorMessage = error instanceof Error ? error.message : '폴더 생성 중 오류가 발생했습니다.'
-      alert(errorMessage)
+      toast.error(errorMessage)
     } finally {
       setIsLoadingFiles(false)
     }
@@ -924,14 +950,22 @@ export default function CustomerDetailPage({
       await reloadFilesForTarget(targetFileTarget)
     } catch (error) {
       console.error('Error moving file:', error)
-      alert('파일 이동 중 오류가 발생했습니다.')
+      toast.error('파일 이동 중 오류가 발생했습니다.')
     } finally {
       if (isMountedRef.current) setIsLoadingFiles(false)
     }
   }
 
   const handleRemoveFile = async (target: FileLibraryTarget, fileId: string) => {
-    if (!confirm('정말로 이 파일을 삭제하시겠습니까?')) return
+    setDeleteFileTarget({ target, fileId })
+    setIsDeleteFileConfirmOpen(true)
+  }
+
+  const handleRemoveFileConfirmed = async () => {
+    if (!deleteFileTarget) return
+    const { target, fileId } = deleteFileTarget
+    setIsDeleteFileConfirmOpen(false)
+    setDeleteFileTarget(null)
     
     try {
       setIsLoadingFiles(true)
@@ -950,7 +984,7 @@ export default function CustomerDetailPage({
       }
     } catch (error) {
       console.error('Error deleting file:', error)
-      alert('파일 삭제 중 오류가 발생했습니다.')
+      toast.error('파일 삭제 중 오류가 발생했습니다.')
     } finally {
       if (isMountedRef.current) {
         setIsLoadingFiles(false)
@@ -1112,7 +1146,15 @@ export default function CustomerDetailPage({
 
   const deleteNote = (milestone: Milestone, noteId: string) => {
     if (!customer) return
-    if (!confirm('정말로 이 액션 아이템을 삭제하시겠습니까? 하위 항목도 함께 삭제됩니다.')) return
+    setDeleteNoteTarget({ milestone, noteId })
+    setIsDeleteNoteConfirmOpen(true)
+  }
+
+  const deleteNoteConfirmed = () => {
+    if (!deleteNoteTarget || !customer) return
+    const { milestone, noteId } = deleteNoteTarget
+    setIsDeleteNoteConfirmOpen(false)
+    setDeleteNoteTarget(null)
     const currentNotes = milestone.notes ?? []
     const targetIds = new Set([noteId, ...getDescendantIds(currentNotes, noteId)])
 
@@ -2376,6 +2418,85 @@ export default function CustomerDetailPage({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* M-3: Cancel editing confirmation */}
+      <AlertDialog open={isCancelConfirmOpen} onOpenChange={setIsCancelConfirmOpen}>
+        <AlertDialogContent className="bg-white dark:bg-[#1c1b1b] dark:border-[#464554]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>저장하지 않은 변경사항이 있습니다</AlertDialogTitle>
+            <AlertDialogDescription>
+              취소하면 변경한 내용이 모두 사라집니다. 정말 취소하시겠습니까?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsCancelConfirmOpen(false)}>계속 편집</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCancelConfirmed}>변경사항 폐기</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* L-1: Delete milestone confirmation */}
+      <AlertDialog open={isDeleteMilestoneConfirmOpen} onOpenChange={setIsDeleteMilestoneConfirmOpen}>
+        <AlertDialogContent className="bg-white dark:bg-[#1c1b1b] dark:border-[#464554]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>단계 삭제</AlertDialogTitle>
+            <AlertDialogDescription>
+              정말로 이 단계를 삭제하시겠습니까? 하위 단계도 함께 삭제됩니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDeleteMilestoneConfirmed}
+            >
+              삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* L-1: Delete file confirmation */}
+      <AlertDialog open={isDeleteFileConfirmOpen} onOpenChange={setIsDeleteFileConfirmOpen}>
+        <AlertDialogContent className="bg-white dark:bg-[#1c1b1b] dark:border-[#464554]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>파일 삭제</AlertDialogTitle>
+            <AlertDialogDescription>
+              정말로 이 파일을 삭제하시겠습니까?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteFileTarget(null)}>취소</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => void handleRemoveFileConfirmed()}
+            >
+              삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* L-1: Delete action item confirmation */}
+      <AlertDialog open={isDeleteNoteConfirmOpen} onOpenChange={setIsDeleteNoteConfirmOpen}>
+        <AlertDialogContent className="bg-white dark:bg-[#1c1b1b] dark:border-[#464554]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>액션 아이템 삭제</AlertDialogTitle>
+            <AlertDialogDescription>
+              정말로 이 액션 아이템을 삭제하시겠습니까? 하위 항목도 함께 삭제됩니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteNoteTarget(null)}>취소</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={deleteNoteConfirmed}
+            >
+              삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

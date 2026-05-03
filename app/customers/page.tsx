@@ -3,6 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { Navigation } from "@/components/navigation"
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { useAppStore } from "@/lib/store"
@@ -177,9 +178,7 @@ export default function CustomersPage() {
     })
     
     const entityNames = entities.map(e => e.name).join(', ')
-    alert(
-      `${customerToShare.companyName} 정보가 다음에 공유되었습니다:\n${entityNames}`
-    )
+    toast.success(`${customerToShare.companyName} 정보가 ${entityNames}에 공유되었습니다`)
   }
 
   const getProgress = (customer: Customer) => {
