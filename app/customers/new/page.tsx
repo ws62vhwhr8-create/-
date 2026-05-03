@@ -11,18 +11,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { SolutionCardGrid } from "@/components/solution-card-grid"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format, addDays } from "date-fns"
 import { ko } from "date-fns/locale"
-import { CalendarIcon, ArrowRight, Clock, FolderKanban, User, X } from "lucide-react"
+import { CalendarIcon, ArrowRight, Clock, FolderKanban, User, X, ChevronDown } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import EntraPicker from "@/components/entra-picker"
 import type { PickerUser } from "@/components/entra-picker"
@@ -45,6 +39,7 @@ export default function NewCustomerPage() {
   const [ownerName, setOwnerName] = useState("")
   const [ownerEmail, setOwnerEmail] = useState("")
   const [isOwnerPickerOpen, setIsOwnerPickerOpen] = useState(false)
+  const [isSolutionOpen, setIsSolutionOpen] = useState(true)
 
   const selectedSolution = solutions.find(s => s.id === solutionId)
   const flattenedSelectedStages = selectedSolution ? flattenStages(selectedSolution.stages) : []
@@ -137,19 +132,26 @@ export default function NewCustomerPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="solution">솔루션</Label>
-                  <Select value={solutionId} onValueChange={setSolutionId}>
-                    <SelectTrigger className="bg-secondary">
-                      <SelectValue placeholder="솔루션 선택" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {solutions.map((solution) => (
-                        <SelectItem key={solution.id} value={solution.id}>
-                          {solution.name} · {flattenStages(solution.stages).length}단계 · {flattenStages(solution.stages).reduce((sum, stage) => sum + stage.durationDays, 0)}일
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <button
+                    type="button"
+                    onClick={() => setIsSolutionOpen((v) => !v)}
+                    className="flex w-full items-center justify-between"
+                  >
+                    <Label className="pointer-events-none">솔루션</Label>
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                        isSolutionOpen ? "rotate-0" : "-rotate-90"
+                      )}
+                    />
+                  </button>
+                  {isSolutionOpen && (
+                    <SolutionCardGrid
+                      solutions={solutions}
+                      value={solutionId}
+                      onChange={setSolutionId}
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-2">
