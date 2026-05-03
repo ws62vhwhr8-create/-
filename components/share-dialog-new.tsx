@@ -5,6 +5,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -161,38 +162,38 @@ export function ShareDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[900px]">
-        <DialogHeader>
-          <DialogTitle>고객 정보 공유</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="sm:max-w-[900px] dark:bg-[#1c1b1b] dark:border-[#464554] max-h-[85vh] overflow-hidden p-0">
+        <DialogHeader className="dark:border-b dark:border-[#464554] px-6 py-5">
+          <DialogTitle className="dark:text-[#e5e2e1]">고객 정보 공유</DialogTitle>
+          <DialogDescription className="dark:text-[#c7c4d7]">
             &quot;{customerName}&quot; 정보를 공유할 사용자 또는 그룹을 검색하세요.
             <br />
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground dark:text-[#908fa0]">
               조직 사용자 및 그룹 - 이름 또는 이메일로 검색
             </span>
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-0 min-h-[460px]">
           {/* Left Column - Search and Selection */}
-          <div className="space-y-4 border-r pr-4">
+          <div className="space-y-4 border-r dark:border-r-[#464554] px-4 py-4">
             {/* Search Input */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <div className="relative group">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground dark:text-[#908fa0] dark:group-focus-within:text-[#c0c1ff] transition-colors" />
               <Input
                 placeholder="이름, 이메일 또는 그룹명으로 검색..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-secondary"
+                className="pl-9 bg-secondary dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:placeholder:text-[#908fa0]"
               />
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 border-b dark:border-b-[#464554] pb-1">
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                className={listMode === 'group' ? 'border-primary text-primary bg-primary/5' : 'border-transparent'}
+                className={listMode === 'group' ? 'border-primary text-primary bg-primary/5 dark:border-[#464554] dark:bg-[#2a2a2a] dark:text-[#c0c1ff]' : 'border-transparent dark:text-[#908fa0] dark:hover:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]'}
                 onClick={() => setListMode('group')}
               >
                 그룹
@@ -201,7 +202,7 @@ export function ShareDialog({
                 type="button"
                 size="sm"
                 variant="outline"
-                className={listMode === 'user' ? 'border-primary text-primary bg-primary/5' : 'border-transparent'}
+                className={listMode === 'user' ? 'border-primary text-primary bg-primary/5 dark:border-[#464554] dark:bg-[#2a2a2a] dark:text-[#c0c1ff]' : 'border-transparent dark:text-[#908fa0] dark:hover:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]'}
                 onClick={() => setListMode('user')}
               >
                 사용자
@@ -211,13 +212,13 @@ export function ShareDialog({
             {/* Selected Entities */}
             {selectedEntities.length > 0 && (
               <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">선택됨 ({selectedEntities.length})</p>
+                <p className="text-sm text-muted-foreground dark:text-[#908fa0]">선택됨 ({selectedEntities.length})</p>
                 <div className="flex flex-wrap gap-2">
                   {selectedEntities.map((entity) => (
                     <Badge
                       key={entity.id}
                       variant="secondary"
-                      className="flex items-center gap-1 py-1 px-2"
+                      className="flex items-center gap-1 py-1 px-2 dark:bg-[#2a2a2a] dark:text-[#c7c4d7]"
                     >
                       {entity.type === 'group' ? (
                         <Users className="h-3 w-3" />
@@ -227,7 +228,7 @@ export function ShareDialog({
                       <span>{entity.name}</span>
                       <button
                         onClick={() => removeSelection(entity.id)}
-                        className="ml-1 hover:bg-muted rounded"
+                        className="ml-1 hover:bg-muted dark:hover:bg-[#353534] rounded"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -238,19 +239,19 @@ export function ShareDialog({
             )}
 
             {/* Search Results */}
-            <div className="border rounded-lg bg-secondary/30">
+            <div className="border rounded-lg bg-secondary/30 dark:bg-[#0e0e0e] dark:border-[#464554]">
               <ScrollArea className="h-[280px]">
                 {searchQuery.trim() === "" ? (
                   <div className="flex flex-col items-center justify-center h-full py-8 text-center">
-                    <Search className="h-8 w-8 text-muted-foreground/50 mb-2" />
-                    <p className="text-sm text-muted-foreground">
+                    <Search className="h-8 w-8 text-muted-foreground/50 dark:text-[#908fa0]/50 mb-2" />
+                    <p className="text-sm text-muted-foreground dark:text-[#908fa0]">
                       {listMode === 'group' ? '그룹명을 입력하세요' : '사용자 이름 또는 이메일을 입력하세요'}
                     </p>
                   </div>
                 ) : searchResults.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full py-8 text-center">
-                    <Users className="h-8 w-8 text-muted-foreground/50 mb-2" />
-                    <p className="text-sm text-muted-foreground">
+                    <Users className="h-8 w-8 text-muted-foreground/50 dark:text-[#908fa0]/50 mb-2" />
+                    <p className="text-sm text-muted-foreground dark:text-[#908fa0]">
                       검색 결과가 없습니다
                     </p>
                   </div>
@@ -263,16 +264,16 @@ export function ShareDialog({
                         className={cn(
                           "w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left",
                           isSelected(entity)
-                            ? "bg-primary/10 border border-primary/30"
-                            : "hover:bg-secondary"
+                            ? "bg-primary/10 border border-primary/30 dark:bg-[#2a2a2a] dark:border-[#c0c1ff]/40"
+                            : "hover:bg-secondary dark:hover:bg-[#2a2a2a]"
                         )}
                       >
                         <Avatar className="h-9 w-9">
                           <AvatarFallback className={cn(
                             "text-xs",
                             entity.type === 'group' 
-                              ? "bg-chart-2/20 text-chart-2" 
-                              : "bg-primary/20 text-primary"
+                              ? "bg-chart-2/20 text-chart-2 dark:bg-[#353534] dark:text-[#c0c1ff]" 
+                              : "bg-primary/20 text-primary dark:bg-[#353534] dark:text-[#c0c1ff]"
                           )}>
                             {entity.type === 'group' ? (
                               <Users className="h-4 w-4" />
@@ -284,14 +285,14 @@ export function ShareDialog({
                         
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium truncate">{entity.name}</span>
+                            <span className="font-medium truncate dark:text-[#e5e2e1]">{entity.name}</span>
                             {entity.type === 'group' && (
-                              <Badge variant="outline" className="text-xs py-0">
+                              <Badge variant="outline" className="text-xs py-0 dark:border-[#464554] dark:text-[#c7c4d7]">
                                 그룹
                               </Badge>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground truncate">
+                          <p className="text-sm text-muted-foreground dark:text-[#908fa0] truncate">
                             {entity.type === 'user' 
                               ? entity.email
                               : `${entity.memberCount}명의 멤버`
@@ -300,7 +301,7 @@ export function ShareDialog({
                         </div>
                         
                         {isSelected(entity) && (
-                          <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                          <Check className="h-4 w-4 text-primary dark:text-[#c0c1ff] flex-shrink-0" />
                         )}
                       </button>
                     ))}
@@ -311,14 +312,14 @@ export function ShareDialog({
           </div>
 
           {/* Right Column - Already Shared */}
-          <div className="space-y-4 pl-4">
-            <p className="text-sm font-medium text-muted-foreground">공유 대상 조회</p>
-            <div className="border rounded-lg bg-secondary/30">
+          <div className="space-y-4 bg-secondary/20 dark:bg-[#0e0e0e] px-4 py-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground dark:text-[#908fa0] border-b border-border dark:border-[#464554] pb-3">공유 대상 조회</p>
+            <div className="border rounded-lg bg-secondary/20 dark:bg-[#131313] dark:border-[#464554]">
               <ScrollArea className="h-[400px]">
                 {sharedEntities.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full py-8 text-center">
-                    <Users className="h-8 w-8 text-muted-foreground/50 mb-2" />
-                    <p className="text-sm text-muted-foreground">
+                    <Users className="h-8 w-8 text-muted-foreground/50 dark:text-[#908fa0]/50 mb-2" />
+                    <p className="text-sm text-muted-foreground dark:text-[#908fa0]">
                       공유된 그룹/사용자가 없습니다
                     </p>
                   </div>
@@ -327,14 +328,14 @@ export function ShareDialog({
                     {sharedEntities.map((entity) => (
                       <div
                         key={entity.id}
-                        className="flex items-center gap-3 p-2 rounded-lg bg-muted/50"
+                        className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 dark:bg-[#2a2a2a]"
                       >
                         <Avatar className="h-9 w-9">
                           <AvatarFallback className={cn(
                             "text-xs",
                             entity.type === 'group' 
-                              ? "bg-chart-2/20 text-chart-2" 
-                              : "bg-primary/20 text-primary"
+                              ? "bg-chart-2/20 text-chart-2 dark:bg-[#353534] dark:text-[#c0c1ff]" 
+                              : "bg-primary/20 text-primary dark:bg-[#353534] dark:text-[#c0c1ff]"
                           )}>
                             {entity.type === 'group' ? (
                               <Users className="h-4 w-4" />
@@ -346,14 +347,14 @@ export function ShareDialog({
                         
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium truncate">{entity.name}</span>
+                            <span className="font-medium truncate dark:text-[#e5e2e1]">{entity.name}</span>
                             {entity.type === 'group' && (
-                              <Badge variant="outline" className="text-xs py-0">
+                              <Badge variant="outline" className="text-xs py-0 dark:border-[#464554] dark:text-[#c7c4d7]">
                                 그룹
                               </Badge>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground truncate">
+                          <p className="text-sm text-muted-foreground dark:text-[#908fa0] truncate">
                             {entity.type === 'user' 
                               ? entity.email
                               : `${entity.memberCount}명의 멤버`
@@ -361,7 +362,7 @@ export function ShareDialog({
                           </p>
                         </div>
                         
-                        <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        <Check className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
                       </div>
                     ))}
                   </div>
@@ -372,11 +373,12 @@ export function ShareDialog({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-end gap-2 pt-4 border-t">
-          <Button variant="outline" onClick={handleClose}>
+        <DialogFooter className="pt-4 px-6 pb-5 border-t dark:border-t-[#464554] bg-secondary/20 dark:bg-[#0e0e0e]">
+          <Button variant="outline" className="dark:bg-transparent dark:border-[#464554] dark:text-[#c7c4d7] dark:hover:bg-[#2a2a2a]" onClick={handleClose}>
             취소
           </Button>
           <Button 
+            className="border border-blue-600 bg-blue-600 text-white hover:bg-blue-700 dark:border-[#6366F1] dark:bg-[#6366F1] dark:hover:opacity-90"
             onClick={handleShare} 
             disabled={selectedEntities.length === 0 || isSharing}
           >
@@ -389,7 +391,7 @@ export function ShareDialog({
               </>
             )}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

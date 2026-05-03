@@ -22,7 +22,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { format } from "date-fns"
 import { ko } from "date-fns/locale"
-import { Search, Filter } from "lucide-react"
+import { Search, Filter, Building2, Calendar, User } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import type { Customer } from "@/lib/types"
 
@@ -54,6 +56,7 @@ export function CustomerTable({ tone = "default" }: CustomerTableProps) {
   const [solutionFilter, setSolutionFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [ownerFilter, setOwnerFilter] = useState<string>("all")
+  const [myCustomersOnly, setMyCustomersOnly] = useState(true)
 
   const uniqueOwners = Array.from(new Set(customers.map(c => c.ownerName)))
   const isUser = tone === "user"
@@ -66,7 +69,7 @@ export function CustomerTable({ tone = "default" }: CustomerTableProps) {
     const matchesSolution = solutionFilter === "all" || customer.solutionId === solutionFilter
     const matchesStatus = statusFilter === "all" || customer.status === statusFilter
     const matchesOwner = isUser
-      ? customer.ownerName === currentOwnerName
+      ? (myCustomersOnly ? customer.ownerName === currentOwnerName : true)
       : ownerFilter === "all" || customer.ownerName === ownerFilter
     return matchesSearch && matchesSolution && matchesStatus && matchesOwner
   })
@@ -92,6 +95,21 @@ export function CustomerTable({ tone = "default" }: CustomerTableProps) {
         </div>
         
         <div className="flex flex-wrap items-center gap-2">
+          {isUser && (
+            <div className="flex items-center gap-2 mr-1">
+              <Switch
+                id="my-customers-only"
+                checked={myCustomersOnly}
+                onCheckedChange={setMyCustomersOnly}
+              />
+              <Label
+                htmlFor="my-customers-only"
+                className="text-sm text-[#64748B] dark:text-[#908fa0] cursor-pointer whitespace-nowrap"
+              >
+                내 고객만 보기
+              </Label>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <Filter className={cn("h-4 w-4", isUser ? "text-[#64748B] dark:text-[#908fa0]" : "text-[#64748B] dark:text-muted-foreground")} />
             <span className={cn("text-sm hidden sm:inline", isUser ? "text-[#64748B] dark:text-[#908fa0]" : "text-[#64748B] dark:text-muted-foreground")}>필터:</span>
@@ -142,7 +160,7 @@ export function CustomerTable({ tone = "default" }: CustomerTableProps) {
       </div>
 
       <div className={cn(
-        "rounded-lg border overflow-hidden dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)]",
+        "hidden md:block rounded-lg border overflow-hidden dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)]",
         isUser ? "bg-white border-[#E2E8F0] shadow-sm" : "bg-white border-[#E2E8F0] shadow-sm"
       )}>
         <Table>
@@ -212,6 +230,76 @@ export function CustomerTable({ tone = "default" }: CustomerTableProps) {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* 모바일 카드 레이아웃 (md 미만) */}
+      <div className="md:hidden space-y-3">
+        {filteredCustomers.length === 0 ? (
+          <div className={cn(
+            "rounded-lg border py-10 text-center text-sm",
+            isUser ? "bg-white border-[#E2E8F0] text-[#64748B] dark:text-[#908fa0]" : "bg-white border-[#E2E8F0] text-[#64748B] dark:text-muted-foreground",
+            "dark:bg-[#1E1E1E] dark:border-[#333333]"
+          )}>
+            등록된 고객이 없습니다.
+          </div>
+        ) : (
+          filteredCustomers.map((customer) => {
+            const progress = getProgressInfo(customer)
+            const salesEndDate = customer.milestones.length > 0
+              ? customer.milestones.reduce((latest, milestone) => milestone.dueDate > latest ? milestone.dueDate : latest, customer.milestones[0].dueDate)
+              : null
+            return (
+              <div
+                key={customer.id}
+                className="rounded-lg border bg-white dark:bg-[#1E1E1E] dark:border-[#333333] p-4 space-y-3 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Building2 className="h-4 w-4 shrink-0 text-[#64748B] dark:text-[#908fa0]" />
+                    <span className="font-semibold text-[#1b1b23] dark:text-[#e5e2e1] truncate">{customer.companyName}</span>
+                  </div>
+                  <Badge variant="outline" className={activeStatusStyles[customer.status]}>
+                    {statusLabels[customer.status]}
+                  </Badge>
+                </div>
+
+                <div className="text-sm text-muted-foreground dark:text-[#908fa0]">{customer.solutionName}</div>
+
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-[#64748B] dark:text-[#908fa0]">
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span>{format(customer.salesStartDate, 'yyyy.MM.dd', { locale: ko })}</span>
+                    {salesEndDate && (
+                      <span>~ {format(salesEndDate, 'yyyy.MM.dd', { locale: ko })}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <User className="h-3.5 w-3.5" />
+                    <span>{customer.ownerName}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-sm text-[#64748B] dark:text-[#908fa0]">
+                    <span>진행률</span>
+                    <span>{progress.completed}/{progress.total}</span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full overflow-hidden bg-[#dbd8e4] dark:bg-[#2A2A2A]">
+                    <div
+                      className={cn(
+                        "h-full transition-all",
+                        customer.status === 'active' ? 'bg-[#F59E0B] dark:bg-[#3b82f6]' :
+                        customer.status === 'completed' ? 'bg-[#10B981] dark:bg-[#22c55e]' :
+                        'bg-[#EF4444] dark:bg-[#ffb4ab]'
+                      )}
+                      style={{ width: `${progress.percentage}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )
+          })
+        )}
       </div>
     </div>
   )

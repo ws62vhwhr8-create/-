@@ -200,6 +200,12 @@ export default function CustomerDetailPage({
   const [selectedFileForViewer, setSelectedFileForViewer] = useState<MilestoneFile | null>(null)
   const [isLoadingFiles, setIsLoadingFiles] = useState(false)
   const milestoneExcelInputRef = useRef<HTMLInputElement | null>(null)
+  const [excelImportPending, setExcelImportPending] = useState<{
+    toAdd: EditableMilestone[]
+    toUpdate: EditableMilestone[]
+    kept: EditableMilestone[]
+  } | null>(null)
+  const [isExcelConfirmOpen, setIsExcelConfirmOpen] = useState(false)
   const isMountedRef = useRef(true)
   
   const customer = customers.find(c => c.id === id)
@@ -333,14 +339,36 @@ export default function CustomerDetailPage({
           }
         }).filter((m) => m.stageName.trim() !== '')
         if (imported.length === 0) return
-        if (!isEditing) {
-          setEditedStartDate(format(customer.salesStartDate, 'yyyy-MM-dd'))
-          setEditedOwner(customer.ownerName)
-          setEditingMilestones([...editingMilestones, ...imported])
-          setIsEditing(true)
-        } else {
-          setEditingMilestones((prev) => [...prev, ...imported])
-        }
+
+        // Get current milestones in editable format for comparison
+        const currentMilestones: EditableMilestone[] = isEditing
+          ? editingMilestones
+          : customer.milestones.map(toEditableMilestone)
+
+        // Categorize: match by stageName (exact, trimmed)
+        const toAdd: EditableMilestone[] = []
+        const toUpdate: EditableMilestone[] = []
+        const kept: EditableMilestone[] = []
+
+        currentMilestones.forEach((existing) => {
+          const match = imported.find((imp) => imp.stageName.trim() === existing.stageName.trim())
+          if (match) {
+            // Update: preserve existing id, stageId, notes to avoid data loss
+            toUpdate.push({ ...match, id: existing.id, stageId: existing.stageId, notes: existing.notes })
+          } else {
+            kept.push(existing)
+          }
+        })
+
+        imported.forEach((imp) => {
+          const alreadyExists = currentMilestones.some((e) => e.stageName.trim() === imp.stageName.trim())
+          if (!alreadyExists) {
+            toAdd.push(imp)
+          }
+        })
+
+        setExcelImportPending({ toAdd, toUpdate, kept })
+        setIsExcelConfirmOpen(true)
       } catch (err) {
         console.error('Excel 파싱 오류:', err)
       } finally {
@@ -348,6 +376,20 @@ export default function CustomerDetailPage({
       }
     }
     reader.readAsArrayBuffer(file)
+  }
+
+  const handleExcelImportConfirm = () => {
+    if (!excelImportPending || !customer) return
+    const { toAdd, toUpdate, kept } = excelImportPending
+    const merged = [...kept, ...toUpdate, ...toAdd]
+    if (!isEditing) {
+      setEditedStartDate(format(customer.salesStartDate, 'yyyy-MM-dd'))
+      setEditedOwner(customer.ownerName)
+      setIsEditing(true)
+    }
+    setEditingMilestones(merged)
+    setExcelImportPending(null)
+    setIsExcelConfirmOpen(false)
   }
 
   const handleExportExcel = () => {
@@ -2209,6 +2251,49 @@ export default function CustomerDetailPage({
               </>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Excel Import Confirmation Dialog */}
+      <Dialog open={isExcelConfirmOpen} onOpenChange={(open) => { if (!open) { setIsExcelConfirmOpen(false); setExcelImportPending(null) } }}>
+        <DialogContent className="max-w-md dark:bg-[#1c1b1b] dark:border-[#464554]">
+          <DialogHeader className="dark:border-b dark:border-[#464554] pb-4">
+            <DialogTitle className="dark:text-[#e5e2e1]">Excel 가져오기 확인</DialogTitle>
+            <DialogDescription className="dark:text-[#c7c4d7]">
+              아래 변경 사항을 적용하시겠습니까?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {excelImportPending && (
+              <>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground dark:text-[#908fa0]">유지 (변경 없음)</span>
+                  <span className="font-medium dark:text-[#e5e2e1]">{excelImportPending.kept.length}개</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground dark:text-[#908fa0]">수정 (기존 단계 업데이트)</span>
+                  <span className="font-medium text-amber-600 dark:text-amber-400">{excelImportPending.toUpdate.length}개</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground dark:text-[#908fa0]">추가 (새 단계)</span>
+                  <span className="font-medium text-lime-600 dark:text-lime-400">{excelImportPending.toAdd.length}개</span>
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter className="dark:border-t dark:border-t-[#464554] pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => { setIsExcelConfirmOpen(false); setExcelImportPending(null) }}
+              className="dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"
+            >
+              취소
+            </Button>
+            <Button type="button" onClick={handleExcelImportConfirm}>
+              적용
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

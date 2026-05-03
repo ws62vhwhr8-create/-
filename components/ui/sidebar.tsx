@@ -8,6 +8,7 @@ import { PanelLeftIcon } from 'lucide-react'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 const SIDEBAR_WIDTH = '14rem'
@@ -96,7 +97,23 @@ function Sidebar({
   variant?: 'sidebar' | 'floating' | 'inset'; 
   collapsible?: 'offcanvas' | 'icon' | 'none' 
 }) {
-  const { state } = useSidebar()
+  const { state, isMobile, openMobile, setOpenMobile } = useSidebar()
+
+  // 모바일: Sheet 드로어로 표시
+  if (isMobile) {
+    return (
+      <Sheet open={openMobile} onOpenChange={setOpenMobile}>
+        <SheetContent
+          side="left"
+          className="w-[var(--sidebar-width)] p-0 [&>button]:hidden bg-white dark:bg-neutral-900 border-r border-border dark:border-neutral-800"
+        >
+          <div className="flex h-full w-full flex-col overflow-hidden">
+            {children}
+          </div>
+        </SheetContent>
+      </Sheet>
+    )
+  }
 
   return (
     <div 

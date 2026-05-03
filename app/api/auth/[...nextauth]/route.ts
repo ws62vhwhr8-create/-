@@ -9,15 +9,21 @@ export const authOptions: NextAuthOptions = {
       tenantId: process.env.ENTRA_TENANT_ID || "common",
     }),
   ],
-  pages: {
-    signIn: "/auth/signin",
-    signOut: "/auth/signout",
-  },
   callbacks: {
-    async jwt({ token, account }) {
+    async jwt({ token, account, profile }) {
       if (account) {
         token.accessToken = account.access_token
         token.id_token = account.id_token
+      }
+      // 이메일 기반 admin 권한 부여
+      const ADMIN_EMAILS = ["ha.jeong@dexconsulting.net"]
+      const email =
+        (token.email as string | undefined) ??
+        (profile as { email?: string } | undefined)?.email
+      if (email && ADMIN_EMAILS.includes(email.toLowerCase())) {
+        token.role = "admin"
+      } else if (token.role === undefined) {
+        token.role = "user"
       }
       return token
     },
@@ -25,6 +31,7 @@ export const authOptions: NextAuthOptions = {
       session.accessToken = token.accessToken as string
       if (session.user) {
         session.user.id = token.sub || ""
+        session.user.role = (token.role as string) ?? "user"
       }
       return session
     },

@@ -22,7 +22,10 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format, addDays } from "date-fns"
 import { ko } from "date-fns/locale"
-import { CalendarIcon, ArrowRight, Clock, FolderKanban, User } from "lucide-react"
+import { CalendarIcon, ArrowRight, Clock, FolderKanban, User, X } from "lucide-react"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import EntraPicker from "@/components/entra-picker"
+import type { PickerUser } from "@/components/entra-picker"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import type { Stage } from "@/lib/types"
@@ -39,6 +42,7 @@ export default function NewCustomerPage() {
   const [solutionId, setSolutionId] = useState("")
   const [salesStartDate, setSalesStartDate] = useState<Date>()
   const [ownerName, setOwnerName] = useState("")
+  const [isOwnerPickerOpen, setIsOwnerPickerOpen] = useState(false)
 
   const selectedSolution = solutions.find(s => s.id === solutionId)
   const flattenedSelectedStages = selectedSolution ? flattenStages(selectedSolution.stages) : []
@@ -175,15 +179,44 @@ export default function NewCustomerPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="ownerName">담당자</Label>
-                  <Input
-                    id="ownerName"
-                    type="text"
-                    value={ownerName}
-                    onChange={(e) => setOwnerName(e.target.value)}
-                    placeholder="예: 홍길동"
-                    className="bg-secondary"
-                  />
+                  <Label>담당자</Label>
+                  {ownerName ? (
+                    <div className="flex items-center gap-2">
+                      <div className="flex flex-1 items-center gap-2 rounded-md border bg-secondary px-3 py-2">
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="text-xs bg-primary/20 text-primary dark:bg-[#353534] dark:text-[#c0c1ff]">
+                            {ownerName.slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm font-medium">{ownerName}</span>
+                        <button
+                          type="button"
+                          onClick={() => setOwnerName("")}
+                          className="ml-auto text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsOwnerPickerOpen(true)}
+                      >
+                        변경
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-start bg-secondary text-muted-foreground font-normal"
+                      onClick={() => setIsOwnerPickerOpen(true)}
+                    >
+                      <User className="mr-2 h-4 w-4" />
+                      담당자 선택
+                    </Button>
+                  )}
                 </div>
 
                 <div className="flex gap-2 pt-4">
@@ -198,6 +231,15 @@ export default function NewCustomerPage() {
                   <Button type="submit" disabled={!isValid} className="flex-1">
                     등록하기
                   </Button>
+                  <EntraPicker
+                    open={isOwnerPickerOpen}
+                    onOpenChange={setIsOwnerPickerOpen}
+                    onConfirm={(selectedUsers: PickerUser[]) => {
+                      if (selectedUsers.length > 0) {
+                        setOwnerName(selectedUsers[0].displayName)
+                      }
+                    }}
+                  />
                 </div>
               </form>
             </CardContent>

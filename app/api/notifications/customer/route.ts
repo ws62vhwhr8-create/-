@@ -1,4 +1,5 @@
 import { getServerSession } from "next-auth"
+import type { Session } from "next-auth"
 import { NextRequest, NextResponse } from "next/server"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import {
@@ -17,6 +18,15 @@ interface CustomerNotificationBody {
   ownerName: string
   recipientEmails: string[]
   sharedEntityNames?: string[]
+}
+
+function normalizeText(value?: string | null) {
+  return (value ?? "").trim().toLowerCase()
+}
+
+function isAdminSession(session: Session | null) {
+  const sessionUser = session?.user as { role?: string } | undefined
+  return sessionUser?.role === "admin"
 }
 
 function buildCustomerMessage(body: CustomerNotificationBody): GenericNotificationMessage {
@@ -85,6 +95,33 @@ export async function POST(req: NextRequest) {
 
   if (!body.customerName || !body.solutionName || !body.ownerName) {
     return NextResponse.json({ error: "Missing required customer fields" }, { status: 400 })
+  }
+
+  if (body.type === "shared") {
+    const sessionName = normalizeText(session.user?.name)
+    const ownerName = normalizeText(body.ownerName)
+    const isOwner = Boolean(sessionName) && sessionName === ownerName
+    const isAdmin = isAdminSession(session)
+
+    if (!isOwner && !isAdmin) {
+      console.warn("[AUDIT] Customer share denied", {
+        actorName: session.user?.name ?? null,
+        actorEmail: session.user?.email ?? null,
+        customerName: body.customerName,
+        ownerName: body.ownerName,
+        reason: "forbidden",
+      })
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    console.info("[AUDIT] Customer share authorized", {
+      actorName: session.user?.name ?? null,
+      actorEmail: session.user?.email ?? null,
+      actorRole: isAdmin ? "admin" : "owner",
+      customerName: body.customerName,
+      ownerName: body.ownerName,
+      sharedTargets: body.sharedEntityNames ?? [],
+    })
   }
 
   const recipientEmails = normalizeEmails(body.recipientEmails ?? [])
