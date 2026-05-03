@@ -131,7 +131,7 @@ export default function NewCustomerPage() {
             </div>
 
             {solutions.length === 0 ? (
-              <Card className="border-border bg-card">
+              <Card className="bg-white border-[#E2E8F0] dark:bg-[#1E1E1E] dark:border-[#333333]">
                 <CardContent className="p-6">
                   <Empty>
                     <EmptyHeader>
@@ -153,7 +153,7 @@ export default function NewCustomerPage() {
               </Card>
             ) : (
               <div className="grid gap-6 lg:grid-cols-2">
-                <Card className="bg-card border-border">
+                <Card className="bg-white border-[#E2E8F0] dark:bg-[#1E1E1E] dark:border-[#333333]">
             <CardHeader>
               <CardTitle>고객 정보</CardTitle>
               <CardDescription>고객사 정보와 적용할 솔루션을 선택하세요.</CardDescription>
@@ -161,16 +161,48 @@ export default function NewCustomerPage() {
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="companyName">고객사명 <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="companyName">고객사명 <span className="text-red-500 dark:text-[#ffb4ab]">*</span></Label>
                   <Input
                     id="companyName"
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
                     onBlur={() => setTouched(p => ({ ...p, companyName: true }))}
                     placeholder="예: 삼성전자"
-                    className={cn("bg-secondary", errors.companyName && "border-destructive")}
+                    className={cn("bg-white dark:bg-[#1E1E1E]", errors.companyName && "border-red-500 dark:border-[#ffb4ab]")}
                   />
-                  {errors.companyName && <p className="text-sm text-destructive">{errors.companyName}</p>}
+                  {errors.companyName && <p className="text-sm text-red-500 dark:text-[#ffb4ab]">{errors.companyName}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>영업 시작일 <span className="text-red-500 dark:text-[#ffb4ab]">*</span></Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal bg-white dark:bg-[#1E1E1E]",
+                          !salesStartDate && "text-[#64748B] dark:text-[#908fa0]",
+                          errors.salesStartDate && "border-red-500 dark:border-[#ffb4ab]"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {salesStartDate ? (
+                          format(salesStartDate, "PPP", { locale: ko })
+                        ) : (
+                          "날짜 선택"
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" style={{ backgroundColor: 'var(--popover)' }} align="start">
+                      <Calendar
+                        mode="single"
+                        selected={salesStartDate}
+                        onSelect={(d) => { setSalesStartDate(d); setTouched(p => ({ ...p, salesStartDate: true })) }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {errors.salesStartDate && <p className="text-sm text-red-500 dark:text-[#ffb4ab]">{errors.salesStartDate}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -179,10 +211,10 @@ export default function NewCustomerPage() {
                     onClick={() => setIsSolutionOpen((v) => !v)}
                     className="flex w-full items-center justify-between"
                   >
-                    <Label className="pointer-events-none">솔루션 <span className="text-destructive">*</span></Label>
+                    <Label className="pointer-events-none">솔루션 <span className="text-red-500 dark:text-[#ffb4ab]">*</span></Label>
                     <ChevronDown
                       className={cn(
-                        "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                        "h-4 w-4 text-[#64748B] dark:text-[#908fa0] transition-transform duration-200",
                         isSolutionOpen ? "rotate-0" : "-rotate-90"
                       )}
                     />
@@ -194,46 +226,14 @@ export default function NewCustomerPage() {
                       onChange={(id) => { setSolutionId(id); setTouched(p => ({ ...p, solutionId: true })) }}
                     />
                   )}
-                  {errors.solutionId && <p className="text-sm text-destructive">{errors.solutionId}</p>}
+                  {errors.solutionId && <p className="text-sm text-red-500 dark:text-[#ffb4ab]">{errors.solutionId}</p>}
                 </div>
 
                 <div className="space-y-2">
-                  <Label>영업 시작일 <span className="text-destructive">*</span></Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal bg-secondary",
-                          !salesStartDate && "text-muted-foreground",
-                          errors.salesStartDate && "border-destructive"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {salesStartDate ? (
-                          format(salesStartDate, "PPP", { locale: ko })
-                        ) : (
-                          "날짜 선택"
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={salesStartDate}
-                        onSelect={(d) => { setSalesStartDate(d); setTouched(p => ({ ...p, salesStartDate: true })) }}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  {errors.salesStartDate && <p className="text-sm text-destructive">{errors.salesStartDate}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label>담당자 <span className="text-destructive">*</span></Label>
+                  <Label>담당자 <span className="text-red-500 dark:text-[#ffb4ab]">*</span></Label>
                   {ownerName ? (
                     <div className="flex items-center gap-2">
-                      <div className={cn("flex flex-1 items-center gap-2 rounded-md border bg-secondary px-3 py-2", errors.ownerName && "border-destructive")}>
+                      <div className={cn("flex flex-1 items-center gap-2 rounded-md border bg-white dark:bg-[#1E1E1E] border-[#E2E8F0] dark:border-[#464554]/50 px-3 py-2", errors.ownerName && "border-red-500 dark:border-[#ffb4ab]")}>
                         <Avatar className="h-6 w-6">
                           <AvatarFallback className="text-xs bg-primary/20 text-primary dark:bg-[#353534] dark:text-[#c0c1ff]">
                             {ownerName.slice(0, 2)}
@@ -261,14 +261,14 @@ export default function NewCustomerPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      className={cn("w-full justify-start bg-secondary text-muted-foreground font-normal", errors.ownerName && "border-destructive")}
+                      className={cn("w-full justify-start bg-white dark:bg-[#1E1E1E] text-[#64748B] dark:text-[#908fa0] font-normal", errors.ownerName && "border-red-500 dark:border-[#ffb4ab]")}
                       onClick={() => setIsOwnerPickerOpen(true)}
                     >
                       <User className="mr-2 h-4 w-4" />
                       담당자 선택
                     </Button>
                   )}
-                  {errors.ownerName && <p className="text-sm text-destructive">{errors.ownerName}</p>}
+                  {errors.ownerName && <p className="text-sm text-red-500 dark:text-[#ffb4ab]">{errors.ownerName}</p>}
                 </div>
 
                 <div className="flex gap-2 pt-4">
@@ -306,7 +306,7 @@ export default function NewCustomerPage() {
             </CardContent>
           </Card>
 
-                <Card className="bg-card border-border">
+                <Card className="bg-white border-[#E2E8F0] dark:bg-[#1E1E1E] dark:border-[#333333]">
             <CardHeader>
               <CardTitle>마일스톤 미리보기</CardTitle>
               <CardDescription>
@@ -315,7 +315,7 @@ export default function NewCustomerPage() {
             </CardHeader>
             <CardContent>
               {!selectedSolution ? (
-                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                <div className="flex flex-col items-center justify-center py-12 text-[#64748B] dark:text-[#908fa0]">
                   <ArrowRight className="h-8 w-8 mb-2 opacity-50" />
                   <p className="text-sm">솔루션을 선택하면 마일스톤이 표시됩니다.</p>
                 </div>
@@ -324,14 +324,14 @@ export default function NewCustomerPage() {
                   {previewMilestones.map((milestone, index) => (
                     <div 
                       key={milestone.id}
-                      className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50 border border-border"
+                      className="flex items-start gap-3 p-3 rounded-lg bg-[#F8FAFC] dark:bg-[#252525] border border-[#E2E8F0] dark:border-[#333333]"
                     >
                       <Badge variant="outline" className="mt-0.5 shrink-0">
                         {index + 1}
                       </Badge>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium">{milestone.name}</p>
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-[#64748B] dark:text-[#908fa0]">
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
                             <span>{milestone.durationDays}일</span>
@@ -354,9 +354,9 @@ export default function NewCustomerPage() {
                   ))}
                   
                   {selectedSolution && (
-                    <div className="pt-2 border-t border-border">
-                      <p className="text-sm text-muted-foreground">
-                        총 소요 기간: <span className="font-medium text-foreground">
+                  <div className="pt-2 border-t border-[#E2E8F0] dark:border-[#333333]">
+                      <p className="text-sm text-[#64748B] dark:text-[#908fa0]">
+                        열 소요 기간: <span className="font-medium text-[#1b1b23] dark:text-[#e5e2e1]">
                           {flattenedSelectedStages.reduce((sum, s) => sum + s.durationDays, 0)}일
                         </span>
                       </p>
@@ -373,7 +373,7 @@ export default function NewCustomerPage() {
       </SidebarInset>
 
       <AlertDialog open={isLeaveDialogOpen} onOpenChange={setIsLeaveDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-white dark:bg-[#1c1b1b] dark:border-[#464554]">
           <AlertDialogHeader>
             <AlertDialogTitle>저장하지 않은 입력이 있습니다</AlertDialogTitle>
             <AlertDialogDescription>
@@ -391,3 +391,4 @@ export default function NewCustomerPage() {
     </>
   )
 }
+
