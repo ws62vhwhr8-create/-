@@ -336,11 +336,14 @@ export default function CustomerDetailPage({
           const dueDate = String(row['마감일'] || today)
           const notifyDate = String(row['알림일'] || dueDate)
           const rawStatus = String(row['상태'] || '')
+          const parsedStageLevel = Number(row['단계레벨'] ?? row['레벨'] ?? row['stageLevel'] ?? 0)
           return {
             id: crypto.randomUUID(),
             stageId: crypto.randomUUID(),
             stageName: String(row['단계명'] || ''),
-            stageLevel: 0,
+            stageLevel: Number.isFinite(parsedStageLevel) && parsedStageLevel >= 0
+              ? Math.trunc(parsedStageLevel)
+              : 0,
             role: String(row['담당자'] || ''),
             dueDate,
             notifyDate,
@@ -690,7 +693,7 @@ export default function CustomerDetailPage({
   }
 
   const getFileTargetKey = (target: FileLibraryTarget) => (
-    target.noteId ? `${target.milestoneId}::${target.noteId}` : `${target.milestoneId}::stage`
+    target.noteId ? `${target.milestoneId}::note::${target.noteId}` : `${target.milestoneId}::stage`
   )
 
   const openActionItemFileLibrary = (milestone: Milestone, note: MilestoneNote) => {
@@ -1690,7 +1693,7 @@ export default function CustomerDetailPage({
                         <div className="min-w-0 flex-1">
                           <p className="text-xs text-muted-foreground">진행률</p>
                           <p className="font-medium text-sm">
-                            {progress.completed}/{progress.total} 완료 ({Math.round((progress.completed / progress.total) * 100)}%)
+                            {progress.completed}/{progress.total} 완료 ({progress.total === 0 ? 0 : Math.round((progress.completed / progress.total) * 100)}%)
                           </p>
                         </div>
                       </CardContent>

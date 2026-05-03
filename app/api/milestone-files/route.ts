@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
         fileType,
         isFolder: Boolean(isFolder),
         uploadedAt: new Date().toISOString(),
+        uploadedBy: (session.user as { id?: string; email?: string } | undefined)?.id ?? session.user?.email ?? undefined,
         base64Content: base64Content || undefined,
         kind,
       }
