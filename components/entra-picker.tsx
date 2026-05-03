@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Search, Users, User as UserIcon, Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/lib/store'
+import type { Group, User } from '@/lib/types'
 
 export interface PickerUser {
   id: string
@@ -18,15 +19,16 @@ export interface PickerUser {
   groupIds?: string[]
 }
 
-const directoryUsers: PickerUser[] = [
-  { id: 'dir-u1', displayName: '김영업', email: 'kim@example.com', groupIds: ['g1'] },
-  { id: 'dir-u2', displayName: '박매니저', email: 'park@example.com', groupIds: ['g2'] },
-  { id: 'dir-u3', displayName: '이대리', email: 'lee@example.com', groupIds: ['g1'] },
-  { id: 'dir-u4', displayName: '정민준', email: 'jung@example.com', groupIds: ['g2'] },
-  { id: 'dir-u5', displayName: '최수현', email: 'choi@example.com', groupIds: ['g1'] },
-  { id: 'dir-u6', displayName: '강서연', email: 'kang@example.com', groupIds: ['g1'] },
-  { id: 'dir-u7', displayName: '윤도현', email: 'yoon@example.com', groupIds: ['g2'] },
-]
+const toPickerUser = (user: User): PickerUser => ({
+  id: user.id,
+  displayName: user.displayName,
+  email: user.email,
+  groupIds: user.groupIds,
+})
+
+const sortUsers = (left: PickerUser, right: PickerUser) => left.displayName.localeCompare(right.displayName, 'ko')
+
+const sortGroups = (left: Group, right: Group) => left.name.localeCompare(right.name, 'ko')
 
 interface EntraPickerProps {
   open: boolean
@@ -40,17 +42,7 @@ export default function EntraPicker({ open, onOpenChange, initialUserIds = [], i
   const users = useAppStore(state => state.users)
   const groups = useAppStore(state => state.groups)
 
-  const mergedDirectoryUsers = [
-    ...directoryUsers,
-    ...users
-      .filter((u) => !directoryUsers.some((du) => (du.email && u.email && du.email === u.email) || du.displayName === u.displayName))
-      .map((u): PickerUser => ({
-        id: `store-${u.id}`,
-        displayName: u.displayName,
-        email: u.email,
-        groupIds: u.groupIds,
-      })),
-  ]
+  const directoryUsers = users.map(toPickerUser).sort(sortUsers)
 
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>(initialUserIds)
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(initialGroupIds)
@@ -64,14 +56,16 @@ export default function EntraPicker({ open, onOpenChange, initialUserIds = [], i
     setSelectedGroupIds(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
   }
 
-  const filteredUsers = mergedDirectoryUsers.filter((u) => {
+  const filteredUsers = directoryUsers.filter((u) => {
     const normalized = query.toLowerCase()
     return (
       u.displayName.toLowerCase().includes(normalized) ||
       (u.email ?? '').toLowerCase().includes(normalized)
     )
   })
-  const filteredGroups = groups.filter(g => g.name.toLowerCase().includes(query.toLowerCase()))
+  const filteredGroups = groups
+    .filter(g => g.name.toLowerCase().includes(query.toLowerCase()))
+    .sort(sortGroups)
 
   const removeSelection = (type: 'user' | 'group', id: string) => {
     if (type === 'user') {
@@ -238,7 +232,7 @@ export default function EntraPicker({ open, onOpenChange, initialUserIds = [], i
                   })}
 
                   {selectedUserIds.map((userId) => {
-                    const user = mergedDirectoryUsers.find((u) => u.id === userId)
+                    const user = directoryUsers.find((u) => u.id === userId)
                     if (!user) return null
 
                     return (
@@ -273,10 +267,10 @@ export default function EntraPicker({ open, onOpenChange, initialUserIds = [], i
             className="border border-blue-600 bg-blue-600 text-white hover:bg-blue-700 dark:border-[#6366F1] dark:bg-[#6366F1] dark:hover:opacity-90"
             onClick={() => {
               const directlySelectedUsers = selectedUserIds
-                .map((id) => mergedDirectoryUsers.find((user) => user.id === id))
+                .map((id) => directoryUsers.find((user) => user.id === id))
                 .filter((user): user is PickerUser => Boolean(user))
 
-              const groupMemberUsers = mergedDirectoryUsers.filter((user) =>
+              const groupMemberUsers = directoryUsers.filter((user) =>
                 (user.groupIds ?? []).some((groupId) => selectedGroupIds.includes(groupId))
               )
 

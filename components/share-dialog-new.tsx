@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Search, X, Users, User, Check, Send } from "lucide-react"
+import { Search, X, Users, User as UserIcon, Check, Send } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { User, Group } from "@/lib/types"
 
@@ -222,7 +222,7 @@ export function ShareDialog({
                       {entity.type === 'group' ? (
                         <Users className="h-3 w-3" />
                       ) : (
-                        <User className="h-3 w-3" />
+                        <UserIcon className="h-3 w-3" />
                       )}
                       <span>{entity.name}</span>
                       <button

@@ -1,11 +1,14 @@
 "use client"
 
+import Link from "next/link"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Navigation } from "@/components/navigation"
+import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { useAppStore } from "@/lib/store"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -19,9 +22,14 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format, addDays } from "date-fns"
 import { ko } from "date-fns/locale"
-import { CalendarIcon, ArrowRight, Clock, User } from "lucide-react"
+import { CalendarIcon, ArrowRight, Clock, FolderKanban, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
+import type { Stage } from "@/lib/types"
+
+function flattenStages(stages: Stage[]): Stage[] {
+  return stages.flatMap((stage) => [stage, ...flattenStages(stage.children ?? [])])
+}
 
 export default function NewCustomerPage() {
   const router = useRouter()
@@ -33,46 +41,76 @@ export default function NewCustomerPage() {
   const [ownerName, setOwnerName] = useState("")
 
   const selectedSolution = solutions.find(s => s.id === solutionId)
+  const flattenedSelectedStages = selectedSolution ? flattenStages(selectedSolution.stages) : []
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!companyName || !solutionId || !salesStartDate || !ownerName) return
 
-    addCustomer({
+    const customerId = addCustomer({
       companyName,
       solutionId,
       salesStartDate,
       ownerName,
     })
 
-    router.push("/")
+    router.push(customerId ? `/customers/${customerId}` : "/customers")
   }
 
   const isValid = companyName && solutionId && salesStartDate && ownerName
 
   // Preview milestones
   const previewMilestones = selectedSolution && salesStartDate 
-    ? selectedSolution.stages.reduce((acc, stage, index) => {
-        const previousDuration = selectedSolution.stages
+    ? flattenedSelectedStages.reduce((acc, stage, index) => {
+        const previousDuration = flattenedSelectedStages
           .slice(0, index)
           .reduce((sum, s) => sum + s.durationDays, 0)
         const dueDate = addDays(salesStartDate, previousDuration + stage.durationDays)
         return [...acc, { ...stage, dueDate }]
-      }, [] as (typeof selectedSolution.stages[0] & { dueDate: Date })[])
+      }, [] as (Stage & { dueDate: Date })[])
     : []
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
       <Navigation />
-      
-      <main className="mx-auto max-w-4xl px-4 py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold">고객 등록</h1>
-          <p className="text-muted-foreground">새로운 고객을 등록하고 로드맵을 자동 생성합니다.</p>
-        </div>
+      <SidebarInset>
+        <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="flex h-14 items-center gap-4 px-4">
+            <SidebarTrigger />
+          </div>
+        </header>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="bg-card border-border">
+        <main className="flex-1 w-full overflow-y-auto bg-[#F8FAFC] dark:bg-[#131313]">
+          <div className="mx-auto w-full max-w-6xl px-6 py-8 lg:px-12">
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold text-[#1b1b23] dark:text-[#e5e2e1]">고객 등록</h1>
+              <p className="text-[#64748B] dark:text-[#908fa0]">새로운 고객을 등록하고 로드맵을 자동 생성합니다.</p>
+            </div>
+
+            {solutions.length === 0 ? (
+              <Card className="border-border bg-card">
+                <CardContent className="p-6">
+                  <Empty>
+                    <EmptyHeader>
+                      <EmptyMedia variant="icon">
+                        <FolderKanban />
+                      </EmptyMedia>
+                      <EmptyTitle>등록된 솔루션이 없습니다</EmptyTitle>
+                      <EmptyDescription>
+                        고객을 만들기 전에 솔루션 관리에서 워크플로우 템플릿을 먼저 등록해야 합니다.
+                      </EmptyDescription>
+                    </EmptyHeader>
+                    <EmptyContent>
+                      <Button asChild>
+                        <Link href="/solutions">솔루션 관리로 이동</Link>
+                      </Button>
+                    </EmptyContent>
+                  </Empty>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-6 lg:grid-cols-2">
+                <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle>고객 정보</CardTitle>
               <CardDescription>고객사 정보와 적용할 솔루션을 선택하세요.</CardDescription>
@@ -99,7 +137,7 @@ export default function NewCustomerPage() {
                     <SelectContent>
                       {solutions.map((solution) => (
                         <SelectItem key={solution.id} value={solution.id}>
-                          {solution.name}
+                          {solution.name} · {flattenStages(solution.stages).length}단계 · {flattenStages(solution.stages).reduce((sum, stage) => sum + stage.durationDays, 0)}일
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -165,7 +203,7 @@ export default function NewCustomerPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-card border-border">
+                <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle>마일스톤 미리보기</CardTitle>
               <CardDescription>
@@ -216,7 +254,7 @@ export default function NewCustomerPage() {
                     <div className="pt-2 border-t border-border">
                       <p className="text-sm text-muted-foreground">
                         총 소요 기간: <span className="font-medium text-foreground">
-                          {selectedSolution.stages.reduce((sum, s) => sum + s.durationDays, 0)}일
+                          {flattenedSelectedStages.reduce((sum, s) => sum + s.durationDays, 0)}일
                         </span>
                       </p>
                     </div>
@@ -225,8 +263,11 @@ export default function NewCustomerPage() {
               )}
             </CardContent>
           </Card>
-        </div>
-      </main>
-    </div>
+              </div>
+            )}
+          </div>
+        </main>
+      </SidebarInset>
+    </>
   )
 }

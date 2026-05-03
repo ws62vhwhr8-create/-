@@ -58,6 +58,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { format, differenceInDays, startOfDay, min, max, eachMonthOfInterval, startOfMonth, endOfMonth } from "date-fns"
 import { ko } from "date-fns/locale"
 import {
@@ -76,6 +77,7 @@ import {
   FileText,
   Folder,
   FolderPlus,
+  Info,
   MoreVertical,
   Pencil,
   Plus,
@@ -93,8 +95,8 @@ const GanttChart = dynamic(() => import('@/components/gantt-chart'), {
   loading: () => (
     <Card className="bg-secondary/30 border-border dark:bg-[#171616] dark:border-[#333333]">
       <CardHeader>
-        <CardTitle>타임라인 뷰</CardTitle>
-        <CardDescription>마일스톤 일정을 시각적으로 확인합니다.</CardDescription>
+        <CardTitle>간이 WBS</CardTitle>
+        <CardDescription>워크플로우 단계를 WBS로 구현하여 조회 및 다운로드 할 수 있습니다.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="h-96 flex items-center justify-center text-muted-foreground">
@@ -190,12 +192,14 @@ export default function CustomerDetailPage({
   const [libraryByTarget, setLibraryByTarget] = useState<Record<string, MilestoneFile[]>>({})
   const [fileSearchQuery, setFileSearchQuery] = useState('')
   const [isStageFolderCollapsed, setIsStageFolderCollapsed] = useState(false)
+  const [collapsedStageFolderParents, setCollapsedStageFolderParents] = useState<Set<string>>(new Set())
   const [stageFolderHeight, setStageFolderHeight] = useState(192)
   const [isCreateFolderDialogOpen, setIsCreateFolderDialogOpen] = useState(false)
   const [folderNameDraft, setFolderNameDraft] = useState('')
   const [folderTarget, setFolderTarget] = useState<FileLibraryTarget | null>(null)
   const [selectedFileForViewer, setSelectedFileForViewer] = useState<MilestoneFile | null>(null)
   const [isLoadingFiles, setIsLoadingFiles] = useState(false)
+  const milestoneExcelInputRef = useRef<HTMLInputElement | null>(null)
   const isMountedRef = useRef(true)
   
   const customer = customers.find(c => c.id === id)
@@ -276,23 +280,18 @@ export default function CustomerDetailPage({
     const loadFiles = async () => {
       try {
         setIsLoadingFiles(true)
-        const params = new URLSearchParams({
-          milestoneId: selectedFileTarget.milestoneId,
-          ...(selectedFileTarget.noteId && { noteId: selectedFileTarget.noteId }),
-        })
-        
-        const response = await fetch(`/api/milestone-files?${params}`)
-        if (!response.ok) {
-          throw new Error('Failed to load files')
-        }
-        
-        const files: MilestoneFile[] = await response.json()
+        const files = await fetchMilestoneFiles(selectedFileTarget)
         const key = getFileTargetKey(selectedFileTarget)
         setLibraryByTarget((prev) => ({
           ...prev,
           [key]: files,
         }))
       } catch (error) {
+        const key = getFileTargetKey(selectedFileTarget)
+        setLibraryByTarget((prev) => ({
+          ...prev,
+          [key]: [],
+        }))
         console.error('Error loading files:', error)
       } finally {
         setIsLoadingFiles(false)
@@ -301,6 +300,55 @@ export default function CustomerDetailPage({
 
     loadFiles()
   }, [selectedFileTarget])
+
+  const handleMilestoneExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !customer) return
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer)
+        const wb = XLSX.read(data, { type: 'array' })
+        const ws = wb.Sheets[wb.SheetNames[0]]
+        const rows: Record<string, string>[] = XLSX.utils.sheet_to_json(ws, { defval: '' })
+        if (rows.length === 0) return
+        const today = format(new Date(), 'yyyy-MM-dd')
+        const statusMap: Record<string, Milestone['status']> = {
+          '대기': 'pending', '진행중': 'in-progress', '완료': 'completed', '지연': 'overdue',
+        }
+        const imported: EditableMilestone[] = rows.map((row) => {
+          const dueDate = String(row['마감일'] || today)
+          const notifyDate = String(row['알림일'] || dueDate)
+          const rawStatus = String(row['상태'] || '')
+          return {
+            id: crypto.randomUUID(),
+            stageId: crypto.randomUUID(),
+            stageName: String(row['단계명'] || ''),
+            stageLevel: 0,
+            role: String(row['담당자'] || ''),
+            dueDate,
+            notifyDate,
+            status: statusMap[rawStatus] ?? 'pending',
+            notes: [],
+          }
+        }).filter((m) => m.stageName.trim() !== '')
+        if (imported.length === 0) return
+        if (!isEditing) {
+          setEditedStartDate(format(customer.salesStartDate, 'yyyy-MM-dd'))
+          setEditedOwner(customer.ownerName)
+          setEditingMilestones([...editingMilestones, ...imported])
+          setIsEditing(true)
+        } else {
+          setEditingMilestones((prev) => [...prev, ...imported])
+        }
+      } catch (err) {
+        console.error('Excel 파싱 오류:', err)
+      } finally {
+        if (milestoneExcelInputRef.current) milestoneExcelInputRef.current.value = ''
+      }
+    }
+    reader.readAsArrayBuffer(file)
+  }
 
   const handleExportExcel = () => {
     if (!customer) return
@@ -647,19 +695,31 @@ export default function CustomerDetailPage({
     }
   }
 
-  const reloadFilesForTarget = async (target: FileLibraryTarget) => {
+  const fetchMilestoneFiles = async (target: FileLibraryTarget): Promise<MilestoneFile[]> => {
     const params = new URLSearchParams({
       milestoneId: target.milestoneId,
       ...(target.noteId && { noteId: target.noteId }),
     })
 
-    const loadResponse = await fetch(`/api/milestone-files?${params}`)
-    if (!loadResponse.ok) {
-      const errorData = await loadResponse.json().catch(() => ({}))
-      throw new Error(`파일 로드 실패: ${errorData.error || 'Unknown error'}`)
+    const response = await fetch(`/api/milestone-files?${params}`)
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = errorData.error || `HTTP ${response.status}`
+
+      // If session is missing/expired, keep the UI stable with an empty list.
+      if (response.status === 401) {
+        console.warn('파일 조회 권한이 없어 빈 목록으로 표시합니다.')
+        return []
+      }
+
+      throw new Error(`파일 로드 실패: ${errorMessage}`)
     }
 
-    const updatedFiles: MilestoneFile[] = await loadResponse.json()
+    return response.json()
+  }
+
+  const reloadFilesForTarget = async (target: FileLibraryTarget) => {
+    const updatedFiles = await fetchMilestoneFiles(target)
     const key = getFileTargetKey(target)
     setLibraryByTarget((prev) => ({
       ...prev,
@@ -1506,9 +1566,22 @@ export default function CustomerDetailPage({
               
               <TabsContent value="table">
                 <Card className="bg-secondary/30 border-border shadow-sm dark:bg-[#171616] dark:border-[#333333]">
-                  <CardHeader>
-                    <CardTitle className="dark:text-[#e5e2e1]">마일스톤 목록</CardTitle>
-                    <CardDescription className="dark:text-[#908fa0]">각 단계의 진행 상태를 관리합니다.</CardDescription>
+                  <CardHeader className="flex flex-row items-start justify-between">
+                    <div>
+                      <CardTitle className="dark:text-[#e5e2e1]">마일스톤 목록</CardTitle>
+                      <CardDescription className="dark:text-[#908fa0]">각 단계의 진행 상태를 관리합니다.</CardDescription>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => milestoneExcelInputRef.current?.click()}>
+                      <Upload className="mr-2 h-4 w-4" />
+                      Excel 가져오기
+                    </Button>
+                    <input
+                      ref={milestoneExcelInputRef}
+                      type="file"
+                      accept=".xlsx,.xls"
+                      className="hidden"
+                      onChange={handleMilestoneExcelUpload}
+                    />
                   </CardHeader>
                   <CardContent>
                     <div className="rounded-lg border border-border dark:border-[#333333] overflow-hidden">
@@ -1518,8 +1591,21 @@ export default function CustomerDetailPage({
                             <TableHead className="w-16 text-muted-foreground dark:text-[#908fa0] dark:uppercase dark:tracking-wider">단계</TableHead>
                             <TableHead className="text-muted-foreground dark:text-[#908fa0] dark:uppercase dark:tracking-wider">단계명</TableHead>
                             <TableHead className="text-muted-foreground dark:text-[#908fa0] dark:uppercase dark:tracking-wider">담당자</TableHead>
-                            <TableHead className="text-muted-foreground dark:text-[#908fa0] dark:uppercase dark:tracking-wider">마감일</TableHead>
-                            <TableHead className="text-muted-foreground dark:text-[#908fa0] dark:uppercase dark:tracking-wider">알림일</TableHead>
+                            <TableHead className="text-muted-foreground dark:text-[#908fa0] dark:uppercase dark:tracking-wider">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="flex items-center gap-1 cursor-default">
+                                      마감일
+                                      <Info className="h-3.5 w-3.5 text-muted-foreground/70" />
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">
+                                    <p>마감일 1일 전에 Outlook으로 리마인드해드립니다.</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </TableHead>
                             <TableHead className="text-muted-foreground dark:text-[#908fa0] dark:uppercase dark:tracking-wider w-32">상태</TableHead>
                             <TableHead className="text-muted-foreground dark:text-[#908fa0] w-14 text-right">액션 아이템</TableHead>
                             <TableHead className="text-muted-foreground dark:text-[#908fa0] w-14 text-right"></TableHead>
@@ -1634,9 +1720,6 @@ export default function CustomerDetailPage({
                                     className="h-8 text-sm"
                                   />
                                 )}
-                              </TableCell>
-                              <TableCell className="text-muted-foreground py-3 whitespace-nowrap">
-                                {format(new Date(milestone.notifyDate), 'yyyy.MM.dd', { locale: ko })}
                               </TableCell>
                               <TableCell className="py-3">
                                 <Select
@@ -1798,29 +1881,72 @@ export default function CustomerDetailPage({
                                     className="space-y-2 overflow-y-auto pr-1"
                                     style={{ height: stageFolderHeight }}
                                   >
-                                    {customer.milestones.map((milestone, index) => (
-                                      <button
-                                        key={milestone.id}
-                                        type="button"
-                                        className={`w-full rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-secondary dark:hover:bg-[#323232]${milestone.id === selectedMilestoneId ? ' dark:bg-[#323232]' : ''}`}
-                                        style={{ paddingLeft: `${12 + ((milestone.stageLevel ?? 0) * 16)}px` }}
-                                        onClick={() => {
-                                          setSelectedMilestoneId(milestone.id)
-                                          setSelectedFileTarget({
-                                            milestoneId: milestone.id,
-                                            noteId: null,
-                                            kind: 'stage',
-                                            label: milestone.stageName,
-                                          })
-                                        }}
-                                      >
-                                        <span className="mr-2 inline-flex rounded border border-border px-1 font-mono text-[11px]">{getStageLabel(customer.milestones, index)}</span>
-                                        <span className="inline-flex items-center gap-2 align-middle">
-                                          <Folder className="h-4 w-4 text-muted-foreground" />
-                                          <span className="truncate">{milestone.stageName}</span>
-                                        </span>
-                                      </button>
-                                    ))}
+                                    {customer.milestones.map((milestone, index) => {
+                                      const level = milestone.stageLevel ?? 0
+                                      // 부모가 접혀 있으면 이 항목을 숨김
+                                      const isHidden = customer.milestones.some((m, i) => {
+                                        if (i >= index) return false
+                                        const ml = m.stageLevel ?? 0
+                                        if (ml >= level) return false
+                                        if (collapsedStageFolderParents.has(m.id)) {
+                                          // m 이후 index 사이에 level <= ml 인 항목이 없으면 m의 자식
+                                          for (let j = i + 1; j < index; j++) {
+                                            if ((customer.milestones[j].stageLevel ?? 0) <= ml) return false
+                                          }
+                                          return true
+                                        }
+                                        return false
+                                      })
+                                      if (isHidden) return null
+
+                                      // 자식이 있는지 확인
+                                      const hasChildren = index + 1 < customer.milestones.length &&
+                                        (customer.milestones[index + 1].stageLevel ?? 0) > level
+                                      const isParentCollapsed = collapsedStageFolderParents.has(milestone.id)
+
+                                      return (
+                                        <div key={milestone.id} className="flex items-center gap-1">
+                                          {hasChildren ? (
+                                            <button
+                                              type="button"
+                                              className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-secondary"
+                                              onClick={() => setCollapsedStageFolderParents((prev) => {
+                                                const next = new Set(prev)
+                                                if (next.has(milestone.id)) next.delete(milestone.id)
+                                                else next.add(milestone.id)
+                                                return next
+                                              })}
+                                            >
+                                              {isParentCollapsed
+                                                ? <ChevronRight className="h-3 w-3" />
+                                                : <ChevronDown className="h-3 w-3" />}
+                                            </button>
+                                          ) : (
+                                            <span className="h-5 w-5 shrink-0" />
+                                          )}
+                                          <button
+                                            type="button"
+                                            className={`min-w-0 flex-1 rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-secondary dark:hover:bg-[#323232]${milestone.id === selectedMilestoneId ? ' dark:bg-[#323232]' : ''}`}
+                                            style={{ paddingLeft: `${12 + (level * 16)}px` }}
+                                            onClick={() => {
+                                              setSelectedMilestoneId(milestone.id)
+                                              setSelectedFileTarget({
+                                                milestoneId: milestone.id,
+                                                noteId: null,
+                                                kind: 'stage',
+                                                label: milestone.stageName,
+                                              })
+                                            }}
+                                          >
+                                            <span className="mr-2 inline-flex rounded border border-border px-1 font-mono text-[11px]">{getStageLabel(customer.milestones, index)}</span>
+                                            <span className="inline-flex items-center gap-2 align-middle">
+                                              <Folder className="h-4 w-4 text-muted-foreground" />
+                                              <span className="truncate">{milestone.stageName}</span>
+                                            </span>
+                                          </button>
+                                        </div>
+                                      )
+                                    })}
                                   </div>
                                   <div
                                     className="absolute bottom-0 left-0 right-0 h-2 cursor-row-resize opacity-0 transition-opacity group-hover/folder:opacity-100 flex items-center justify-center"
@@ -1967,8 +2093,8 @@ export default function CustomerDetailPage({
               <TabsContent value="gantt">
                 <Card className="bg-secondary/30 border-border dark:bg-[#171616] dark:border-[#333333]">
                   <CardHeader>
-                    <CardTitle>타임라인 뷰</CardTitle>
-                    <CardDescription>마일스톤 일정을 시각적으로 확인합니다.</CardDescription>
+                    <CardTitle>간이 WBS</CardTitle>
+                    <CardDescription>워크플로우 단계를 WBS로 구현하여 조회 및 다운로드 할 수 있습니다.</CardDescription>
                   </CardHeader>
                   <CardContent className="p-6">
                     <div className="min-h-96 flex items-center">

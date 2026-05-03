@@ -34,14 +34,15 @@ export default function PDFExportButton({ customerName, elementId }: PDFExportBu
 
       // Capture the chart as an image with high quality
       console.log('Capturing chart element...')
-      const canvas = await html2canvas(element, {
+      const captureOptions = {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#1e293b', // slate-800
         logging: false,
         imageTimeout: 0,
-      })
+      } as Parameters<typeof html2canvas>[1]
+      const canvas = await html2canvas(element, captureOptions)
 
       const imgData = canvas.toDataURL('image/png')
       const imgWidth = 210 // A4 width in mm

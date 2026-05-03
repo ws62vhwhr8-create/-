@@ -9,17 +9,8 @@ import { useAppStore } from "@/lib/store"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,11 +46,9 @@ import {
   Building2,
   Calendar,
   User,
-  ChevronDown
 } from "lucide-react"
 import type { Customer } from "@/lib/types"
-import { ShareDialog } from "@/components/share-dialog"
-import { OwnerPicker } from "@/components/owner-picker"
+import { ShareDialog } from "@/components/share-dialog-new"
 
 const statusLabels: Record<Customer['status'], string> = {
   active: '진행중',
@@ -87,7 +76,7 @@ const statusTextClass: Record<Customer['status'], string> = {
 
 export default function CustomersPage() {
   const router = useRouter()
-  const { customers, solutions, users, groups, deleteCustomer, addCustomer, shareCustomer } = useAppStore()
+  const { customers, solutions, users, groups, deleteCustomer, shareCustomer } = useAppStore()
   const [search, setSearch] = useState("")
   const [solutionFilter, setSolutionFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -95,14 +84,6 @@ export default function CustomersPage() {
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const [customerToShare, setCustomerToShare] = useState<Customer | null>(null)
-  const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [isOwnerPickerOpen, setIsOwnerPickerOpen] = useState(false)
-  const [formData, setFormData] = useState({
-    companyName: '',
-    solutionId: '',
-    salesStartDate: new Date().toISOString().split('T')[0],
-    ownerName: '',
-  })
 
   const filteredCustomers = customers.filter((customer) => {
     const matchesSearch = customer.companyName.toLowerCase().includes(search.toLowerCase())
@@ -166,45 +147,6 @@ export default function CustomersPage() {
     }
   }
 
-  const handleCreate = async () => {
-    if (!formData.companyName.trim() || !formData.solutionId || !formData.ownerName) {
-      alert('모든 필드를 입력해주세요.')
-      return
-    }
-
-    const solutionName = solutions.find(s => s.id === formData.solutionId)?.name || ''
-    
-    addCustomer({
-      companyName: formData.companyName,
-      solutionId: formData.solutionId,
-      solutionName,
-      salesStartDate: new Date(formData.salesStartDate),
-      ownerName: formData.ownerName,
-    })
-
-    const ownerRecipientEmails = normalizeRecipientEmails(
-      users
-        .filter((user) => user.displayName === formData.ownerName)
-        .map((user) => user.email),
-    )
-
-    await sendCustomerNotification({
-      type: 'created',
-      customerName: formData.companyName,
-      solutionName,
-      ownerName: formData.ownerName,
-      recipientEmails: ownerRecipientEmails,
-    })
-
-    setFormData({
-      companyName: '',
-      solutionId: '',
-      salesStartDate: new Date().toISOString().split('T')[0],
-      ownerName: '',
-    })
-    setIsCreateOpen(false)
-  }
-
   const handleShareConfirm = async (entities: any[]) => {
     if (!customerToShare) return
     
@@ -264,7 +206,7 @@ export default function CustomersPage() {
                 <p className="text-[#64748B] dark:text-[#908fa0] mt-1">등록된 고객사를 관리합니다.</p>
               </div>
             
-              <Button onClick={() => setIsCreateOpen(true)}>
+              <Button onClick={() => router.push('/customers/new')}>
                 <Plus className="mr-2 h-4 w-4" />
                 고객 등록
               </Button>
@@ -311,22 +253,35 @@ export default function CustomersPage() {
 
           {/* Customer Cards Grid */}
           {filteredCustomers.length === 0 ? (
-            <div className="text-center py-12">
-              <Building2 className="mx-auto h-12 w-12 text-muted-foreground/50" />
-              <p className="mt-4 text-muted-foreground">
-                {customers.length === 0 
-                  ? "등록된 고객사가 없습니다." 
-                  : "검색 조건에 맞는 고객사가 없습니다."}
-              </p>
-              {customers.length === 0 && (
-                <Button asChild className="mt-4">
-                  <Link href="/customers/new">
-                    <Plus className="mr-2 h-4 w-4" />
-                    첫 고객 등록하기
-                  </Link>
-                </Button>
-              )}
-            </div>
+            <Card className="border-[#E2E8F0] bg-white shadow-sm dark:border-[#333333] dark:bg-[#1E1E1E]/60">
+              <CardContent className="p-6">
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <Building2 />
+                    </EmptyMedia>
+                    <EmptyTitle>
+                      {customers.length === 0 ? "등록된 고객사가 없습니다" : "검색 조건에 맞는 고객사가 없습니다"}
+                    </EmptyTitle>
+                    <EmptyDescription>
+                      {customers.length === 0
+                        ? "첫 고객을 등록하면 솔루션별 마일스톤과 파일 관리를 바로 시작할 수 있습니다."
+                        : "검색어나 필터를 조정해서 원하는 고객을 다시 찾아보세요."}
+                    </EmptyDescription>
+                  </EmptyHeader>
+                  {customers.length === 0 && (
+                    <EmptyContent>
+                      <Button asChild>
+                        <Link href="/customers/new">
+                          <Plus className="mr-2 h-4 w-4" />
+                          첫 고객 등록하기
+                        </Link>
+                      </Button>
+                    </EmptyContent>
+                  )}
+                </Empty>
+              </CardContent>
+            </Card>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               {filteredCustomers.map((customer) => {
@@ -431,86 +386,6 @@ export default function CustomersPage() {
         )}
           </div>
         </main>
-
-        {/* Create Customer Dialog */}
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogContent className="max-w-md dark:bg-[#1c1b1b] dark:border-[#464554]">
-            <DialogHeader className="dark:border-b dark:border-[#464554]">
-              <DialogTitle className="dark:text-[#e5e2e1]">새 고객 등록</DialogTitle>
-              <DialogDescription className="dark:text-[#c7c4d7]">고객 정보를 입력해주세요.</DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="company" className="dark:text-[#e5e2e1]">기업명</Label>
-                <Input
-                  id="company"
-                  placeholder="기업명을 입력하세요"
-                  value={formData.companyName}
-                  onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                  className="dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:placeholder:text-[#908fa0]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="solution" className="dark:text-[#e5e2e1]">솔루션 선택</Label>
-                <Select value={formData.solutionId} onValueChange={(value) => setFormData({ ...formData, solutionId: value })}>
-                  <SelectTrigger id="solution" className="dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1]">
-                    <SelectValue placeholder="솔루션을 선택하세요" />
-                  </SelectTrigger>
-                  <SelectContent className="dark:bg-[#1c1b1b] dark:border-[#464554]">
-                    {solutions.map((solution) => (
-                      <SelectItem key={solution.id} value={solution.id} className="dark:text-[#c7c4d7] dark:focus:bg-[#2a2a2a] dark:focus:text-[#e5e2e1]">
-                        {solution.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="startDate" className="dark:text-[#e5e2e1]">시작일 선택</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={formData.salesStartDate}
-                  onChange={(e) => setFormData({ ...formData, salesStartDate: e.target.value })}
-                  className="dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="owner" className="dark:text-[#e5e2e1]">담당자 선택</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-between dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"
-                  onClick={() => setIsOwnerPickerOpen(true)}
-                >
-                  <span className={formData.ownerName ? 'text-foreground dark:text-[#e5e2e1]' : 'text-muted-foreground dark:text-[#908fa0]'}>
-                    {formData.ownerName || '담당자를 선택하세요'}
-                  </span>
-                  <ChevronDown className="h-4 w-4 opacity-50" />
-                </Button>
-              </div>
-            </div>
-
-            <DialogFooter className="dark:border-t dark:border-t-[#464554] pt-6">
-              <Button variant="outline" onClick={() => setIsCreateOpen(false)} className="dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]">취소</Button>
-              <Button onClick={handleCreate} className="dark:bg-primary dark:text-white dark:hover:bg-primary/90">등록</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Owner Picker */}
-        <OwnerPicker
-          open={isOwnerPickerOpen}
-          onOpenChange={setIsOwnerPickerOpen}
-          users={users}
-          groups={groups}
-          selectedOwner={formData.ownerName}
-          onConfirm={(owners) => setFormData({ ...formData, ownerName: owners.map(o => o.name).join(', ') })}
-        />
 
         {/* Share Dialog */}
         {customerToShare && (

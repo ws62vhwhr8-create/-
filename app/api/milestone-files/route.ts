@@ -1,8 +1,15 @@
+import { getServerSession } from 'next-auth'
 import { NextRequest, NextResponse } from 'next/server'
-import { initializeCosmosDB, getContainer, MilestoneFile } from '@/lib/cosmos'
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { getContainer, MilestoneFile } from '@/lib/cosmos'
 import { syncMilestoneFileToSharePoint } from '@/lib/microsoft-graph'
 
 export async function GET(request: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const milestoneId = searchParams.get('milestoneId')
@@ -28,7 +35,7 @@ export async function GET(request: NextRequest) {
         query += ` AND (c.noteId = null OR NOT IS_DEFINED(c.noteId))`
       }
 
-      const { resources } = await container.items.query(query, { parameters }).fetchAll()
+      const { resources } = await container.items.query({ query, parameters }).fetchAll()
 
       return NextResponse.json(resources)
     } catch (cosmosError) {
@@ -49,6 +56,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const body = await request.json()
     const { milestoneId, noteId, fileName, fileSize, fileType, base64Content, kind, isFolder } = body
@@ -113,6 +125,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const fileId = searchParams.get('id')
@@ -129,7 +146,8 @@ export async function DELETE(request: NextRequest) {
 
       // Query to get the file and its milestoneId for partition key
       const { resources } = await container.items
-        .query(`SELECT * FROM c WHERE c.id = @id`, {
+        .query({
+          query: `SELECT * FROM c WHERE c.id = @id`,
           parameters: [{ name: '@id', value: fileId }],
         })
         .fetchAll()

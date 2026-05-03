@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Search, X, Users, User, Check } from "lucide-react"
+import { Search, X, Users, User, Check, Shield } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface EntraUser {

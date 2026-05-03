@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
+import { useAppStore } from "@/lib/store"
 import { cn } from "@/lib/utils"
 import { LayoutDashboard, Users, FolderKanban, Settings, Moon, Sun } from "lucide-react"
 import {
@@ -21,10 +22,6 @@ import {
   SidebarGroup,
   useSidebar,
 } from "@/components/ui/sidebar"
-
-const menuItems = [
-  // 대시보드는 User/Admin 그룹으로 이동
-]
 
 const userMenuItems = [
   {
@@ -61,7 +58,11 @@ export function Navigation() {
   const pathname = usePathname()
   const { state } = useSidebar()
   const { resolvedTheme, setTheme } = useTheme()
+  const { users, currentUserId } = useAppStore()
   const [mounted, setMounted] = useState(false)
+
+  const currentUser = users.find((user) => user.id === currentUserId)
+  const isAdmin = currentUser?.role === "admin"
 
   useEffect(() => {
     setMounted(true)
@@ -72,7 +73,7 @@ export function Navigation() {
   }
 
   return (
-    <Sidebar collapsible="all">
+    <Sidebar collapsible="icon">
       <SidebarHeader className="h-24 !gap-0 !py-0 justify-center">
         <Link
           href="/"
@@ -99,22 +100,6 @@ export function Navigation() {
         </Link>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarMenu>
-          {menuItems.map((item) => (
-            <SidebarMenuItem key={item.href}>
-              <SidebarMenuButton
-                asChild
-                isActive={isActive(item.href)}
-              >
-                <Link href={item.href}>
-                  <item.icon className="h-4 w-4" />
-                  <span>{item.title}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-
         <SidebarSeparator className="my-0.5" />
 
         <SidebarGroup>
@@ -136,24 +121,26 @@ export function Navigation() {
           </SidebarMenu>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Admin</SidebarGroupLabel>
-          <SidebarMenu>
-            {adminMenuItems.map((item) => (
-              <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive(item.href)}
-                >
-                  <Link href={item.href}>
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Admin</SidebarGroupLabel>
+            <SidebarMenu>
+              {adminMenuItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive(item.href)}
+                  >
+                    <Link href={item.href}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
 
         <SidebarSeparator className="mt-auto mb-2" />
         <SidebarGroup className="pt-0">

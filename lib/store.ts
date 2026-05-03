@@ -18,7 +18,7 @@ interface AppState {
   deleteSolution: (id: string) => void
   
   // Customer actions
-  addCustomer: (customer: Omit<Customer, 'id' | 'createdAt' | 'milestones' | 'status' | 'solutionName'>) => void
+  addCustomer: (customer: Omit<Customer, 'id' | 'createdAt' | 'milestones' | 'status' | 'solutionName'>) => string | undefined
   // Field renamed: contractStartDate -> salesStartDate, ownerEmail -> ownerName
   updateCustomer: (id: string, customer: Partial<Customer>) => void
   deleteCustomer: (id: string) => void
@@ -458,7 +458,7 @@ export const useAppStore = create<AppState>()(
       
       addCustomer: (customerData) => {
         const solution = get().solutions.find((s) => s.id === customerData.solutionId)
-        if (!solution) return
+        if (!solution) return undefined
         
         const milestones = generateMilestones(solution, new Date(customerData.salesStartDate))
         const status = calculateCustomerStatus(milestones)
@@ -474,6 +474,8 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           customers: [...state.customers, newCustomer],
         }))
+
+        return newCustomer.id
       },
       
       updateCustomer: (id, updates) => {
