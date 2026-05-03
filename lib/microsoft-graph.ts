@@ -137,6 +137,92 @@ export async function syncMilestoneFileToSharePoint(input: SharePointSyncInput):
     .put(buffer);
 }
 
+// 청크 크기: 10 MiB (Microsoft Graph 요구사항: 320 KiB의 배수)
+const UPLOAD_CHUNK_SIZE = 10 * 1024 * 1024
+
+/**
+ * createUploadSession → chunked PUT 방식으로 SharePoint에 대용량 파일을 업로드하고 webUrl을 반환한다.
+ * Microsoft Graph 단순 PUT 한계(4MB)를 우회하며 사실상 무제한 파일 크기를 지원한다.
+ */
+export async function uploadFileWithSessionToSharePoint(input: {
+  milestoneId: string
+  noteId?: string | null
+  kind: 'stage' | 'action-item'
+  fileName: string
+  fileType?: string
+  fileBuffer: Buffer
+}): Promise<string> {
+  const { driveId, rootFolder } = getSharePointConfig()
+  const client = getGraphClient()
+
+  const baseSegments = [
+    rootFolder,
+    sanitizePathSegment(input.milestoneId),
+    input.kind === 'stage'
+      ? 'stage'
+      : `action-item/${sanitizePathSegment(input.noteId || 'unknown')}`,
+  ]
+    .join('/')
+    .split('/')
+
+  await ensureFolderPath(driveId, baseSegments)
+
+  const targetPath = `${baseSegments.join('/')}/${sanitizePathSegment(input.fileName)}`
+  const fileSize = input.fileBuffer.length
+
+  // 1. 업로드 세션 생성
+  const sessionResponse = await client
+    .api(`/drives/${driveId}/root:/${encodePath(targetPath)}:/createUploadSession`)
+    .post({
+      item: {
+        '@microsoft.graph.conflictBehavior': 'replace',
+        name: sanitizePathSegment(input.fileName),
+      },
+    })
+
+  const uploadUrl: string | undefined = sessionResponse?.uploadUrl
+  if (!uploadUrl) {
+    throw new Error('SharePoint 업로드 세션 URL을 가져올 수 없습니다.')
+  }
+
+  // 2. 청크 단위 PUT 업로드
+  let start = 0
+  let lastResponse: Response | null = null
+
+  while (start < fileSize) {
+    const end = Math.min(start + UPLOAD_CHUNK_SIZE, fileSize)
+    const chunk = input.fileBuffer.subarray(start, end)
+
+    const chunkResponse = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Length': String(chunk.length),
+        'Content-Range': `bytes ${start}-${end - 1}/${fileSize}`,
+        'Content-Type': input.fileType || 'application/octet-stream',
+      },
+      body: chunk,
+    })
+
+    // 202: 진행 중, 201/200: 완료
+    if (!chunkResponse.ok && chunkResponse.status !== 202) {
+      const errorBody = await chunkResponse.text().catch(() => '')
+      throw new Error(
+        `청크 업로드 실패 (bytes ${start}-${end - 1}): HTTP ${chunkResponse.status} ${errorBody}`
+      )
+    }
+
+    lastResponse = chunkResponse
+    start = end
+  }
+
+  if (!lastResponse) {
+    throw new Error('업로드 응답이 없습니다.')
+  }
+
+  const result = await lastResponse.json()
+  return result.webUrl as string
+}
+
 /**
  * Entra ID에서 모든 사용자 조회
  */

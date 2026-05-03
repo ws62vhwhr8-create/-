@@ -121,6 +121,7 @@ model Milestone {
   
   stageId       String
   stageName     String
+  stageLevel    Int               @default(0)
   dueDate       DateTime
   notifyDate    DateTime
   role          String

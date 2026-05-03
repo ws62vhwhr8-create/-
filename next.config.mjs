@@ -11,6 +11,12 @@ const nextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // 대용량 파일 업로드를 위해 Route Handler 요청 바디 크기 제한 상향
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '250mb',
+    },
+  },
 }
 
 export default nextConfig

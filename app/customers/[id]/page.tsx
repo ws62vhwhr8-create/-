@@ -804,33 +804,54 @@ export default function CustomerDetailPage({
       setIsLoadingFiles(true)
       
       for (const file of Array.from(files)) {
-        // Convert file to base64 for small files (< 5MB)
-        const isSmallFile = file.size < 5 * 1024 * 1024
-        let base64Content: string | undefined
-        
-        if (isSmallFile) {
-          try {
-            const reader = new FileReader()
-            base64Content = await new Promise<string>((resolve, reject) => {
-              const onloadHandler = () => {
-                if (reader.result) {
-                  resolve(reader.result as string)
-                } else {
-                  reject(new Error('FileReader result is empty'))
-                }
-              }
-              const onerrorHandler = () => {
-                reject(new Error(`FileReader error: ${reader.error?.message || 'Unknown error'}`))
-              }
-              reader.onload = onloadHandler
-              reader.onerror = onerrorHandler
-              reader.onabort = () => reject(new Error('FileReader aborted'))
-              reader.readAsDataURL(file)
-            })
-          } catch (readerError) {
-            console.error('FileReader error:', readerError)
-            throw readerError
+        // Cosmos DB has a 2MB per-document limit. Base64 encoding inflates size by ~33%,
+        // so files larger than ~1MB would exceed the limit. Route those through the
+        // chunked upload API (SharePoint) which stores only a URL in Cosmos.
+        const LARGE_FILE_THRESHOLD = 1 * 1024 * 1024 // 1MB
+
+        if (file.size > LARGE_FILE_THRESHOLD) {
+          // Large file: multipart upload → SharePoint → stores contentUrl in Cosmos
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('milestoneId', target.milestoneId)
+          if (target.noteId) formData.append('noteId', target.noteId)
+          formData.append('kind', target.kind)
+
+          const response = await fetch('/api/milestone-files/upload', {
+            method: 'POST',
+            body: formData,
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            const errorMessage = errorData.error || `HTTP ${response.status}`
+            throw new Error(`파일 업로드 실패: ${errorMessage}`)
           }
+          continue
+        }
+
+        let base64Content: string | undefined
+        try {
+          const reader = new FileReader()
+          base64Content = await new Promise<string>((resolve, reject) => {
+            const onloadHandler = () => {
+              if (reader.result) {
+                resolve(reader.result as string)
+              } else {
+                reject(new Error('FileReader result is empty'))
+              }
+            }
+            const onerrorHandler = () => {
+              reject(new Error(`FileReader error: ${reader.error?.message || 'Unknown error'}`))
+            }
+            reader.onload = onloadHandler
+            reader.onerror = onerrorHandler
+            reader.onabort = () => reject(new Error('FileReader aborted'))
+            reader.readAsDataURL(file)
+          })
+        } catch (readerError) {
+          console.error('FileReader error:', readerError)
+          throw readerError
         }
         
         const uploadPayload = {
@@ -840,7 +861,7 @@ export default function CustomerDetailPage({
           fileSize: file.size,
           fileType: file.type || 'application/octet-stream',
           isFolder: false,
-          base64Content: isSmallFile ? base64Content : undefined,
+          base64Content: base64Content,
           kind: target.kind,
         }
         
@@ -858,9 +879,7 @@ export default function CustomerDetailPage({
       }
 
       await reloadFilesForTarget(target)
-      
-      // Show success message
-      console.log('파일이 성공적으로 업로드되었습니다.')
+      toast.success('파일이 성공적으로 업로드되었습니다.')
     } catch (error) {
       console.error('Error uploading file:', error)
       const errorMessage = error instanceof Error ? error.message : '파일 업로드 중 오류가 발생했습니다.'
@@ -1684,7 +1703,7 @@ export default function CustomerDetailPage({
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
               <TabsList className="bg-secondary/70 dark:bg-[#1c1b1b] border border-border dark:border-[#333333]">
                 <TabsTrigger value="table" className="dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-indigo-400 dark:data-[state=active]:border-b-2 dark:data-[state=active]:border-indigo-500 dark:text-[#c7c4d7]">마일스톤 테이블</TabsTrigger>
-                <TabsTrigger value="milestone-detail" className="dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-indigo-400 dark:data-[state=active]:border-b-2 dark:data-[state=active]:border-indigo-500 dark:text-[#c7c4d7]">공유된 파일</TabsTrigger>
+                <TabsTrigger value="milestone-detail" className="dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-indigo-400 dark:data-[state=active]:border-b-2 dark:data-[state=active]:border-indigo-500 dark:text-[#c7c4d7]">파일 라이브러리</TabsTrigger>
                 <TabsTrigger value="gantt" className="dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-indigo-400 dark:data-[state=active]:border-b-2 dark:data-[state=active]:border-indigo-500 dark:text-[#c7c4d7]">간이 WBS</TabsTrigger>
               </TabsList>
               
@@ -1776,18 +1795,6 @@ export default function CustomerDetailPage({
                                       >
                                         {milestone.stageName}
                                       </button>
-                                      {(milestone.stageLevel ?? 0) < 2 && (
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8 shrink-0"
-                                          onClick={() => addChildMilestone(milestone.id)}
-                                          title="하위 단계 추가"
-                                        >
-                                          <Plus className="h-4 w-4" />
-                                        </Button>
-                                      )}
                                     </>
                                   ) : (
                                     <>
@@ -1954,7 +1961,7 @@ export default function CustomerDetailPage({
               <TabsContent value="milestone-detail">
                 <Card className="bg-secondary/30 border-border dark:bg-[#171616] dark:border-[#333333]">
                   <CardHeader>
-                    <CardTitle>공유된 파일</CardTitle>
+                    <CardTitle>파일 라이브러리</CardTitle>
                     <CardDescription>마일스톤 목록에서 단계/액션아이템을 클릭해 파일 라이브러리를 관리합니다.</CardDescription>
                   </CardHeader>
                   <CardContent>

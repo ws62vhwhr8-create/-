@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Download } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface PDFExportButtonProps {
   customerName: string
@@ -16,7 +17,7 @@ export default function PDFExportButton({ customerName, elementId }: PDFExportBu
     const element = document.getElementById(elementId)
     if (!element) {
       console.error('Element not found:', elementId)
-      alert('차트 요소를 찾을 수 없습니다.')
+      toast.error('차트 요소를 찾을 수 없습니다.')
       return
     }
 
@@ -121,12 +122,12 @@ export default function PDFExportButton({ customerName, elementId }: PDFExportBu
       pdf.save(fileName)
 
       console.log('PDF exported successfully')
-      alert('간트 차트가 PDF로 성공적으로 내보내졌습니다!')
+      toast.success('간트 차트가 PDF로 성공적으로 내보내졌습니다!')
 
     } catch (error) {
       console.error('PDF export failed:', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
-      alert(`PDF 내보내기에 실패했습니다: ${errorMessage}`)
+      toast.error(`PDF 내보내기에 실패했습니다: ${errorMessage}`)
     } finally {
       setIsExporting(false)
     }
