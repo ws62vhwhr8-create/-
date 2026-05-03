@@ -76,6 +76,7 @@ import {
   Edit2,
   FileText,
   Folder,
+  FolderOpen,
   FolderPlus,
   Info,
   MoreVertical,
@@ -198,6 +199,7 @@ export default function CustomerDetailPage({
   const [folderNameDraft, setFolderNameDraft] = useState('')
   const [folderTarget, setFolderTarget] = useState<FileLibraryTarget | null>(null)
   const [selectedFileForViewer, setSelectedFileForViewer] = useState<MilestoneFile | null>(null)
+  const [dragOverMilestoneId, setDragOverMilestoneId] = useState<string | null>(null)
   const [isLoadingFiles, setIsLoadingFiles] = useState(false)
   const milestoneExcelInputRef = useRef<HTMLInputElement | null>(null)
   const [excelImportPending, setExcelImportPending] = useState<{
@@ -887,6 +889,44 @@ export default function CustomerDetailPage({
       alert(errorMessage)
     } finally {
       setIsLoadingFiles(false)
+    }
+  }
+
+  const handleMoveFile = async (fileId: string, sourceKey: string, targetMilestone: Milestone) => {
+    try {
+      setIsLoadingFiles(true)
+      const response = await fetch('/api/milestone-files', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: fileId,
+          milestoneId: targetMilestone.id,
+          noteId: null,
+          kind: 'stage',
+        }),
+      })
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || '파일 이동 실패')
+      }
+      // Remove from source
+      setLibraryByTarget((prev) => ({
+        ...prev,
+        [sourceKey]: (prev[sourceKey] ?? []).filter((f) => f.id !== fileId),
+      }))
+      // Reload target
+      const targetFileTarget: FileLibraryTarget = {
+        milestoneId: targetMilestone.id,
+        noteId: null,
+        kind: 'stage',
+        label: targetMilestone.stageName,
+      }
+      await reloadFilesForTarget(targetFileTarget)
+    } catch (error) {
+      console.error('Error moving file:', error)
+      alert('파일 이동 중 오류가 발생했습니다.')
+    } finally {
+      if (isMountedRef.current) setIsLoadingFiles(false)
     }
   }
 
@@ -1906,7 +1946,10 @@ export default function CustomerDetailPage({
                           <div>
                             <div className="rounded-lg border border-border bg-secondary/20 p-4 dark:bg-[#1E1E1E] dark:border-[#333333]">
                               <div className="flex items-center justify-between">
-                                <p className="text-xs text-muted-foreground">단계 (폴더)</p>
+                                <div>
+                                  <p className="text-xs text-muted-foreground">단계 (폴더)</p>
+                                  <p className="text-[11px] text-muted-foreground/60 mt-0.5">단계별 파일 폴더입니다. 파일을 드래그하여 이동할 수 있습니다.</p>
+                                </div>
                                 <Button
                                   type="button"
                                   variant="ghost"
@@ -1968,7 +2011,7 @@ export default function CustomerDetailPage({
                                           )}
                                           <button
                                             type="button"
-                                            className={`min-w-0 flex-1 rounded-md border border-border bg-background px-3 py-2 text-left text-sm hover:bg-secondary dark:hover:bg-[#323232]${milestone.id === selectedMilestoneId ? ' dark:bg-[#323232]' : ''}`}
+                                            className={`min-w-0 flex-1 rounded-md border bg-background px-3 py-2 text-left text-sm hover:bg-secondary dark:hover:bg-[#323232] transition-colors${milestone.id === selectedMilestoneId ? ' border-primary/50 dark:bg-[#323232]' : ' border-border'}${dragOverMilestoneId === milestone.id ? ' ring-2 ring-primary/50 bg-primary/5 dark:bg-primary/10' : ''}`}
                                             style={{ paddingLeft: `${12 + (level * 16)}px` }}
                                             onClick={() => {
                                               setSelectedMilestoneId(milestone.id)
@@ -1979,10 +2022,31 @@ export default function CustomerDetailPage({
                                                 label: milestone.stageName,
                                               })
                                             }}
+                                            onDragOver={(e) => {
+                                              e.preventDefault()
+                                              e.dataTransfer.dropEffect = 'move'
+                                              setDragOverMilestoneId(milestone.id)
+                                            }}
+                                            onDragLeave={(e) => {
+                                              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                                                setDragOverMilestoneId(null)
+                                              }
+                                            }}
+                                            onDrop={(e) => {
+                                              e.preventDefault()
+                                              setDragOverMilestoneId(null)
+                                              const fileId = e.dataTransfer.getData('fileId')
+                                              const sourceKey = e.dataTransfer.getData('sourceKey')
+                                              if (fileId && sourceKey) {
+                                                void handleMoveFile(fileId, sourceKey, milestone)
+                                              }
+                                            }}
                                           >
                                             <span className="mr-2 inline-flex rounded border border-border px-1 font-mono text-[11px]">{getStageLabel(customer.milestones, index)}</span>
                                             <span className="inline-flex items-center gap-2 align-middle">
-                                              <Folder className="h-4 w-4 text-muted-foreground" />
+                                              {milestone.id === selectedMilestoneId
+                                                ? <FolderOpen className={`h-4 w-4 ${level === 0 ? 'text-amber-500 dark:text-amber-400' : 'text-amber-400/80 dark:text-amber-400/70'}`} />
+                                                : <Folder className={`h-4 w-4 ${level === 0 ? 'text-amber-500 dark:text-amber-400' : 'text-amber-400/80 dark:text-amber-400/70'}`} />}
                                               <span className="truncate">{milestone.stageName}</span>
                                             </span>
                                           </button>
@@ -2023,6 +2087,11 @@ export default function CustomerDetailPage({
                                   <Badge variant="outline">{currentTarget.kind === 'stage' ? '단계' : '액션아이템'}</Badge>
                                   <p className="text-sm font-medium">{currentTarget.label}</p>
                                 </div>
+                                <p className="mt-1 text-[11px] text-muted-foreground/70">
+                                  {currentTarget.kind === 'stage'
+                                    ? '이 단계 폴더에 마일스톤 단계 전반의 공유 파일을 업로드하세요.'
+                                    : '이 노트 폴더에 해당 액션아이템의 관련 첨부파일을 업로드하세요.'}
+                                </p>
                               </div>
                               <div className="flex items-center gap-2">
                                 <Input
@@ -2079,7 +2148,18 @@ export default function CustomerDetailPage({
                                   </TableHeader>
                                   <TableBody>
                                     {filteredFiles.map((file) => (
-                                      <TableRow key={file.id}>
+                                      <TableRow
+                                        key={file.id}
+                                        draggable={!file.isFolder}
+                                        onDragStart={(e) => {
+                                          if (!file.isFolder) {
+                                            e.dataTransfer.setData('fileId', file.id)
+                                            e.dataTransfer.setData('sourceKey', targetKey)
+                                            e.dataTransfer.effectAllowed = 'move'
+                                          }
+                                        }}
+                                        className={!file.isFolder ? 'cursor-grab active:cursor-grabbing' : undefined}
+                                      >
                                         <TableCell>
                                           <button
                                             type="button"
@@ -2087,7 +2167,7 @@ export default function CustomerDetailPage({
                                             className={file.isFolder ? 'flex items-center gap-2 cursor-default' : 'flex items-center gap-2 cursor-pointer hover:text-primary transition-colors'}
                                           >
                                             {file.isFolder ? (
-                                              <Folder className="h-4 w-4 text-muted-foreground" />
+                                              <Folder className="h-4 w-4 text-amber-500 dark:text-amber-400" />
                                             ) : (
                                               <FileText className="h-4 w-4 text-muted-foreground" />
                                             )}

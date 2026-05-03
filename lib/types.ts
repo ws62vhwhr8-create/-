@@ -62,7 +62,9 @@ export interface Customer {
   solutionId: string
   solutionName: string
   salesStartDate: Date
+  ownerId?: string
   ownerName: string
+  ownerEmail?: string
   milestones: Milestone[]
   createdAt: Date
   status: 'active' | 'completed' | 'at-risk'

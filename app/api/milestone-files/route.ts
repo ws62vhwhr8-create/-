@@ -124,6 +124,67 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    const body = await request.json()
+    const { id, milestoneId, noteId, kind } = body
+
+    if (!id || !milestoneId) {
+      return NextResponse.json({ error: 'id and milestoneId are required' }, { status: 400 })
+    }
+
+    try {
+      const container = await getContainer()
+
+      const { resources } = await container.items
+        .query({ query: 'SELECT * FROM c WHERE c.id = @id', parameters: [{ name: '@id', value: id }] })
+        .fetchAll()
+
+      if (resources.length === 0) {
+        return NextResponse.json({ error: 'File not found' }, { status: 404 })
+      }
+
+      const existing = resources[0] as MilestoneFile
+
+      if (existing.milestoneId === milestoneId) {
+        // Same partition key — update in place
+        const updated: MilestoneFile = { ...existing, noteId: noteId ?? null, kind: kind ?? existing.kind }
+        const { resource } = await container.item(id, milestoneId).replace(updated)
+        return NextResponse.json(resource)
+      } else {
+        // Different partition key — must delete and recreate
+        await container.item(id, existing.milestoneId).delete()
+        const updated: MilestoneFile = {
+          ...existing,
+          milestoneId,
+          noteId: noteId ?? null,
+          kind: kind ?? existing.kind,
+        }
+        const { resource } = await container.items.create(updated)
+        return NextResponse.json(resource)
+      }
+    } catch (cosmosError) {
+      console.error('Cosmos DB error:', cosmosError)
+      const errorMessage = cosmosError instanceof Error ? cosmosError.message : 'Cosmos DB operation failed'
+      return NextResponse.json(
+        { error: `Cosmos DB 오류: ${errorMessage}` },
+        { status: 500 }
+      )
+    }
+  } catch (error) {
+    console.error('Error moving file:', error)
+    return NextResponse.json(
+      { error: `파일 이동 오류: ${error instanceof Error ? error.message : 'Unknown error'}` },
+      { status: 500 }
+    )
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) {

@@ -41,7 +41,9 @@ export default function NewCustomerPage() {
   const [companyName, setCompanyName] = useState("")
   const [solutionId, setSolutionId] = useState("")
   const [salesStartDate, setSalesStartDate] = useState<Date>()
+  const [ownerId, setOwnerId] = useState("")
   const [ownerName, setOwnerName] = useState("")
+  const [ownerEmail, setOwnerEmail] = useState("")
   const [isOwnerPickerOpen, setIsOwnerPickerOpen] = useState(false)
 
   const selectedSolution = solutions.find(s => s.id === solutionId)
@@ -55,7 +57,9 @@ export default function NewCustomerPage() {
       companyName,
       solutionId,
       salesStartDate,
+      ownerId: ownerId || undefined,
       ownerName,
+      ownerEmail: ownerEmail || undefined,
     })
 
     router.push(customerId ? `/customers/${customerId}` : "/customers")
@@ -191,7 +195,7 @@ export default function NewCustomerPage() {
                         <span className="text-sm font-medium">{ownerName}</span>
                         <button
                           type="button"
-                          onClick={() => setOwnerName("")}
+                          onClick={() => { setOwnerId(""); setOwnerName(""); setOwnerEmail("") }}
                           className="ml-auto text-muted-foreground hover:text-foreground"
                         >
                           <X className="h-4 w-4" />
@@ -236,7 +240,9 @@ export default function NewCustomerPage() {
                     onOpenChange={setIsOwnerPickerOpen}
                     onConfirm={(selectedUsers: PickerUser[]) => {
                       if (selectedUsers.length > 0) {
+                        setOwnerId(selectedUsers[0].id)
                         setOwnerName(selectedUsers[0].displayName)
+                        setOwnerEmail(selectedUsers[0].email ?? "")
                       }
                     }}
                   />
