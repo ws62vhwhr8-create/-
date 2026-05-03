@@ -4,6 +4,12 @@ import { getToken } from "next-auth/jwt"
 
 const adminRoutePrefixes = ["/solutions", "/users"]
 
+function redirectToSignIn(request: NextRequest) {
+  const signInUrl = new URL("/api/auth/signin", request.url)
+  signInUrl.searchParams.set("callbackUrl", request.nextUrl.pathname)
+  return NextResponse.redirect(signInUrl)
+}
+
 function isAdminFromToken(token: Awaited<ReturnType<typeof getToken>>) {
   if (!token) return false
   if (typeof token === "string") return false
@@ -30,15 +36,15 @@ function isAdminFromToken(token: Awaited<ReturnType<typeof getToken>>) {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-
-  const isAdminRoute = adminRoutePrefixes.some((route) => pathname.startsWith(route))
-  if (!isAdminRoute) {
-    return NextResponse.next()
-  }
-
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
 
-  if (!token || !isAdminFromToken(token)) {
+  // Protect app routes at the edge before page render.
+  if (!token) {
+    return redirectToSignIn(request)
+  }
+
+  const isAdminRoute = adminRoutePrefixes.some((route) => pathname.startsWith(route))
+  if (isAdminRoute && !isAdminFromToken(token)) {
     return NextResponse.redirect(new URL("/customers", request.url))
   }
 
@@ -46,5 +52,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/solutions/:path*", "/users/:path*"],
+  matcher: ["/", "/dashboard/:path*", "/customers/:path*", "/solutions/:path*", "/users/:path*"],
 }
