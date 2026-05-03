@@ -162,7 +162,7 @@ export function ShareDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[900px] dark:bg-[#1c1b1b] dark:border-[#464554] max-h-[85vh] overflow-hidden p-0">
+      <DialogContent className="sm:max-w-[900px] dark:bg-[#1c1b1b] dark:border-[#464554] max-h-[85vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="dark:border-b dark:border-[#464554] px-6 py-5">
           <DialogTitle className="dark:text-[#e5e2e1]">고객 정보 공유</DialogTitle>
           <DialogDescription className="dark:text-[#c7c4d7]">
@@ -174,7 +174,7 @@ export function ShareDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-0 min-h-[460px]">
+        <div className="grid grid-cols-2 gap-0 flex-1 overflow-hidden">
           {/* Left Column - Search and Selection */}
           <div className="space-y-4 border-r dark:border-r-[#464554] px-4 py-4">
             {/* Search Input */}

@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Navigation } from "@/components/navigation"
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
@@ -12,6 +12,16 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { SolutionCardGrid } from "@/components/solution-card-grid"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format, addDays } from "date-fns"
@@ -20,6 +30,7 @@ import { CalendarIcon, ArrowRight, Clock, FolderKanban, User, X, ChevronDown } f
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import EntraPicker from "@/components/entra-picker"
 import type { PickerUser } from "@/components/entra-picker"
+import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import type { Stage } from "@/lib/types"
@@ -40,13 +51,21 @@ export default function NewCustomerPage() {
   const [ownerEmail, setOwnerEmail] = useState("")
   const [isOwnerPickerOpen, setIsOwnerPickerOpen] = useState(false)
   const [isSolutionOpen, setIsSolutionOpen] = useState(true)
+  const [touched, setTouched] = useState({ companyName: false, solutionId: false, salesStartDate: false, ownerName: false })
+  const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const selectedSolution = solutions.find(s => s.id === solutionId)
   const flattenedSelectedStages = selectedSolution ? flattenStages(selectedSolution.stages) : []
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!companyName || !solutionId || !salesStartDate || !ownerName) return
+    if (!companyName || !solutionId || !salesStartDate || !ownerName) {
+      setTouched({ companyName: true, solutionId: true, salesStartDate: true, ownerName: true })
+      return
+    }
+    if (isSubmitting) return
+    setIsSubmitting(true)
 
     const customerId = addCustomer({
       companyName,
@@ -57,10 +76,31 @@ export default function NewCustomerPage() {
       ownerEmail: ownerEmail || undefined,
     })
 
-    router.push(customerId ? `/customers/${customerId}` : "/customers")
+    if (customerId) {
+      toast.success("고객이 등록되었습니다")
+      router.push(`/customers/${customerId}`)
+    } else {
+      toast.error("등록에 실패했습니다. 다시 시도해주세요")
+      setIsSubmitting(false)
+    }
   }
 
   const isValid = companyName && solutionId && salesStartDate && ownerName
+  const isDirty = !!(companyName || solutionId || salesStartDate || ownerName)
+
+  useEffect(() => {
+    if (!isDirty) return
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault() }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isDirty])
+
+  const errors = {
+    companyName: touched.companyName && !companyName.trim() ? "고객사명을 입력해주세요" : null,
+    solutionId: touched.solutionId && !solutionId ? "솔루션을 선택해주세요" : null,
+    salesStartDate: touched.salesStartDate && !salesStartDate ? "영업 시작일을 선택해주세요" : null,
+    ownerName: touched.ownerName && !ownerName ? "담당자를 선택해주세요" : null,
+  }
 
   // Preview milestones
   const previewMilestones = selectedSolution && salesStartDate 
@@ -121,14 +161,16 @@ export default function NewCustomerPage() {
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="companyName">고객사명</Label>
+                  <Label htmlFor="companyName">고객사명 <span className="text-destructive">*</span></Label>
                   <Input
                     id="companyName"
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
+                    onBlur={() => setTouched(p => ({ ...p, companyName: true }))}
                     placeholder="예: 삼성전자"
-                    className="bg-secondary"
+                    className={cn("bg-secondary", errors.companyName && "border-destructive")}
                   />
+                  {errors.companyName && <p className="text-sm text-destructive">{errors.companyName}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -137,7 +179,7 @@ export default function NewCustomerPage() {
                     onClick={() => setIsSolutionOpen((v) => !v)}
                     className="flex w-full items-center justify-between"
                   >
-                    <Label className="pointer-events-none">솔루션</Label>
+                    <Label className="pointer-events-none">솔루션 <span className="text-destructive">*</span></Label>
                     <ChevronDown
                       className={cn(
                         "h-4 w-4 text-muted-foreground transition-transform duration-200",
@@ -149,20 +191,22 @@ export default function NewCustomerPage() {
                     <SolutionCardGrid
                       solutions={solutions}
                       value={solutionId}
-                      onChange={setSolutionId}
+                      onChange={(id) => { setSolutionId(id); setTouched(p => ({ ...p, solutionId: true })) }}
                     />
                   )}
+                  {errors.solutionId && <p className="text-sm text-destructive">{errors.solutionId}</p>}
                 </div>
 
                 <div className="space-y-2">
-                  <Label>영업 시작일</Label>
+                  <Label>영업 시작일 <span className="text-destructive">*</span></Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         className={cn(
                           "w-full justify-start text-left font-normal bg-secondary",
-                          !salesStartDate && "text-muted-foreground"
+                          !salesStartDate && "text-muted-foreground",
+                          errors.salesStartDate && "border-destructive"
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
@@ -177,18 +221,19 @@ export default function NewCustomerPage() {
                       <Calendar
                         mode="single"
                         selected={salesStartDate}
-                        onSelect={setSalesStartDate}
+                        onSelect={(d) => { setSalesStartDate(d); setTouched(p => ({ ...p, salesStartDate: true })) }}
                         initialFocus
                       />
                     </PopoverContent>
                   </Popover>
+                  {errors.salesStartDate && <p className="text-sm text-destructive">{errors.salesStartDate}</p>}
                 </div>
 
                 <div className="space-y-2">
-                  <Label>담당자</Label>
+                  <Label>담당자 <span className="text-destructive">*</span></Label>
                   {ownerName ? (
                     <div className="flex items-center gap-2">
-                      <div className="flex flex-1 items-center gap-2 rounded-md border bg-secondary px-3 py-2">
+                      <div className={cn("flex flex-1 items-center gap-2 rounded-md border bg-secondary px-3 py-2", errors.ownerName && "border-destructive")}>
                         <Avatar className="h-6 w-6">
                           <AvatarFallback className="text-xs bg-primary/20 text-primary dark:bg-[#353534] dark:text-[#c0c1ff]">
                             {ownerName.slice(0, 2)}
@@ -216,26 +261,33 @@ export default function NewCustomerPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full justify-start bg-secondary text-muted-foreground font-normal"
+                      className={cn("w-full justify-start bg-secondary text-muted-foreground font-normal", errors.ownerName && "border-destructive")}
                       onClick={() => setIsOwnerPickerOpen(true)}
                     >
                       <User className="mr-2 h-4 w-4" />
                       담당자 선택
                     </Button>
                   )}
+                  {errors.ownerName && <p className="text-sm text-destructive">{errors.ownerName}</p>}
                 </div>
 
                 <div className="flex gap-2 pt-4">
                   <Button 
                     type="button" 
                     variant="outline" 
-                    onClick={() => router.back()}
+                    onClick={() => {
+                      if (isDirty) {
+                        setIsLeaveDialogOpen(true)
+                      } else {
+                        router.back()
+                      }
+                    }}
                     className="flex-1"
                   >
                     취소
                   </Button>
-                  <Button type="submit" disabled={!isValid} className="flex-1">
-                    등록하기
+                  <Button type="submit" disabled={!isValid || isSubmitting} className="flex-1">
+                    {isSubmitting ? "등록 중..." : "등록하기"}
                   </Button>
                   <EntraPicker
                     open={isOwnerPickerOpen}
@@ -245,6 +297,7 @@ export default function NewCustomerPage() {
                         setOwnerId(selectedUsers[0].id)
                         setOwnerName(selectedUsers[0].displayName)
                         setOwnerEmail(selectedUsers[0].email ?? "")
+                        setTouched(p => ({ ...p, ownerName: true }))
                       }
                     }}
                   />
@@ -318,6 +371,23 @@ export default function NewCustomerPage() {
           </div>
         </main>
       </SidebarInset>
+
+      <AlertDialog open={isLeaveDialogOpen} onOpenChange={setIsLeaveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>저장하지 않은 입력이 있습니다</AlertDialogTitle>
+            <AlertDialogDescription>
+              페이지를 떠나면 입력한 내용이 모두 사라집니다. 정말 취소하시겠습니까?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>계속 입력</AlertDialogCancel>
+            <AlertDialogAction onClick={() => router.back()}>
+              입력 내용 폐기
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

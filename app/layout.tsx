@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/next'
 import { AuthProvider } from '@/components/auth-provider'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import { ThemeProvider } from '@/components/theme-provider'
+import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -44,6 +45,7 @@ export default function RootLayout({
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <SidebarProvider>
               {children}
+              <Toaster />
               {process.env.NODE_ENV === 'production' && <Analytics />}
             </SidebarProvider>
           </ThemeProvider>
