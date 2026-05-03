@@ -3,10 +3,13 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { signOut, useSession } from "next-auth/react"
 import { useTheme } from "next-themes"
 import { useAppStore } from "@/lib/store"
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, Users, FolderKanban, Settings, Moon, Sun } from "lucide-react"
+import { LayoutDashboard, Users, FolderKanban, Settings, Moon, Sun, LogOut } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
 import {
   Sidebar,
   SidebarContent,
@@ -57,12 +60,17 @@ const adminMenuItems = [
 export function Navigation() {
   const pathname = usePathname()
   const { state } = useSidebar()
+  const { data: session } = useSession()
   const { resolvedTheme, setTheme } = useTheme()
   const { users, currentUserId } = useAppStore()
   const [mounted, setMounted] = useState(false)
 
   const currentUser = users.find((user) => user.id === currentUserId)
   const isAdmin = currentUser?.role === "admin"
+  const accountName = session?.user?.name || currentUser?.displayName || "사용자"
+  const accountEmail = session?.user?.email || currentUser?.email || ""
+  const accountImage = session?.user?.image || ""
+  const accountInitial = accountName.trim().charAt(0).toUpperCase() || "U"
 
   useEffect(() => {
     setMounted(true)
@@ -155,6 +163,46 @@ export function Navigation() {
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
+
+          <div className="mt-2 rounded-xl border border-gray-200 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900">
+            <div className={cn("flex items-center", state === "collapsed" ? "justify-center" : "gap-2") }>
+              <Avatar className="h-9 w-9">
+                <AvatarImage src={accountImage} alt={accountName} />
+                <AvatarFallback>{accountInitial}</AvatarFallback>
+              </Avatar>
+
+              {state !== "collapsed" && (
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">{accountName}</p>
+                  <p className="truncate text-xs text-muted-foreground">{accountEmail}</p>
+                </div>
+              )}
+            </div>
+
+            {state !== "collapsed" ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full justify-center"
+                onClick={() => signOut({ callbackUrl: "/api/auth/signin" })}
+              >
+                <LogOut className="h-4 w-4" />
+                로그아웃
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="mt-2 w-full"
+                onClick={() => signOut({ callbackUrl: "/api/auth/signin" })}
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="sr-only">로그아웃</span>
+              </Button>
+            )}
+          </div>
         </SidebarGroup>
       </SidebarContent>
     </Sidebar>
