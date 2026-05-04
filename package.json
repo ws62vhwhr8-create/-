@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "setup:check": "node scripts/setup-check.cjs"
   },
   "dependencies": {
     "@azure/cosmos": "^4.9.3",
