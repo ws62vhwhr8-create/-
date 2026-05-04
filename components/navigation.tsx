@@ -52,7 +52,7 @@ const adminMenuItems = [
   },
   {
     title: "대시보드",
-    href: "/",
+    href: "/dashboard",
     icon: LayoutDashboard,
   },
 ]

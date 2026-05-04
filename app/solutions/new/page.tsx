@@ -2,6 +2,7 @@
 
 import { useState, useRef, type ChangeEvent } from "react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { Navigation } from "@/components/navigation"
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { useAppStore } from "@/lib/store"
@@ -180,7 +181,7 @@ export default function NewSolutionPage() {
       const firstSheet = workbook.Sheets[firstSheetName]
 
       if (!firstSheet) {
-        alert("엑셀 시트를 찾을 수 없습니다.")
+        toast.error("엑셀 시트를 찾을 수 없습니다.")
         return
       }
 
@@ -188,7 +189,7 @@ export default function NewSolutionPage() {
       const stages = buildStagesFromExcelRows(rows)
 
       if (stages.length === 0) {
-        alert("엑셀에서 단계 데이터를 찾지 못했습니다. (예: 단계명, 기간)")
+        toast.error("엑셀에서 단계 데이터를 찾지 못했습니다. (예: 단계명, 기간)")
         return
       }
 
@@ -207,7 +208,7 @@ export default function NewSolutionPage() {
       setExpandedStages(nextExpanded)
     } catch (error) {
       console.error("Failed to import workflow excel:", error)
-      alert("엑셀 업로드 처리 중 오류가 발생했습니다.")
+      toast.error("엑셀 업로드 처리 중 오류가 발생했습니다.")
     } finally {
       event.target.value = ""
     }
@@ -226,7 +227,7 @@ export default function NewSolutionPage() {
       XLSX.writeFile(workbook, "workflow-template.xlsx")
     } catch (error) {
       console.error("Failed to download workflow template:", error)
-      alert("템플릿 다운로드 중 오류가 발생했습니다.")
+      toast.error("템플릿 다운로드 중 오류가 발생했습니다.")
     }
   }
 
@@ -304,7 +305,7 @@ export default function NewSolutionPage() {
   }
 
   const handleSave = () => {
-    if (!formData.name.trim()) return alert("솔루션명을 입력해주세요.")
+    if (!formData.name.trim()) { toast.error("솔루션명을 입력해주세요."); return }
 
     addSolution({
       ...formData,

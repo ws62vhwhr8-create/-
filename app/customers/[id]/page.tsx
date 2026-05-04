@@ -90,6 +90,8 @@ import {
 import Link from "next/link"
 import * as XLSX from "xlsx"
 import type { Milestone, MilestoneNote, Customer, MilestoneFile } from "@/lib/types"
+import EntraPicker from "@/components/entra-picker"
+import type { PickerUser } from "@/components/entra-picker"
 import dynamic from 'next/dynamic'
 
 const GanttChart = dynamic(() => import('@/components/gantt-chart'), {
@@ -216,6 +218,7 @@ export default function CustomerDetailPage({
   const [deleteFileTarget, setDeleteFileTarget] = useState<{ target: FileLibraryTarget; fileId: string } | null>(null)
   const [isDeleteNoteConfirmOpen, setIsDeleteNoteConfirmOpen] = useState(false)
   const [deleteNoteTarget, setDeleteNoteTarget] = useState<{ milestone: Milestone; noteId: string } | null>(null)
+  const [isOwnerPickerOpen, setIsOwnerPickerOpen] = useState(false)
   const isMountedRef = useRef(true)
   
   const customer = customers.find(c => c.id === id)
@@ -1668,18 +1671,15 @@ export default function CustomerDetailPage({
                           {!isEditing ? (
                             <p className="font-medium text-sm truncate">{customer.ownerName}</p>
                           ) : (
-                            <Select value={editedOwner} onValueChange={setEditedOwner}>
-                              <SelectTrigger className="h-8 text-sm dark:bg-[#1E1E1E] dark:border-[#464554]/50 dark:text-[#e5e2e1]">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent className="dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)]">
-                                {availableUsers.map(user => (
-                                  <SelectItem key={user.id} value={user.displayName} className="dark:border-b-0 dark:text-[#c7c4d7] dark:focus:text-[#e5e2e1] dark:focus:bg-[#2A2A2A]">
-                                    {user.displayName}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-sm w-full justify-start font-normal dark:bg-[#1E1E1E] dark:border-[#464554]/50 dark:text-[#e5e2e1]"
+                              onClick={() => setIsOwnerPickerOpen(true)}
+                            >
+                              {editedOwner || "담당자 선택"}
+                            </Button>
                           )}
                         </div>
                       </CardContent>
@@ -1730,7 +1730,32 @@ export default function CustomerDetailPage({
                     />
                   </CardHeader>
                   <CardContent>
-                    <div className="rounded-lg border border-border dark:border-[#333333] overflow-hidden">
+                    {/* 모바일 카드 목록 (md 미만) */}
+                    <div className="md:hidden space-y-2">
+                      {displayedMilestones.map((milestone, index) => {
+                        const isVisible = isMilestoneRowVisible(displayedMilestones, index, expandedMilestones)
+                        if (!isVisible) return null
+                        return (
+                          <div
+                            key={milestone.id}
+                            className="rounded-lg border border-border bg-background p-3 space-y-2 dark:bg-[#1E1E1E] dark:border-[#333333]"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <Badge variant="outline" className="font-mono text-xs whitespace-nowrap">{getStageLabel(displayedMilestones, index)}</Badge>
+                              <Badge className={`text-xs border ${statusStyles[milestone.status]}`}>{statusLabels[milestone.status]}</Badge>
+                            </div>
+                            <p className="font-medium text-sm" style={{ paddingLeft: `${(milestone.stageLevel ?? 0) * 12}px` }}>{milestone.stageName}</p>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                              <span>담당자: {milestone.role}</span>
+                              <span>마감일: {format(milestone.dueDate, 'yyyy.MM.dd', { locale: ko })}</span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* 데스크탑 테이블 (md 이상) */}
+                    <div className="hidden md:block rounded-lg border border-border dark:border-[#333333] overflow-hidden">
                       <Table>
                         <TableHeader>
                           <TableRow className="bg-secondary/50 hover:bg-secondary/50 dark:bg-[#0e0e0e] dark:hover:bg-[#0e0e0e]">
@@ -1858,13 +1883,9 @@ export default function CustomerDetailPage({
                               <TableCell className="py-3">
                                 <Select
                                   value={milestone.status}
+                                  disabled={!isEditing}
                                   onValueChange={(value) => {
-                                    if (isEditing) {
-                                      updateEditingMilestone(milestone.id, { status: value as Milestone['status'] })
-                                      return
-                                    }
-
-                                    updateMilestoneStatus(customer.id, milestone.id, value as Milestone['status'])
+                                    updateEditingMilestone(milestone.id, { status: value as Milestone['status'] })
                                   }}
                                 >
 
@@ -1971,7 +1992,15 @@ export default function CustomerDetailPage({
                     {(() => {
                       const selectedMilestone = customer.milestones.find((m) => m.id === selectedMilestoneId)
                       if (!selectedMilestone) {
-                        return <p className="text-sm text-muted-foreground">마일스톤 단계를 선택해주세요.</p>
+                        return (
+                          <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+                            <div className="rounded-full bg-muted p-4">
+                              <FolderOpen className="h-8 w-8 text-muted-foreground" />
+                            </div>
+                            <p className="text-sm font-medium text-muted-foreground">마일스톤 단계를 선택하면 파일을 관리할 수 있습니다.</p>
+                            <p className="text-xs text-muted-foreground/60">위 마일스톤 테이블에서 단계를 클릭해주세요.</p>
+                          </div>
+                        )
                       }
 
                       const currentTarget = (
@@ -2507,6 +2536,22 @@ export default function CustomerDetailPage({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 담당자 선택 피커 */}
+      <EntraPicker
+        open={isOwnerPickerOpen}
+        onOpenChange={setIsOwnerPickerOpen}
+        initialUserIds={(() => {
+          const found = availableUsers.find(u => u.displayName === editedOwner)
+          return found ? [found.id] : []
+        })()}
+        onConfirm={(selectedUsers: PickerUser[]) => {
+          if (selectedUsers.length > 0) {
+            setEditedOwner(selectedUsers[0].displayName)
+          }
+          setIsOwnerPickerOpen(false)
+        }}
+      />
     </>
   )
 }

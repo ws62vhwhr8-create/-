@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Download } from "lucide-react"
@@ -297,12 +298,12 @@ export default function GanttChart({ customer }: { customer: Customer }) {
       }
 
       pdf.save(`${customer.companyName}_간트차트.pdf`)
-      alert('간트 차트가 PDF로 성공적으로 내보내졌습니다!')
+      toast.success('간트 차트가 PDF로 성공적으로 내보내졌습니다!')
 
     } catch (error) {
       console.error('PDF export failed:', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
-      alert(`PDF 내보내기에 실패했습니다: ${errorMessage}`)
+      toast.error(`PDF 내보내기에 실패했습니다: ${errorMessage}`)
     } finally {
       setIsExporting(false)
     }

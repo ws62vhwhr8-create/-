@@ -4,11 +4,13 @@ import { Navigation } from "@/components/navigation"
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { StatsCards } from "@/components/dashboard/stats-cards"
 import { CustomerTable } from "@/components/dashboard/customer-table"
-import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
-import Link from "next/link"
+import { useAppStore } from "@/lib/store"
 
 export default function UserDashboardPage() {
+  const { users, currentUserId } = useAppStore()
+  const currentUser = users.find((u) => u.id === currentUserId)
+  const isAdmin = currentUser?.role === "admin"
+
   return (
     <>
       <Navigation />
@@ -23,14 +25,23 @@ export default function UserDashboardPage() {
           <div className="w-full px-6 py-8 lg:px-12 space-y-6">
             <div className="mb-6">
               <div>
-                <h1 className="text-2xl font-bold leading-tight tracking-tight text-[#1b1b23] dark:text-[#e5e2e1]">대시보드 (개인용)</h1>
-                <p className="text-[#64748B] dark:text-[#908fa0]">담당 고객사 현황 및 마일스톤 진행 상태</p>
+                {isAdmin ? (
+                  <>
+                    <h1 className="text-2xl font-bold leading-tight tracking-tight text-[#1b1b23] dark:text-[#e5e2e1]">대시보드 (전체)</h1>
+                    <p className="text-[#64748B] dark:text-[#908fa0]">전체 고객사 현황 및 마일스톤 진행 상태</p>
+                  </>
+                ) : (
+                  <>
+                    <h1 className="text-2xl font-bold leading-tight tracking-tight text-[#1b1b23] dark:text-[#e5e2e1]">대시보드 (개인용)</h1>
+                    <p className="text-[#64748B] dark:text-[#908fa0]">담당 고객사 현황 및 마일스톤 진행 상태</p>
+                  </>
+                )}
               </div>
             </div>
 
             <div className="space-y-6">
-              <StatsCards tone="user" />
-              <CustomerTable tone="user" />
+              <StatsCards tone={isAdmin ? "default" : "user"} />
+              <CustomerTable tone={isAdmin ? "default" : "user"} />
             </div>
           </div>
         </main>
