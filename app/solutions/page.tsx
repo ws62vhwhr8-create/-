@@ -459,7 +459,7 @@ export default function SolutionsPage() {
                 <p className="text-muted-foreground dark:text-[#c7c4d7] mt-1">표준화된 비즈니스 프로세스 템플릿을 관리합니다.</p>
               </div>
 
-              <Button onClick={handleCreateClick}>
+              <Button onClick={() => router.push('/solutions/new')}>
                 <Plus className="mr-2 h-4 w-4" />
                 새 솔루션 설계
               </Button>
