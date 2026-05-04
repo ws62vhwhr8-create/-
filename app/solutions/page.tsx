@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, type ChangeEvent } from "react"
+import { useState, useEffect, useRef, useCallback, type ChangeEvent } from "react"
 import { useRouter } from "next/navigation"
 import { Navigation } from "@/components/navigation"
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
@@ -28,7 +28,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { Plus, Edit2, Trash2, Clock, Layers, X, Users, User, Check, ChevronDown, ChevronRight, Upload, Download } from "lucide-react"
+import { Plus, Edit2, Trash2, Clock, Layers, X, Users, User, Check, ChevronDown, ChevronRight, Upload, Download, Search, Loader2 } from "lucide-react"
 import * as XLSX from "xlsx"
 import type { Solution, Stage } from "@/lib/types"
 
@@ -64,6 +64,12 @@ export default function SolutionsPage() {
   const [editingSolution, setEditingSolution] = useState<Solution | null>(null)
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set())
   const [accessListMode, setAccessListMode] = useState<'group' | 'user'>('group')
+  const [accessQuery, setAccessQuery] = useState('')
+  const [accessResults, setAccessResults] = useState<{id: string, displayName: string, email?: string}[]>([])
+  const [accessLoading, setAccessLoading] = useState(false)
+  const [accessError, setAccessError] = useState<string | null>(null)
+  const [accessMeta, setAccessMeta] = useState<Map<string, string>>(new Map())
+  const accessAbortRef = useRef<AbortController | null>(null)
   const [collapsedSections, setCollapsedSections] = useState({
     solutionName: false,
     solutionDescription: false,
@@ -384,6 +390,43 @@ export default function SolutionsPage() {
     }
     setIsDialogOpen(false)
   }
+
+  // Entra ID access search effect
+  const fetchAccessResults = useCallback(async (q: string, mode: 'group' | 'user') => {
+    if (accessAbortRef.current) accessAbortRef.current.abort()
+    const controller = new AbortController()
+    accessAbortRef.current = controller
+    setAccessLoading(true)
+    setAccessError(null)
+    try {
+      const endpoint = mode === 'user'
+        ? `/api/entra/users?q=${encodeURIComponent(q)}`
+        : `/api/entra/groups?q=${encodeURIComponent(q)}`
+      const res = await fetch(endpoint, { signal: controller.signal })
+      if (!res.ok) throw new Error('조회 실패')
+      const data = await res.json()
+      setAccessResults(mode === 'user' ? (data.users ?? []) : (data.groups ?? []))
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name !== 'AbortError') {
+        setAccessError('Entra ID 조회 실패')
+        setAccessResults([])
+      }
+    } finally {
+      setAccessLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isDialogOpen) {
+      setAccessQuery('')
+      setAccessResults([])
+      setAccessMeta(new Map())
+      setAccessError(null)
+      return
+    }
+    const timer = setTimeout(() => fetchAccessResults(accessQuery, accessListMode), 350)
+    return () => clearTimeout(timer)
+  }, [accessQuery, accessListMode, isDialogOpen, fetchAccessResults])
 
   // 접근 권한 필터링
   const hasAccess = (solution: Solution) => {
@@ -769,7 +812,7 @@ export default function SolutionsPage() {
                     size="sm"
                     variant="outline"
                     className={accessListMode === 'group' ? 'border-primary text-primary bg-primary/5' : 'border-transparent'}
-                    onClick={() => setAccessListMode('group')}
+                    onClick={() => { setAccessListMode('group'); setAccessQuery(''); setAccessResults([]) }}
                   >
                     그룹
                   </Button>
@@ -778,62 +821,101 @@ export default function SolutionsPage() {
                     size="sm"
                     variant="outline"
                     className={accessListMode === 'user' ? 'border-primary text-primary bg-primary/5' : 'border-transparent'}
-                    onClick={() => setAccessListMode('user')}
+                    onClick={() => { setAccessListMode('user'); setAccessQuery(''); setAccessResults([]) }}
                   >
                     사용자
                   </Button>
                 </div>
+                {(formData.userIds.length > 0 || formData.groupIds.length > 0) && (
+                  <div className="flex flex-wrap gap-1">
+                    {formData.groupIds.map(id => (
+                      <span key={id} className="inline-flex items-center gap-1 rounded-full bg-secondary dark:bg-[#2a2a2a] dark:text-[#c7c4d7] px-2 py-0.5 text-xs font-medium">
+                        <Users className="h-3 w-3" />
+                        <span className="max-w-[80px] truncate">{accessMeta.get(id) || id}</span>
+                        <button type="button" onClick={() => setFormData(f => ({ ...f, groupIds: f.groupIds.filter(x => x !== id) }))} className="ml-0.5 rounded hover:bg-muted dark:hover:bg-[#353534]">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                    {formData.userIds.map(id => (
+                      <span key={id} className="inline-flex items-center gap-1 rounded-full bg-secondary dark:bg-[#2a2a2a] dark:text-[#c7c4d7] px-2 py-0.5 text-xs font-medium">
+                        <User className="h-3 w-3" />
+                        <span className="max-w-[80px] truncate">{accessMeta.get(id) || id}</span>
+                        <button type="button" onClick={() => setFormData(f => ({ ...f, userIds: f.userIds.filter(x => x !== id) }))} className="ml-0.5 rounded hover:bg-muted dark:hover:bg-[#353534]">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label className="text-[11px] font-bold text-gray-400 dark:text-[#908fa0] uppercase">{accessListMode === 'group' ? '그룹 지정' : '사용자 지정'}</Label>
-                  <div className="h-[140px] overflow-y-auto rounded-xl border border-gray-200 p-2 space-y-1 bg-gray-50/50 dark:bg-[#0e0e0e] dark:border-[#464554] custom-scrollbar">
-                    {accessListMode === 'user' ? (
-                      users.map(u => {
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground dark:text-[#908fa0]" />
+                    <input
+                      type="text"
+                      placeholder={accessListMode === 'group' ? '그룹명으로 검색...' : '이름 또는 이메일로 검색...'}
+                      value={accessQuery}
+                      onChange={e => setAccessQuery(e.target.value)}
+                      className="w-full pl-8 pr-3 h-8 text-sm rounded-md border border-gray-200 bg-white dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:placeholder:text-[#908fa0] outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <div className="h-[100px] overflow-y-auto rounded-xl border border-gray-200 p-2 space-y-1 bg-gray-50/50 dark:bg-[#0e0e0e] dark:border-[#464554] custom-scrollbar">
+                    {accessLoading ? (
+                      <div className="h-full flex items-center justify-center">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground dark:text-[#908fa0]" />
+                      </div>
+                    ) : accessError ? (
+                      <div className="h-full flex items-center justify-center text-xs text-destructive">{accessError}</div>
+                    ) : accessResults.length === 0 ? (
+                      <div className="h-full flex items-center justify-center text-xs text-gray-400 dark:text-[#908fa0]">
+                        {accessQuery.trim() ? '검색 결과가 없습니다' : accessListMode === 'group' ? '그룹명을 입력하여 검색' : '이름 또는 이메일을 입력하여 검색'}
+                      </div>
+                    ) : accessListMode === 'user' ? (
+                      accessResults.map(u => {
                         const selected = formData.userIds.includes(u.id)
                         return (
-                          <button
-                            key={u.id}
-                            type="button"
+                          <button key={u.id} type="button"
                             onClick={() => {
                               if (selected) {
-                                setFormData({ ...formData, userIds: formData.userIds.filter(id => id !== u.id) })
+                                setFormData(f => ({ ...f, userIds: f.userIds.filter(id => id !== u.id) }))
                               } else {
-                                setFormData({ ...formData, userIds: [...formData.userIds, u.id] })
+                                setFormData(f => ({ ...f, userIds: [...f.userIds, u.id] }))
+                                setAccessMeta(m => new Map(m).set(u.id, u.displayName))
                               }
                             }}
-                            className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg transition-all border text-left ${selected ? 'bg-white border-gray-300 shadow-sm dark:bg-[#2a2a2a] dark:border-[#c0c1ff]/40' : 'border-transparent hover:bg-white hover:shadow-sm hover:border-gray-100 dark:hover:bg-[#2a2a2a] dark:hover:border-[#464554]'}`}
+                            className={`w-full flex items-center gap-3 px-2 py-1.5 rounded-lg transition-all border text-left ${selected ? 'bg-white border-gray-300 shadow-sm dark:bg-[#2a2a2a] dark:border-[#c0c1ff]/40' : 'border-transparent hover:bg-white hover:shadow-sm hover:border-gray-100 dark:hover:bg-[#2a2a2a] dark:hover:border-[#464554]'}`}
                           >
-                            <User className={`h-4 w-4 ${selected ? 'text-[#111827] dark:text-[#c0c1ff]' : 'text-gray-400 dark:text-[#908fa0]'}`} />
-                            <span className="text-sm font-medium text-gray-700 dark:text-[#e5e2e1] flex-1 truncate">{u.displayName}</span>
-                            {selected && <Check className="h-4 w-4 text-[#111827] dark:text-[#c0c1ff]" />}
-                          </button>
-                        )
-                      })
-                    ) : groups && groups.length > 0 ? (
-                      groups.map(g => {
-                        const selected = formData.groupIds.includes(g.id)
-                        return (
-                          <button
-                            key={g.id}
-                            type="button"
-                            onClick={() => {
-                              if (selected) {
-                                setFormData({ ...formData, groupIds: formData.groupIds.filter(id => id !== g.id) })
-                              } else {
-                                setFormData({ ...formData, groupIds: [...formData.groupIds, g.id] })
-                              }
-                            }}
-                            className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg transition-all border text-left ${selected ? 'bg-white border-gray-300 shadow-sm dark:bg-[#2a2a2a] dark:border-[#c0c1ff]/40' : 'border-transparent hover:bg-white hover:shadow-sm hover:border-gray-100 dark:hover:bg-[#2a2a2a] dark:hover:border-[#464554]'}`}
-                          >
-                            <Users className={`h-4 w-4 ${selected ? 'text-[#111827] dark:text-[#c0c1ff]' : 'text-gray-400 dark:text-[#908fa0]'}`} />
-                            <span className="text-sm font-medium text-gray-700 dark:text-[#e5e2e1] flex-1 truncate">{g.name}</span>
-                            {selected && <Check className="h-4 w-4 text-[#111827] dark:text-[#c0c1ff]" />}
+                            <User className={`h-4 w-4 flex-shrink-0 ${selected ? 'text-[#111827] dark:text-[#c0c1ff]' : 'text-gray-400 dark:text-[#908fa0]'}`} />
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm font-medium text-gray-700 dark:text-[#e5e2e1] truncate block">{u.displayName}</span>
+                              {u.email && <span className="text-xs text-gray-400 dark:text-[#908fa0] truncate block">{u.email}</span>}
+                            </div>
+                            {selected && <Check className="h-4 w-4 text-[#111827] dark:text-[#c0c1ff] flex-shrink-0" />}
                           </button>
                         )
                       })
                     ) : (
-                      <div className="h-full flex items-center justify-center text-xs font-medium text-gray-400 dark:text-[#908fa0]">
-                        등록된 그룹이 없습니다.
-                      </div>
+                      accessResults.map(g => {
+                        const selected = formData.groupIds.includes(g.id)
+                        return (
+                          <button key={g.id} type="button"
+                            onClick={() => {
+                              if (selected) {
+                                setFormData(f => ({ ...f, groupIds: f.groupIds.filter(id => id !== g.id) }))
+                              } else {
+                                setFormData(f => ({ ...f, groupIds: [...f.groupIds, g.id] }))
+                                setAccessMeta(m => new Map(m).set(g.id, g.displayName))
+                              }
+                            }}
+                            className={`w-full flex items-center gap-3 px-2 py-1.5 rounded-lg transition-all border text-left ${selected ? 'bg-white border-gray-300 shadow-sm dark:bg-[#2a2a2a] dark:border-[#c0c1ff]/40' : 'border-transparent hover:bg-white hover:shadow-sm hover:border-gray-100 dark:hover:bg-[#2a2a2a] dark:hover:border-[#464554]'}`}
+                          >
+                            <Users className={`h-4 w-4 flex-shrink-0 ${selected ? 'text-[#111827] dark:text-[#c0c1ff]' : 'text-gray-400 dark:text-[#908fa0]'}`} />
+                            <span className="text-sm font-medium text-gray-700 dark:text-[#e5e2e1] flex-1 truncate">{g.displayName}</span>
+                            {selected && <Check className="h-4 w-4 text-[#111827] dark:text-[#c0c1ff] flex-shrink-0" />}
+                          </button>
+                        )
+                      })
                     )}
                   </div>
                 </div>

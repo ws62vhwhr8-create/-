@@ -148,37 +148,21 @@ export default function CustomersPage() {
     }
   }
 
-  const handleShareConfirm = async (entities: any[]) => {
+  const handleShareConfirm = async (userIds: string[], groupIds: string[]) => {
     if (!customerToShare) return
-    
-    // Separate users and groups
-    const userIds = entities.filter(e => e.type === 'user').map(e => e.id)
-    const groupIds = entities.filter(e => e.type === 'group').map(e => e.id)
-    
-    // Update customer with shared information
+
     shareCustomer(customerToShare.id, userIds, groupIds)
-
-    const directUserEmails = users
-      .filter((user) => userIds.includes(user.id))
-      .map((user) => user.email)
-
-    const groupMemberEmails = users
-      .filter((user) => (user.groupIds ?? []).some((groupId) => groupIds.includes(groupId)))
-      .map((user) => user.email)
-
-    const recipientEmails = normalizeRecipientEmails([...directUserEmails, ...groupMemberEmails])
 
     await sendCustomerNotification({
       type: 'shared',
       customerName: customerToShare.companyName,
       solutionName: customerToShare.solutionName,
       ownerName: customerToShare.ownerName,
-      recipientEmails,
-      sharedEntityNames: entities.map((entity) => entity.name),
+      recipientEmails: [],
+      sharedEntityNames: [...userIds, ...groupIds],
     })
-    
-    const entityNames = entities.map(e => e.name).join(', ')
-    toast.success(`${customerToShare.companyName} 정보가 ${entityNames}에 공유되었습니다`)
+
+    toast.success(`${customerToShare.companyName} 정보가 공유되었습니다`)
   }
 
   const getProgress = (customer: Customer) => {
@@ -388,14 +372,12 @@ export default function CustomersPage() {
 
         {/* Share Dialog */}
         {customerToShare && (
-          <ShareDialog 
+          <ShareDialog
             open={shareDialogOpen}
             onOpenChange={setShareDialogOpen}
             customerName={customerToShare.companyName}
             sharedUserIds={customerToShare.sharedUserIds}
             sharedGroupIds={customerToShare.sharedGroupIds}
-            storeUsers={users}
-            storeGroups={groups}
             onShare={handleShareConfirm}
           />
         )}

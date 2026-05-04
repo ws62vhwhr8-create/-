@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -13,7 +14,6 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -21,282 +21,408 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Search, X, Users, User, Check, Shield } from "lucide-react"
+import { Search, X, Users, User as UserIcon, Check, Shield, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-interface EntraUser {
+export interface EntraUser {
   id: string
-  name: string
+  displayName: string
   email: string
+  jobTitle: string
   department: string
-  type: 'user'
 }
 
-interface EntraGroup {
+export interface EntraGroup {
   id: string
-  name: string
-  memberCount: number
-  type: 'group'
+  displayName: string
+  mail: string
+  description: string
 }
 
-type EntraEntity = EntraUser | EntraGroup
+export interface SelectedUserItem {
+  type: "user"
+  user: EntraUser
+  role: "admin" | "user"
+}
 
-// Mock Entra ID data
-const mockEntraUsers: EntraUser[] = [
-  { id: 'u1', name: '김철수', email: 'cs.kim@company.com', department: '영업1팀', type: 'user' },
-  { id: 'u2', name: '이영희', email: 'yh.lee@company.com', department: '영업2팀', type: 'user' },
-  { id: 'u3', name: '박지민', email: 'jm.park@company.com', department: '기술지원팀', type: 'user' },
-  { id: 'u4', name: '최수현', email: 'sh.choi@company.com', department: '마케팅팀', type: 'user' },
-  { id: 'u5', name: '정민준', email: 'mj.jung@company.com', department: '영업1팀', type: 'user' },
-  { id: 'u6', name: '강서연', email: 'sy.kang@company.com', department: '기술지원팀', type: 'user' },
-  { id: 'u7', name: '윤도현', email: 'dh.yoon@company.com', department: '영업3팀', type: 'user' },
-  { id: 'u8', name: '임하은', email: 'he.lim@company.com', department: '경영지원팀', type: 'user' },
-  { id: 'u9', name: '한지우', email: 'jw.han@company.com', department: '영업2팀', type: 'user' },
-  { id: 'u10', name: '오세진', email: 'sj.oh@company.com', department: '기술지원팀', type: 'user' },
-]
+export interface SelectedGroupItem {
+  type: "group"
+  group: EntraGroup
+}
 
-const mockEntraGroups: EntraGroup[] = [
-  { id: 'g1', name: '영업1팀', memberCount: 8, type: 'group' },
-  { id: 'g2', name: '영업2팀', memberCount: 6, type: 'group' },
-  { id: 'g3', name: '영업3팀', memberCount: 5, type: 'group' },
-  { id: 'g4', name: '기술지원팀', memberCount: 12, type: 'group' },
-  { id: 'g5', name: '마케팅팀', memberCount: 7, type: 'group' },
-  { id: 'g6', name: '경영지원팀', memberCount: 4, type: 'group' },
-  { id: 'g7', name: '전사 영업', memberCount: 19, type: 'group' },
-  { id: 'g8', name: '임원진', memberCount: 5, type: 'group' },
-]
+export type SelectedItem = SelectedUserItem | SelectedGroupItem
 
 interface EntraUserSelectDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onConfirm: (entity: EntraEntity, role: 'admin' | 'user') => void
+  onConfirm: (items: SelectedItem[]) => void
 }
 
-export function EntraUserSelectDialog({ 
-  open, 
-  onOpenChange, 
-  onConfirm 
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(t)
+  }, [value, delay])
+  return debounced
+}
+
+export function EntraUserSelectDialog({
+  open,
+  onOpenChange,
+  onConfirm,
 }: EntraUserSelectDialogProps) {
+  const [tab, setTab] = useState<"group" | "user">("group")
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedEntity, setSelectedEntity] = useState<EntraEntity | null>(null)
-  const [selectedRole, setSelectedRole] = useState<'admin' | 'user'>('user')
-  const [step, setStep] = useState<'select' | 'role'>('select')
+  const debouncedQuery = useDebounce(searchQuery, 350)
+  const [userResults, setUserResults] = useState<EntraUser[]>([])
+  const [groupResults, setGroupResults] = useState<EntraGroup[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [selected, setSelected] = useState<SelectedItem[]>([])
+  const abortRef = useRef<AbortController | null>(null)
 
-  const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return []
-    
-    const query = searchQuery.toLowerCase()
-    
-    const matchedUsers = mockEntraUsers.filter(
-      user => 
-        user.name.toLowerCase().includes(query) || 
-        user.email.toLowerCase().includes(query) ||
-        user.department.toLowerCase().includes(query)
-    )
-    
-    const matchedGroups = mockEntraGroups.filter(
-      group => group.name.toLowerCase().includes(query)
-    )
-    
-    return [...matchedGroups, ...matchedUsers] as EntraEntity[]
-  }, [searchQuery])
+  const fetchData = useCallback(async (q: string, mode: "group" | "user") => {
+    if (abortRef.current) abortRef.current.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
 
-  const handleEntitySelect = (entity: EntraEntity) => {
-    setSelectedEntity(entity)
-    setStep('role')
+    setLoading(true)
+    setError(null)
+    try {
+      const endpoint = mode === "user"
+        ? `/api/entra/users?q=${encodeURIComponent(q)}`
+        : `/api/entra/groups?q=${encodeURIComponent(q)}`
+      const res = await fetch(endpoint, { signal: controller.signal })
+      if (!res.ok) throw new Error("조회 실패")
+      const data = await res.json()
+      if (mode === "user") setUserResults(data.users ?? [])
+      else setGroupResults(data.groups ?? [])
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name !== "AbortError") {
+        setError("Entra ID에서 데이터를 불러오지 못했습니다.")
+        if (mode === "user") setUserResults([])
+        else setGroupResults([])
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!open) return
+    fetchData(debouncedQuery, tab)
+  }, [open, debouncedQuery, tab, fetchData])
+
+  const isSelectedUser = (id: string) =>
+    selected.some((s) => s.type === "user" && s.user.id === id)
+  const isSelectedGroup = (id: string) =>
+    selected.some((s) => s.type === "group" && s.group.id === id)
+
+  const toggleUser = (user: EntraUser) => {
+    if (isSelectedUser(user.id)) {
+      setSelected((s) => s.filter((x) => !(x.type === "user" && x.user.id === user.id)))
+    } else {
+      setSelected((s) => [...s, { type: "user", user, role: "user" }])
+    }
+  }
+
+  const toggleGroup = (group: EntraGroup) => {
+    if (isSelectedGroup(group.id)) {
+      setSelected((s) => s.filter((x) => !(x.type === "group" && x.group.id === group.id)))
+    } else {
+      setSelected((s) => [...s, { type: "group", group }])
+    }
+  }
+
+  const updateRole = (userId: string, role: "admin" | "user") => {
+    setSelected((s) =>
+      s.map((x) => (x.type === "user" && x.user.id === userId ? { ...x, role } : x))
+    )
+  }
+
+  const removeSelected = (item: SelectedItem) => {
+    if (item.type === "user") {
+      setSelected((s) => s.filter((x) => !(x.type === "user" && x.user.id === item.user.id)))
+    } else {
+      setSelected((s) => s.filter((x) => !(x.type === "group" && x.group.id === item.group.id)))
+    }
   }
 
   const handleConfirm = () => {
-    if (!selectedEntity) return
-    onConfirm(selectedEntity, selectedRole)
+    if (selected.length === 0) return
+    onConfirm(selected)
     handleClose()
   }
 
   const handleClose = () => {
     setSearchQuery("")
-    setSelectedEntity(null)
-    setSelectedRole('user')
-    setStep('select')
+    setUserResults([])
+    setGroupResults([])
+    setSelected([])
+    setError(null)
     onOpenChange(false)
   }
 
-  const getInitials = (name: string) => {
-    return name.slice(0, 2)
+  const handleTabChange = (newTab: "group" | "user") => {
+    setTab(newTab)
+    setSearchQuery("")
   }
+
+  const getInitials = (name: string) => name.slice(0, 2)
+
+  const selectedUsers = selected.filter((s): s is SelectedUserItem => s.type === "user")
+  const selectedGroups = selected.filter((s): s is SelectedGroupItem => s.type === "group")
+
+  const results = tab === "user" ? userResults : groupResults
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>
-            {step === 'select' ? '사용자 또는 그룹 선택' : '역할 선택'}
-          </DialogTitle>
-          <DialogDescription>
-            {step === 'select' 
-              ? 'Entra ID에서 사용자 또는 그룹을 선택하세요. 이름, 이메일 또는 조직명으로 검색할 수 있습니다.'
-              : `선택된 ${selectedEntity?.type === 'group' ? '그룹' : '사용자'} "${selectedEntity?.name}"의 역할을 선택하세요.`
-            }
+      <DialogContent className="sm:max-w-[900px] dark:bg-[#1c1b1b] dark:border-[#464554] max-h-[85vh] overflow-hidden p-0">
+        <DialogHeader className="border-b dark:border-[#464554] px-6 py-5">
+          <DialogTitle className="dark:text-[#e5e2e1]">사용자 추가</DialogTitle>
+          <DialogDescription className="dark:text-[#c7c4d7]">
+            DEX Consulting Entra ID에서 사용자 또는 그룹을 검색하고 선택하세요.
           </DialogDescription>
         </DialogHeader>
 
-        {step === 'select' ? (
-          <div className="space-y-4">
-            {/* Search Input */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <div className="grid grid-cols-2 gap-0 min-h-[460px]">
+          {/* Left: Search + Tabs + List */}
+          <div className="space-y-4 border-r dark:border-r-[#464554] px-4 py-4">
+            <div className="relative group">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground dark:text-[#908fa0] dark:group-focus-within:text-[#c0c1ff] transition-colors" />
               <Input
-                placeholder="이름, 이메일 또는 그룹명으로 검색..."
+                placeholder={tab === "group" ? "그룹명으로 검색..." : "이름, 이메일로 검색..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-secondary"
+                className="pl-9 bg-secondary dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:placeholder:text-[#908fa0]"
                 autoFocus
               />
             </div>
 
-            {/* Search Results */}
-            <div className="border rounded-lg bg-secondary/30">
-              <ScrollArea className="h-[300px]">
-                {searchQuery.trim() === "" ? (
-                  <div className="flex flex-col items-center justify-center h-full py-8 text-center">
-                    <Search className="h-8 w-8 text-muted-foreground/50 mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      사용자 이름, 이메일 또는 그룹명을 입력하세요
-                    </p>
-                  </div>
-                ) : searchResults.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full py-8 text-center">
-                    <Users className="h-8 w-8 text-muted-foreground/50 mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      검색 결과가 없습니다
-                    </p>
-                  </div>
-                ) : (
-                  <div className="p-2 space-y-1">
-                    {searchResults.map((entity) => (
-                      <button
-                        key={entity.id}
-                        onClick={() => handleEntitySelect(entity)}
-                        className="w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left hover:bg-secondary"
-                      >
-                        <Avatar className="h-9 w-9">
-                          <AvatarFallback className={cn(
-                            "text-xs",
-                            entity.type === 'group' 
-                              ? "bg-chart-2/20 text-chart-2" 
-                              : "bg-primary/20 text-primary"
-                          )}>
-                            {entity.type === 'group' ? (
-                              <Users className="h-4 w-4" />
-                            ) : (
-                              getInitials(entity.name)
-                            )}
-                          </AvatarFallback>
-                        </Avatar>
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium truncate">{entity.name}</span>
-                            {entity.type === 'group' && (
-                              <Badge variant="outline" className="text-xs py-0">
-                                그룹
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {entity.type === 'user' 
-                              ? `${entity.email} · ${entity.department}`
-                              : `${entity.memberCount}명의 멤버`
-                            }
-                          </p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={handleClose}>
-                취소
+            {/* Tabs */}
+            <div className="flex gap-2 border-b dark:border-b-[#464554] pb-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => handleTabChange("group")}
+                className={tab === "group"
+                  ? "border-primary text-primary bg-primary/5 dark:border-[#464554] dark:bg-[#2a2a2a] dark:text-[#c0c1ff]"
+                  : "border-transparent dark:text-[#908fa0] dark:hover:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"}
+              >
+                그룹
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => handleTabChange("user")}
+                className={tab === "user"
+                  ? "border-primary text-primary bg-primary/5 dark:border-[#464554] dark:bg-[#2a2a2a] dark:text-[#c0c1ff]"
+                  : "border-transparent dark:text-[#908fa0] dark:hover:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"}
+              >
+                사용자
               </Button>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {/* Selected Entity Display */}
-            <div className="border rounded-lg p-4 bg-secondary/30">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarFallback className={cn(
-                    "text-xs",
-                    selectedEntity?.type === 'group' 
-                      ? "bg-chart-2/20 text-chart-2" 
-                      : "bg-primary/20 text-primary"
-                  )}>
-                    {selectedEntity?.type === 'group' ? (
-                      <Users className="h-4 w-4" />
-                    ) : (
-                      getInitials(selectedEntity?.name || '')
-                    )}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-medium">{selectedEntity?.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedEntity?.type === 'user' 
-                      ? selectedEntity.email
-                      : `${selectedEntity?.memberCount}명의 멤버`
-                    }
-                  </p>
+
+            <div className="border rounded-lg bg-secondary/30 dark:bg-[#0e0e0e] dark:border-[#464554]">
+              <ScrollArea className="h-[280px]">
+                <div className="p-2 space-y-1">
+                  {loading ? (
+                    <div className="flex items-center justify-center py-10">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground dark:text-[#908fa0]" />
+                    </div>
+                  ) : error ? (
+                    <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+                      <p className="text-sm text-destructive">{error}</p>
+                    </div>
+                  ) : results.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-center">
+                      <Users className="h-8 w-8 text-muted-foreground/50 dark:text-[#908fa0]/50 mb-2" />
+                      <p className="text-sm text-muted-foreground dark:text-[#908fa0]">
+                        {searchQuery.trim() ? "검색 결과가 없습니다" : "검색어를 입력하세요"}
+                      </p>
+                    </div>
+                  ) : tab === "group" ? (
+                    (results as EntraGroup[]).map((g) => {
+                      const sel = isSelectedGroup(g.id)
+                      return (
+                        <button
+                          key={g.id}
+                          type="button"
+                          onClick={() => toggleGroup(g)}
+                          className={cn(
+                            "w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left",
+                            sel
+                              ? "bg-primary/10 border border-primary/30 dark:bg-[#2a2a2a] dark:border-[#c0c1ff]/40"
+                              : "hover:bg-secondary dark:hover:bg-[#2a2a2a]"
+                          )}
+                        >
+                          <Avatar className="h-9 w-9">
+                            <AvatarFallback className="text-xs bg-chart-2/20 text-chart-2 dark:bg-[#353534] dark:text-[#c0c1ff]">
+                              <Users className="h-4 w-4" />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium truncate dark:text-[#e5e2e1]">{g.displayName}</span>
+                              <Badge variant="outline" className="text-xs py-0 dark:border-[#464554] dark:text-[#c7c4d7]">그룹</Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground dark:text-[#908fa0] truncate">
+                              {g.description || g.mail || "보안 그룹"}
+                            </p>
+                          </div>
+                          {sel && <Check className="h-4 w-4 text-primary dark:text-[#c0c1ff]" />}
+                        </button>
+                      )
+                    })
+                  ) : (
+                    (results as EntraUser[]).map((u) => {
+                      const sel = isSelectedUser(u.id)
+                      return (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => toggleUser(u)}
+                          className={cn(
+                            "w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left",
+                            sel
+                              ? "bg-primary/10 border border-primary/30 dark:bg-[#2a2a2a] dark:border-[#c0c1ff]/40"
+                              : "hover:bg-secondary dark:hover:bg-[#2a2a2a]"
+                          )}
+                        >
+                          <Avatar className="h-9 w-9">
+                            <AvatarFallback className="text-xs bg-primary/20 text-primary dark:bg-[#353534] dark:text-[#c0c1ff]">
+                              {getInitials(u.displayName)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <span className="font-medium truncate dark:text-[#e5e2e1] block">{u.displayName}</span>
+                            <p className="text-sm text-muted-foreground dark:text-[#908fa0] truncate">
+                              {u.email}{u.department ? ` · ${u.department}` : ""}
+                            </p>
+                          </div>
+                          {sel && <Check className="h-4 w-4 text-primary dark:text-[#c0c1ff]" />}
+                        </button>
+                      )
+                    })
+                  )}
                 </div>
+              </ScrollArea>
+            </div>
+          </div>
+
+          {/* Right: Selected Panel */}
+          <div className="space-y-3 bg-secondary/20 dark:bg-[#0e0e0e] px-4 py-4">
+            <div className="flex items-center justify-between border-b border-border dark:border-[#464554] pb-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground dark:text-[#908fa0]">선택됨</p>
+              <div className="flex gap-2">
+                <Badge variant="outline" className="text-xs dark:border-[#464554] dark:text-[#c7c4d7]">
+                  사용자 {selectedUsers.length}명
+                </Badge>
+                <Badge variant="outline" className="text-xs dark:border-[#464554] dark:text-[#c7c4d7]">
+                  그룹 {selectedGroups.length}개
+                </Badge>
               </div>
             </div>
 
-            {/* Role Selection */}
-            <div>
-              <Label htmlFor="role">역할 선택</Label>
-              <Select value={selectedRole} onValueChange={(value) => setSelectedRole(value as 'admin' | 'user')}>
-                <SelectTrigger className="mt-2">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      사용자 (User 메뉴만 접근)
+            <div className="border rounded-lg bg-secondary/20 dark:bg-[#131313] dark:border-[#464554]">
+              <ScrollArea className="h-[280px]">
+                <div className="p-3 space-y-2">
+                  {/* Selected Groups */}
+                  {selectedGroups.map(({ group }) => (
+                    <div
+                      key={group.id}
+                      className="flex items-center gap-2 p-2 rounded-lg border dark:border-[#464554] dark:bg-[#1c1b1b]"
+                    >
+                      <Avatar className="h-7 w-7 shrink-0">
+                        <AvatarFallback className="text-xs dark:bg-[#353534] dark:text-[#c0c1ff]">
+                          <Users className="h-3 w-3" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate dark:text-[#e5e2e1]">{group.displayName}</p>
+                        <Badge variant="outline" className="text-xs py-0 mt-0.5 dark:border-[#464554] dark:text-[#c7c4d7]">그룹</Badge>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeSelected({ type: "group", group })}
+                        className="shrink-0 text-muted-foreground hover:text-destructive dark:text-[#908fa0] dark:hover:text-red-400 transition-colors"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
                     </div>
-                  </SelectItem>
-                  <SelectItem value="admin">
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-4 w-4" />
-                      관리자 (User, Admin 메뉴 접근)
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground mt-2">
-                {selectedRole === 'user' 
-                  ? '사용자는 고객 관리 메뉴에만 접근할 수 있습니다.'
-                  : '관리자는 모든 메뉴와 사용자 관리 기능에 접근할 수 있습니다.'}
-              </p>
-            </div>
+                  ))}
 
-            {/* Action Buttons */}
-            <div className="flex justify-end gap-2 pt-4">
-              <Button 
-                variant="outline" 
-                onClick={() => setStep('select')}
-              >
-                뒤로
-              </Button>
-              <Button onClick={handleConfirm}>
-                추가
-              </Button>
+                  {/* Selected Users */}
+                  {selectedUsers.map(({ user, role }) => (
+                    <div
+                      key={user.id}
+                      className="flex items-center gap-2 p-2 rounded-lg border dark:border-[#464554] dark:bg-[#1c1b1b]"
+                    >
+                      <Avatar className="h-7 w-7 shrink-0">
+                        <AvatarFallback className="text-xs bg-primary/20 text-primary dark:bg-[#2a2a2a] dark:text-[#c0c1ff]">
+                          {getInitials(user.displayName)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate dark:text-[#e5e2e1]">{user.displayName}</p>
+                        <Select
+                          value={role}
+                          onValueChange={(v) => updateRole(user.id, v as "admin" | "user")}
+                        >
+                          <SelectTrigger className="h-6 text-xs mt-0.5 px-2 dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1]">
+                            <div className="flex items-center gap-1">
+                              <Shield className="h-3 w-3" />
+                              <SelectValue />
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent className="dark:bg-[#1c1b1b] dark:border-[#464554]">
+                            <SelectItem value="user" className="text-xs dark:text-[#60a5fa] dark:focus:bg-[#2a2a2a]">사용자</SelectItem>
+                            <SelectItem value="admin" className="text-xs dark:text-[#c0c1ff] dark:focus:bg-[#2a2a2a]">관리자</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeSelected({ type: "user", user, role })}
+                        className="shrink-0 text-muted-foreground hover:text-destructive dark:text-[#908fa0] dark:hover:text-red-400 transition-colors"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {selected.length === 0 && (
+                    <div className="flex h-[220px] items-center justify-center text-sm text-muted-foreground dark:text-[#908fa0]">
+                      선택된 대상이 없습니다.
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
             </div>
           </div>
-        )}
+        </div>
+
+        <DialogFooter className="pt-4 px-6 pb-5 border-t dark:border-t-[#464554] bg-secondary/20 dark:bg-[#0e0e0e]">
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            className="dark:bg-transparent dark:border-[#464554] dark:text-[#c7c4d7] dark:hover:bg-[#2a2a2a]"
+          >
+            취소
+          </Button>
+          <Button
+            disabled={selected.length === 0}
+            onClick={handleConfirm}
+            className="border border-blue-600 bg-blue-600 text-white hover:bg-blue-700 dark:border-[#6366F1] dark:bg-[#6366F1] dark:hover:opacity-90"
+          >
+            {selected.length > 0
+              ? `${selected.length}개 추가`
+              : "추가"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

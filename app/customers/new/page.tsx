@@ -28,8 +28,8 @@ import { format, addDays } from "date-fns"
 import { ko } from "date-fns/locale"
 import { CalendarIcon, ArrowRight, Clock, FolderKanban, User, X, ChevronDown } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import EntraPicker from "@/components/entra-picker"
-import type { PickerUser } from "@/components/entra-picker"
+import { EntraUserSelectDialog } from "@/components/entra-user-select-dialog"
+import type { SelectedItem } from "@/components/entra-user-select-dialog"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -289,14 +289,15 @@ export default function NewCustomerPage() {
                   <Button type="submit" disabled={!isValid || isSubmitting} className="flex-1">
                     {isSubmitting ? "등록 중..." : "등록하기"}
                   </Button>
-                  <EntraPicker
+                  <EntraUserSelectDialog
                     open={isOwnerPickerOpen}
                     onOpenChange={setIsOwnerPickerOpen}
-                    onConfirm={(selectedUsers: PickerUser[]) => {
-                      if (selectedUsers.length > 0) {
-                        setOwnerId(selectedUsers[0].id)
-                        setOwnerName(selectedUsers[0].displayName)
-                        setOwnerEmail(selectedUsers[0].email ?? "")
+                    onConfirm={(items: SelectedItem[]) => {
+                      const first = items.find((i) => i.type === "user")
+                      if (first && first.type === "user") {
+                        setOwnerId(first.user.id)
+                        setOwnerName(first.user.displayName)
+                        setOwnerEmail(first.user.email ?? "")
                         setTouched(p => ({ ...p, ownerName: true }))
                       }
                     }}

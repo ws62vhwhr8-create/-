@@ -1,12 +1,29 @@
 import NextAuth, { type NextAuthOptions } from "next-auth"
 import AzureADProvider from "next-auth/providers/azure-ad"
 
+const signInTenantId = process.env.ENTRA_TENANT_ID || process.env.ENTRA_SIGNIN_TENANT_ID || "organizations"
+
+// Determine if we should use secure cookies (only on HTTPS in production)
+const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith("https://") ?? false
+const cookiePrefix = useSecureCookies ? "__Secure-" : ""
+
 export const authOptions: NextAuthOptions = {
+  cookies: {
+    sessionToken: {
+      name: `${cookiePrefix}next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: useSecureCookies,
+      },
+    },
+  },
   providers: [
     AzureADProvider({
       clientId: process.env.ENTRA_CLIENT_ID || "",
       clientSecret: process.env.ENTRA_CLIENT_SECRET || "",
-      tenantId: process.env.ENTRA_TENANT_ID || "common",
+      tenantId: signInTenantId,
     }),
   ],
   callbacks: {

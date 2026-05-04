@@ -34,9 +34,15 @@ function isAdminFromToken(token: Awaited<ReturnType<typeof getToken>>) {
   return false
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
+  const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith("https://") ?? false
+  const token = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET,
+    secureCookie: useSecureCookies,
+    cookieName: `${useSecureCookies ? "__Secure-" : ""}next-auth.session-token`,
+  })
 
   // Protect app routes at the edge before page render.
   if (!token) {

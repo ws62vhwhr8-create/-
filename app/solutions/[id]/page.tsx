@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useEffect, useMemo, useState } from "react"
+import { use, useEffect, useMemo, useState, useRef, useCallback } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Navigation } from "@/components/navigation"
@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Plus, X, Users, User, Check, ChevronDown, ChevronRight, Clock, Layers, Save } from "lucide-react"
+import { Plus, X, Users, User, Check, ChevronDown, ChevronRight, Clock, Layers, Save, Search, Loader2 } from "lucide-react"
 import type { Stage } from "@/lib/types"
 
 const createEmptyStage = (parentStageId: string | null = null, level: number = 0): Stage => ({
@@ -49,6 +49,12 @@ export default function SolutionDetailPage({
 
   const [expandedStages, setExpandedStages] = useState<Set<string>>(new Set())
   const [accessListMode, setAccessListMode] = useState<"group" | "user">("group")
+  const [accessQuery, setAccessQuery] = useState("")
+  const [accessResults, setAccessResults] = useState<{id: string, displayName: string, email?: string}[]>([])
+  const [accessLoading, setAccessLoading] = useState(false)
+  const [accessError, setAccessError] = useState<string | null>(null)
+  const [accessMeta, setAccessMeta] = useState<Map<string, string>>(new Map())
+  const accessAbortRef = useRef<AbortController | null>(null)
   const [isBasicInfoOpen, setIsBasicInfoOpen] = useState(true)
   const [isWorkflowOpen, setIsWorkflowOpen] = useState(true)
   const [formData, setFormData] = useState<{
@@ -177,6 +183,36 @@ export default function SolutionDetailPage({
     }
     setExpandedStages(newExpanded)
   }
+
+  // Entra ID access search
+  const fetchAccessResults = useCallback(async (q: string, mode: "group" | "user") => {
+    if (accessAbortRef.current) accessAbortRef.current.abort()
+    const controller = new AbortController()
+    accessAbortRef.current = controller
+    setAccessLoading(true)
+    setAccessError(null)
+    try {
+      const endpoint = mode === "user"
+        ? `/api/entra/users?q=${encodeURIComponent(q)}`
+        : `/api/entra/groups?q=${encodeURIComponent(q)}`
+      const res = await fetch(endpoint, { signal: controller.signal })
+      if (!res.ok) throw new Error("조회 실패")
+      const data = await res.json()
+      setAccessResults(mode === "user" ? (data.users ?? []) : (data.groups ?? []))
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name !== "AbortError") {
+        setAccessError("Entra ID 조회 실패")
+        setAccessResults([])
+      }
+    } finally {
+      setAccessLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    const timer = setTimeout(() => fetchAccessResults(accessQuery, accessListMode), 350)
+    return () => clearTimeout(timer)
+  }, [accessQuery, accessListMode, fetchAccessResults])
 
   const handleSave = () => {
     if (!solution) return
@@ -481,7 +517,7 @@ export default function SolutionDetailPage({
                     size="sm"
                     variant="outline"
                     className={accessListMode === "group" ? "border-primary text-primary bg-primary/5" : "border-transparent"}
-                    onClick={() => setAccessListMode("group")}
+                    onClick={() => { setAccessListMode("group"); setAccessQuery(""); setAccessResults([]) }}
                   >
                     그룹
                   </Button>
@@ -490,15 +526,59 @@ export default function SolutionDetailPage({
                     size="sm"
                     variant="outline"
                     className={accessListMode === "user" ? "border-primary text-primary bg-primary/5" : "border-transparent"}
-                    onClick={() => setAccessListMode("user")}
+                    onClick={() => { setAccessListMode("user"); setAccessQuery(""); setAccessResults([]) }}
                   >
                     사용자
                   </Button>
                 </div>
 
-                <div className="h-[180px] overflow-y-auto rounded-xl border border-gray-200 dark:border-[#464554]/30 p-2 space-y-1 bg-gray-50/50 dark:bg-[#131313]/50">
-                  {accessListMode === "user" ? (
-                    users.map((user) => {
+                {(formData.userIds.length > 0 || formData.groupIds.length > 0) && (
+                  <div className="flex flex-wrap gap-1">
+                    {formData.groupIds.map(id => (
+                      <span key={id} className="inline-flex items-center gap-1 rounded-full bg-secondary dark:bg-[#2a2a2a] dark:text-[#c7c4d7] px-2 py-0.5 text-xs font-medium">
+                        <Users className="h-3 w-3" />
+                        <span className="max-w-[100px] truncate">{accessMeta.get(id) || id}</span>
+                        <button type="button" onClick={() => setFormData(f => ({ ...f, groupIds: f.groupIds.filter(x => x !== id) }))} className="ml-0.5 rounded hover:bg-muted dark:hover:bg-[#353534]">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                    {formData.userIds.map(id => (
+                      <span key={id} className="inline-flex items-center gap-1 rounded-full bg-secondary dark:bg-[#2a2a2a] dark:text-[#c7c4d7] px-2 py-0.5 text-xs font-medium">
+                        <User className="h-3 w-3" />
+                        <span className="max-w-[100px] truncate">{accessMeta.get(id) || id}</span>
+                        <button type="button" onClick={() => setFormData(f => ({ ...f, userIds: f.userIds.filter(x => x !== id) }))} className="ml-0.5 rounded hover:bg-muted dark:hover:bg-[#353534]">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground dark:text-[#908fa0]" />
+                  <input
+                    type="text"
+                    placeholder={accessListMode === "group" ? "그룹명으로 검색..." : "이름 또는 이메일로 검색..."}
+                    value={accessQuery}
+                    onChange={e => setAccessQuery(e.target.value)}
+                    className="w-full pl-8 pr-3 h-8 text-sm rounded-md border border-gray-200 bg-white dark:bg-[#131313] dark:border-[#464554]/30 dark:text-[#e5e2e1] dark:placeholder:text-[#908fa0] outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+
+                <div className="h-[150px] overflow-y-auto rounded-xl border border-gray-200 dark:border-[#464554]/30 p-2 space-y-1 bg-gray-50/50 dark:bg-[#131313]/50">
+                  {accessLoading ? (
+                    <div className="h-full flex items-center justify-center">
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground dark:text-[#908fa0]" />
+                    </div>
+                  ) : accessError ? (
+                    <div className="h-full flex items-center justify-center text-xs text-destructive">{accessError}</div>
+                  ) : accessResults.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-xs font-medium text-gray-400">
+                      {accessQuery.trim() ? "검색 결과가 없습니다" : accessListMode === "group" ? "그룹명을 입력하여 검색" : "이름 또는 이메일을 입력하여 검색"}
+                    </div>
+                  ) : accessListMode === "user" ? (
+                    accessResults.map((user) => {
                       const selected = formData.userIds.includes(user.id)
                       return (
                         <button
@@ -509,18 +589,22 @@ export default function SolutionDetailPage({
                               setFormData({ ...formData, userIds: formData.userIds.filter((userId) => userId !== user.id) })
                             } else {
                               setFormData({ ...formData, userIds: [...formData.userIds, user.id] })
+                              setAccessMeta(m => new Map(m).set(user.id, user.displayName))
                             }
                           }}
                           className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg transition-all border text-left ${selected ? "bg-white dark:bg-[#2a2a2a] border-gray-300 dark:border-[#464554] shadow-sm" : "border-transparent hover:bg-white dark:hover:bg-[#2a2a2a] hover:shadow-sm hover:border-gray-100 dark:hover:border-[#464554]/50"}`}
                         >
-                          <User className={`h-4 w-4 ${selected ? "text-[#111827] dark:text-[#c0c1ff]" : "text-gray-400 dark:text-[#908fa0]"}`} />
-                          <span className="text-sm font-medium text-gray-700 dark:text-[#e5e2e1] flex-1 truncate">{user.displayName}</span>
-                          {selected && <Check className="h-4 w-4 text-[#111827] dark:text-[#c0c1ff]" />}
+                          <User className={`h-4 w-4 flex-shrink-0 ${selected ? "text-[#111827] dark:text-[#c0c1ff]" : "text-gray-400 dark:text-[#908fa0]"}`} />
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm font-medium text-gray-700 dark:text-[#e5e2e1] truncate block">{user.displayName}</span>
+                            {user.email && <span className="text-xs text-gray-400 dark:text-[#908fa0] truncate block">{user.email}</span>}
+                          </div>
+                          {selected && <Check className="h-4 w-4 text-[#111827] dark:text-[#c0c1ff] flex-shrink-0" />}
                         </button>
                       )
                     })
-                  ) : groups.length > 0 ? (
-                    groups.map((group) => {
+                  ) : (
+                    accessResults.map((group) => {
                       const selected = formData.groupIds.includes(group.id)
                       return (
                         <button
@@ -531,18 +615,17 @@ export default function SolutionDetailPage({
                               setFormData({ ...formData, groupIds: formData.groupIds.filter((groupId) => groupId !== group.id) })
                             } else {
                               setFormData({ ...formData, groupIds: [...formData.groupIds, group.id] })
+                              setAccessMeta(m => new Map(m).set(group.id, group.displayName))
                             }
                           }}
                           className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg transition-all border text-left ${selected ? "bg-white dark:bg-[#2a2a2a] border-gray-300 dark:border-[#464554] shadow-sm" : "border-transparent hover:bg-white dark:hover:bg-[#2a2a2a] hover:shadow-sm hover:border-gray-100 dark:hover:border-[#464554]/50"}`}
                         >
-                          <Users className={`h-4 w-4 ${selected ? "text-[#111827] dark:text-[#c0c1ff]" : "text-gray-400 dark:text-[#908fa0]"}`} />
-                          <span className="text-sm font-medium text-gray-700 dark:text-[#e5e2e1] flex-1 truncate">{group.name}</span>
-                          {selected && <Check className="h-4 w-4 text-[#111827] dark:text-[#c0c1ff]" />}
+                          <Users className={`h-4 w-4 flex-shrink-0 ${selected ? "text-[#111827] dark:text-[#c0c1ff]" : "text-gray-400 dark:text-[#908fa0]"}`} />
+                          <span className="text-sm font-medium text-gray-700 dark:text-[#e5e2e1] flex-1 truncate">{group.displayName}</span>
+                          {selected && <Check className="h-4 w-4 text-[#111827] dark:text-[#c0c1ff] flex-shrink-0" />}
                         </button>
                       )
                     })
-                  ) : (
-                    <div className="h-full flex items-center justify-center text-xs font-medium text-gray-400">등록된 그룹이 없습니다.</div>
                   )}
                 </div>
               </CardContent>

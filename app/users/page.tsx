@@ -17,12 +17,12 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Trash2, Mail, Shield, Search } from "lucide-react"
-import EntraPicker from '@/components/entra-picker'
-import type { PickerUser } from '@/components/entra-picker'
+import { EntraUserSelectDialog } from '@/components/entra-user-select-dialog'
+import type { SelectedItem } from '@/components/entra-user-select-dialog'
 import { useAppStore } from '@/lib/store'
 
 export default function UsersPage() {
-  const { users, groups, customers, addUser, updateUser, deleteUser } = useAppStore()
+  const { users, groups, customers, addUser, updateUser, deleteUser, addGroup } = useAppStore()
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [assignedQuery, setAssignedQuery] = useState("")
   const [userTypeFilter, setUserTypeFilter] = useState<'all' | 'user' | 'owner'>('all')
@@ -61,41 +61,37 @@ export default function UsersPage() {
     return parts.join('')
   }
 
-  const handleAdd = (selectedUsers: PickerUser[], groupIds: string[]) => {
-    const uniqueGroupIds = Array.from(new Set(groupIds))
-
-    selectedUsers.forEach((selectedUser) => {
-      const existingUser = users.find(
-        (u) =>
-          (selectedUser.email && u.email && selectedUser.email === u.email) ||
-          u.displayName === selectedUser.displayName
-      )
-
-      if (existingUser) {
-        const normalizedExistingName = getCleanName(existingUser.displayName)
-        const mergedGroupIds = Array.from(
-          new Set([...(existingUser.groupIds ?? []), ...(selectedUser.groupIds ?? []), ...uniqueGroupIds])
-        )
-        const existingGroupIds = existingUser.groupIds ?? []
-        const isSameLength = mergedGroupIds.length === existingGroupIds.length
-        const isSameGroups = isSameLength && mergedGroupIds.every((groupId) => existingGroupIds.includes(groupId))
-        const isSameName = normalizedExistingName === existingUser.displayName
-
-        if (!isSameGroups || !isSameName) {
-          updateUser(existingUser.id, {
-            groupIds: mergedGroupIds,
-            displayName: normalizedExistingName,
-          })
+  const handleAdd = (items: SelectedItem[]) => {
+    items.forEach((item) => {
+      if (item.type === "group") {
+        const { group } = item
+        // 이미 등록된 그룹이면 스킵
+        const exists = groups.find((g) => g.id === group.id || g.name === group.displayName)
+        if (!exists) {
+          addGroup({ id: group.id, name: group.displayName })
         }
         return
       }
 
-      const displayName = getCleanName(selectedUser.displayName)
+      // type === "user"
+      const { user, role } = item
+      const existingUser = users.find(
+        (u) =>
+          (user.email && u.email && user.email === u.email) ||
+          u.displayName === user.displayName
+      )
+
+      if (existingUser) {
+        updateUser(existingUser.id, { role })
+        return
+      }
+
+      const displayName = getCleanName(user.displayName)
       addUser({
         displayName,
-        email: selectedUser.email || `${displayName}@example.com`,
-        role: 'user',
-        groupIds: Array.from(new Set([...(selectedUser.groupIds ?? []), ...uniqueGroupIds])),
+        email: user.email || `${displayName}@dexconsulting.net`,
+        role,
+        groupIds: [],
       })
     })
 
@@ -253,10 +249,10 @@ export default function UsersPage() {
           </div>
         </main>
 
-        <EntraPicker
+        <EntraUserSelectDialog
           open={isPickerOpen}
           onOpenChange={setIsPickerOpen}
-          onConfirm={(selectedUsers, groupIds) => handleAdd(selectedUsers, groupIds)}
+          onConfirm={handleAdd}
         />
       </SidebarInset>
     </div>
