@@ -378,6 +378,8 @@ export default function CustomersPage() {
             customerName={customerToShare.companyName}
             sharedUserIds={customerToShare.sharedUserIds}
             sharedGroupIds={customerToShare.sharedGroupIds}
+            users={users}
+            groups={groups}
             onShare={handleShareConfirm}
           />
         )}

@@ -18,8 +18,18 @@ export function StatsCards({ tone = "default" }: StatsCardsProps) {
   const isUser = tone === "user"
   const currentUser = users.find((user) => user.id === currentUserId)
   const currentOwnerName = currentUser?.displayName
+  const currentUserIdValue = currentUser?.id
+  const currentUserGroupIds = currentUser?.groupIds ?? []
+  const userAccessibleCustomers = customers.filter((customer) => {
+    const isOwner = customer.ownerId
+      ? customer.ownerId === currentUserIdValue
+      : customer.ownerName === currentOwnerName
+    const isSharedUser = !!currentUserIdValue && (customer.sharedUserIds ?? []).includes(currentUserIdValue)
+    const isSharedGroup = (customer.sharedGroupIds ?? []).some((groupId) => currentUserGroupIds.includes(groupId))
+    return isOwner || isSharedUser || isSharedGroup
+  })
   const relevantCustomers = isUser
-    ? customers.filter((customer) => customer.ownerName === currentOwnerName)
+    ? userAccessibleCustomers
     : customers
 
   const stats = {

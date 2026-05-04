@@ -1,11 +1,27 @@
 "use client"
 
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Navigation } from "@/components/navigation"
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { StatsCards } from "@/components/dashboard/stats-cards"
 import { CustomerTable } from "@/components/dashboard/customer-table"
+import { useAppStore } from "@/lib/store"
 
-export default function UserDashboardPage() {
+export default function AdminDashboardPage() {
+  const router = useRouter()
+  const { users, currentUserId } = useAppStore()
+  const currentUser = users.find((u) => u.id === currentUserId)
+  const isAdmin = currentUser?.role === "admin"
+
+  useEffect(() => {
+    if (users.length > 0 && !isAdmin) {
+      router.replace("/dashboard")
+    }
+  }, [isAdmin, router, users.length])
+
+  if (!isAdmin) return null
+
   return (
     <>
       <Navigation />
@@ -20,14 +36,14 @@ export default function UserDashboardPage() {
           <div className="w-full px-6 py-8 lg:px-12 space-y-6">
             <div className="mb-6">
               <div>
-                <h1 className="text-2xl font-bold leading-tight tracking-tight text-[#1b1b23] dark:text-[#e5e2e1]">대시보드 (User)</h1>
-                <p className="text-[#64748B] dark:text-[#908fa0]">내가 생성한 고객 및 나에게 공유된 고객 진행 현황</p>
+                <h1 className="text-2xl font-bold leading-tight tracking-tight text-[#1b1b23] dark:text-[#e5e2e1]">대시보드 (Admin)</h1>
+                <p className="text-[#64748B] dark:text-[#908fa0]">전체 고객사 진행 현황</p>
               </div>
             </div>
 
             <div className="space-y-6">
-              <StatsCards tone="user" />
-              <CustomerTable tone="user" />
+              <StatsCards tone="default" />
+              <CustomerTable tone="default" />
             </div>
           </div>
         </main>

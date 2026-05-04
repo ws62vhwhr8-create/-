@@ -41,6 +41,11 @@ const userMenuItems = [
 
 const adminMenuItems = [
   {
+    title: "대시보드",
+    href: "/admin-dashboard",
+    icon: LayoutDashboard,
+  },
+  {
     title: "솔루션 관리",
     href: "/solutions",
     icon: FolderKanban,
@@ -49,11 +54,6 @@ const adminMenuItems = [
     title: "사용자 관리",
     href: "/users",
     icon: Settings,
-  },
-  {
-    title: "대시보드",
-    href: "/dashboard",
-    icon: LayoutDashboard,
   },
 ]
 

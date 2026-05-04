@@ -14,7 +14,14 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Search, X, Users, User as UserIcon, Check, Send, Loader2 } from "lucide-react"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Search, X, Users, User as UserIcon, Check, Send, Loader2, Shield } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface EntraUser {
@@ -44,12 +51,24 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced
 }
 
+interface SharedUser {
+  id: string
+  displayName: string
+}
+
+interface SharedGroup {
+  id: string
+  name: string
+}
+
 interface ShareDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   customerName: string
   sharedUserIds?: string[]
   sharedGroupIds?: string[]
+  users?: SharedUser[]
+  groups?: SharedGroup[]
   onShare: (userIds: string[], groupIds: string[]) => void
 }
 
@@ -59,6 +78,8 @@ export function ShareDialog({
   customerName,
   sharedUserIds = [],
   sharedGroupIds = [],
+  users = [],
+  groups = [],
   onShare,
 }: ShareDialogProps) {
   const [tab, setTab] = useState<"group" | "user">("group")
@@ -70,7 +91,51 @@ export function ShareDialog({
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<SelectedEntity[]>([])
   const [isSharing, setIsSharing] = useState(false)
+  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set())
+  const [nameCache, setNameCache] = useState<Record<string, string>>({})
+  const [sharedRoles, setSharedRoles] = useState<Record<string, "user" | "admin">>({})
   const abortRef = useRef<AbortController | null>(null)
+
+  const getUserName = (id: string) => nameCache[id] || users.find((u) => u.id === id)?.displayName || id
+  const getGroupName = (id: string) => nameCache[id] || groups.find((g) => g.id === id)?.name || id
+
+  // Preload both tabs on open to build name cache for already-shared IDs
+  useEffect(() => {
+    if (!open) return
+    const preload = async () => {
+      try {
+        const [uRes, gRes] = await Promise.all([
+          fetch(`/api/entra/users?q=`),
+          fetch(`/api/entra/groups?q=`),
+        ])
+        const [uData, gData] = await Promise.all([uRes.json(), gRes.json()])
+        const cache: Record<string, string> = {}
+        ;(uData.users ?? []).forEach((u: { id: string; displayName: string }) => { cache[u.id] = u.displayName })
+        ;(gData.groups ?? []).forEach((g: { id: string; displayName: string }) => { cache[g.id] = g.displayName })
+        setNameCache(cache)
+      } catch { /* ignore preload errors */ }
+    }
+    preload()
+  }, [open])
+
+  // Update name cache whenever search results arrive
+  useEffect(() => {
+    if (userResults.length === 0) return
+    setNameCache((prev) => {
+      const next = { ...prev }
+      userResults.forEach((u) => { next[u.id] = u.displayName })
+      return next
+    })
+  }, [userResults])
+
+  useEffect(() => {
+    if (groupResults.length === 0) return
+    setNameCache((prev) => {
+      const next = { ...prev }
+      groupResults.forEach((g) => { next[g.id] = g.displayName })
+      return next
+    })
+  }, [groupResults])
 
   const fetchData = useCallback(async (q: string, mode: "group" | "user") => {
     if (abortRef.current) abortRef.current.abort()
@@ -106,8 +171,11 @@ export function ShareDialog({
   }, [open, debouncedQuery, tab, fetchData])
 
   const isSelectedId = (id: string) => selected.some((s) => s.id === id)
-  const isAlreadyShared = (id: string, type: "user" | "group") =>
-    type === "user" ? sharedUserIds.includes(id) : sharedGroupIds.includes(id)
+  const isAlreadyShared = (id: string, type: "user" | "group") => {
+    if (type === "user") return sharedUserIds.includes(id) && !removedIds.has(id)
+    return sharedGroupIds.includes(id) && !removedIds.has(id)
+  }
+  const removeShared = (id: string) => setRemovedIds((prev) => new Set([...prev, id]))
 
   const toggleUser = (u: EntraUser) => {
     if (isSelectedId(u.id)) {
@@ -130,15 +198,15 @@ export function ShareDialog({
   }
 
   const handleShare = async () => {
-    if (selected.length === 0) return
+    if (selected.length === 0 && removedIds.size === 0) return
     setIsSharing(true)
     await new Promise((r) => setTimeout(r, 600))
     setIsSharing(false)
     const userIds = selected.filter((s) => s.type === "user").map((s) => s.id)
     const groupIds = selected.filter((s) => s.type === "group").map((s) => s.id)
     onShare(
-      [...sharedUserIds, ...userIds.filter((id) => !sharedUserIds.includes(id))],
-      [...sharedGroupIds, ...groupIds.filter((id) => !sharedGroupIds.includes(id))]
+      [...sharedUserIds.filter((id) => !removedIds.has(id)), ...userIds.filter((id) => !sharedUserIds.includes(id))],
+      [...sharedGroupIds.filter((id) => !removedIds.has(id)), ...groupIds.filter((id) => !sharedGroupIds.includes(id))]
     )
     handleClose()
   }
@@ -148,6 +216,9 @@ export function ShareDialog({
     setUserResults([])
     setGroupResults([])
     setSelected([])
+    setRemovedIds(new Set())
+    setNameCache({})
+    setSharedRoles({})
     setError(null)
     onOpenChange(false)
   }
@@ -348,11 +419,11 @@ export function ShareDialog({
           {/* Right: Already shared */}
           <div className="space-y-4 bg-secondary/20 dark:bg-[#0e0e0e] px-4 py-4">
             <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground dark:text-[#908fa0] border-b border-border dark:border-[#464554] pb-3">
-              공유 대상 ({sharedUserIds.length + sharedGroupIds.length})
+              공유 대상 ({sharedUserIds.filter((id) => !removedIds.has(id)).length + sharedGroupIds.filter((id) => !removedIds.has(id)).length + selected.length})
             </p>
             <div className="border rounded-lg bg-secondary/20 dark:bg-[#131313] dark:border-[#464554]">
               <ScrollArea className="h-[360px]">
-                {sharedUserIds.length === 0 && sharedGroupIds.length === 0 ? (
+                {sharedUserIds.length === 0 && sharedGroupIds.length === 0 && selected.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full py-10 text-center">
                     <Users className="h-8 w-8 text-muted-foreground/40 dark:text-[#908fa0]/40 mb-2" />
                     <p className="text-sm text-muted-foreground dark:text-[#908fa0]">
@@ -361,35 +432,150 @@ export function ShareDialog({
                   </div>
                 ) : (
                   <div className="p-2 space-y-1">
-                    {sharedGroupIds.map((id) => (
-                      <div key={id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 dark:bg-[#2a2a2a]">
-                        <Avatar className="h-9 w-9">
-                          <AvatarFallback className="text-xs bg-chart-2/20 text-chart-2 dark:bg-[#353534] dark:text-[#c0c1ff]">
-                            <Users className="h-4 w-4" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium truncate dark:text-[#e5e2e1] text-sm">{id}</span>
-                            <Badge variant="outline" className="text-xs py-0 dark:border-[#464554] dark:text-[#c7c4d7]">그룹</Badge>
+                    {selected.filter((s) => s.type === "group").map((entity) => (
+                        <div key={entity.id} className="flex items-center gap-2 p-2 rounded-lg border dark:border-[#464554] dark:bg-[#1c1b1b]">
+                          <Avatar className="h-7 w-7 shrink-0">
+                            <AvatarFallback className="text-xs dark:bg-[#353534] dark:text-[#c0c1ff]">
+                              <Users className="h-3 w-3" />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate dark:text-[#e5e2e1]">{entity.name}</p>
+                            <Select
+                              value={sharedRoles[entity.id] ?? "user"}
+                              onValueChange={(v) => setSharedRoles((prev) => ({ ...prev, [entity.id]: v as "user" | "admin" }))}
+                            >
+                              <SelectTrigger className="h-6 text-xs mt-0.5 px-2 border-none dark:bg-[#0e0e0e] dark:border-none dark:text-[#e5e2e1] focus:ring-0 focus:ring-offset-0 shadow-none">
+                                <div className="flex items-center gap-1">
+                                  <Shield className="h-3 w-3" />
+                                  <SelectValue />
+                                </div>
+                              </SelectTrigger>
+                              <SelectContent className="dark:bg-[#1c1b1b] dark:border-[#464554]">
+                                <SelectItem value="user" className="text-xs dark:text-[#60a5fa] dark:focus:bg-[#2a2a2a]">사용자</SelectItem>
+                                <SelectItem value="admin" className="text-xs dark:text-[#c0c1ff] dark:focus:bg-[#2a2a2a]">관리자</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => removeSelected(entity.id)}
+                            className="shrink-0 text-muted-foreground hover:text-destructive dark:text-[#908fa0] dark:hover:text-red-400 transition-colors"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
                         </div>
-                        <Check className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
-                      </div>
-                    ))}
-                    {sharedUserIds.map((id) => (
-                      <div key={id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 dark:bg-[#2a2a2a]">
-                        <Avatar className="h-9 w-9">
-                          <AvatarFallback className="text-xs bg-primary/20 text-primary dark:bg-[#353534] dark:text-[#c0c1ff]">
-                            <UserIcon className="h-4 w-4" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <span className="font-medium truncate dark:text-[#e5e2e1] text-sm block">{id}</span>
+                      ))}
+                    {selected.filter((s) => s.type === "user").map((entity) => (
+                        <div key={entity.id} className="flex items-center gap-2 p-2 rounded-lg border dark:border-[#464554] dark:bg-[#1c1b1b]">
+                          <Avatar className="h-7 w-7 shrink-0">
+                            <AvatarFallback className="text-xs bg-primary/20 text-primary dark:bg-[#2a2a2a] dark:text-[#c0c1ff]">
+                              {entity.name.slice(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate dark:text-[#e5e2e1]">{entity.name}</p>
+                            <Select
+                              value={sharedRoles[entity.id] ?? "user"}
+                              onValueChange={(v) => setSharedRoles((prev) => ({ ...prev, [entity.id]: v as "user" | "admin" }))}
+                            >
+                              <SelectTrigger className="h-6 text-xs mt-0.5 px-2 border-none dark:bg-[#0e0e0e] dark:border-none dark:text-[#e5e2e1] focus:ring-0 focus:ring-offset-0 shadow-none">
+                                <div className="flex items-center gap-1">
+                                  <Shield className="h-3 w-3" />
+                                  <SelectValue />
+                                </div>
+                              </SelectTrigger>
+                              <SelectContent className="dark:bg-[#1c1b1b] dark:border-[#464554]">
+                                <SelectItem value="user" className="text-xs dark:text-[#60a5fa] dark:focus:bg-[#2a2a2a]">사용자</SelectItem>
+                                <SelectItem value="admin" className="text-xs dark:text-[#c0c1ff] dark:focus:bg-[#2a2a2a]">관리자</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeSelected(entity.id)}
+                            className="shrink-0 text-muted-foreground hover:text-destructive dark:text-[#908fa0] dark:hover:text-red-400 transition-colors"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
                         </div>
-                        <Check className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
-                      </div>
-                    ))}
+                      ))}
+                    {sharedGroupIds.map((id) => {
+                      const isRemoved = removedIds.has(id)
+                      if (isRemoved) return null
+                      return (
+                        <div key={id} className="flex items-center gap-2 p-2 rounded-lg border dark:border-[#464554] dark:bg-[#1c1b1b]">
+                          <Avatar className="h-7 w-7 shrink-0">
+                            <AvatarFallback className="text-xs dark:bg-[#353534] dark:text-[#c0c1ff]">
+                              <Users className="h-3 w-3" />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate dark:text-[#e5e2e1]">{getGroupName(id)}</p>
+                            <Select
+                              value={sharedRoles[id] ?? "user"}
+                              onValueChange={(v) => setSharedRoles((prev) => ({ ...prev, [id]: v as "user" | "admin" }))}
+                            >
+                              <SelectTrigger className="h-6 text-xs mt-0.5 px-2 border-none dark:bg-[#0e0e0e] dark:border-none dark:text-[#e5e2e1] focus:ring-0 focus:ring-offset-0 shadow-none">
+                                <div className="flex items-center gap-1">
+                                  <Shield className="h-3 w-3" />
+                                  <SelectValue />
+                                </div>
+                              </SelectTrigger>
+                              <SelectContent className="dark:bg-[#1c1b1b] dark:border-[#464554]">
+                                <SelectItem value="user" className="text-xs dark:text-[#60a5fa] dark:focus:bg-[#2a2a2a]">사용자</SelectItem>
+                                <SelectItem value="admin" className="text-xs dark:text-[#c0c1ff] dark:focus:bg-[#2a2a2a]">관리자</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeShared(id)}
+                            className="shrink-0 text-muted-foreground hover:text-destructive dark:text-[#908fa0] dark:hover:text-red-400 transition-colors"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )
+                    })}
+                    {sharedUserIds.map((id) => {
+                      const isRemoved = removedIds.has(id)
+                      if (isRemoved) return null
+                      return (
+                        <div key={id} className="flex items-center gap-2 p-2 rounded-lg border dark:border-[#464554] dark:bg-[#1c1b1b]">
+                          <Avatar className="h-7 w-7 shrink-0">
+                            <AvatarFallback className="text-xs bg-primary/20 text-primary dark:bg-[#2a2a2a] dark:text-[#c0c1ff]">
+                              {(nameCache[id] || getUserName(id)).slice(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate dark:text-[#e5e2e1]">{getUserName(id)}</p>
+                            <Select
+                              value={sharedRoles[id] ?? "user"}
+                              onValueChange={(v) => setSharedRoles((prev) => ({ ...prev, [id]: v as "user" | "admin" }))}
+                            >
+                              <SelectTrigger className="h-6 text-xs mt-0.5 px-2 border-none dark:bg-[#0e0e0e] dark:border-none dark:text-[#e5e2e1] focus:ring-0 focus:ring-offset-0 shadow-none">
+                                <div className="flex items-center gap-1">
+                                  <Shield className="h-3 w-3" />
+                                  <SelectValue />
+                                </div>
+                              </SelectTrigger>
+                              <SelectContent className="dark:bg-[#1c1b1b] dark:border-[#464554]">
+                                <SelectItem value="user" className="text-xs dark:text-[#60a5fa] dark:focus:bg-[#2a2a2a]">사용자</SelectItem>
+                                <SelectItem value="admin" className="text-xs dark:text-[#c0c1ff] dark:focus:bg-[#2a2a2a]">관리자</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeShared(id)}
+                            className="shrink-0 text-muted-foreground hover:text-destructive dark:text-[#908fa0] dark:hover:text-red-400 transition-colors"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </ScrollArea>
@@ -407,7 +593,7 @@ export function ShareDialog({
           </Button>
           <Button
             onClick={handleShare}
-            disabled={selected.length === 0 || isSharing}
+            disabled={(selected.length === 0 && removedIds.size === 0) || isSharing}
             className="border border-blue-600 bg-blue-600 text-white hover:bg-blue-700 dark:border-[#6366F1] dark:bg-[#6366F1] dark:hover:opacity-90"
           >
             {isSharing ? (
@@ -415,7 +601,7 @@ export function ShareDialog({
             ) : (
               <>
                 <Send className="mr-2 h-4 w-4" />
-                공유 ({selected.length})
+                저장 ({selected.length + removedIds.size})
               </>
             )}
           </Button>

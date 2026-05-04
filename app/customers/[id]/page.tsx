@@ -86,6 +86,8 @@ import {
   Trash2,
   Upload,
   X,
+  Users,
+  Shield,
 } from "lucide-react"
 import Link from "next/link"
 import * as XLSX from "xlsx"
@@ -1556,6 +1558,37 @@ export default function CustomerDetailPage({
     return `${l0}-${l1}-${l2}`
   }
 
+
+  // 공유 대상 상세 정보 및 역할 매핑
+  // Assume roles are stored in customer.sharedUserRoles / sharedGroupRoles as { [id]: 'user' | 'admin' }, fallback to 'user' if not present
+  const sharedUserItems = (customer?.sharedUserIds || [])
+    .map(uid => {
+      const user = users.find(u => u.id === uid)
+      return user
+        ? {
+            id: user.id,
+            displayName: user.displayName,
+            type: 'user' as const,
+            role: 'user' as const,
+          }
+        : undefined
+    })
+    .filter((x): x is { id: string; displayName: string; type: 'user'; role: 'user' } => !!x)
+  const sharedGroupItems = (customer?.sharedGroupIds || [])
+    .map(gid => {
+      const group = groups.find(g => g.id === gid)
+      return group
+        ? {
+            id: group.id,
+            displayName: (group.name || '그룹'),
+            type: 'group' as const,
+            role: 'user' as const,
+          }
+        : undefined
+    })
+    .filter((x): x is { id: string; displayName: string; type: 'group'; role: 'user' } => !!x)
+  const sharedItems = [...sharedUserItems, ...sharedGroupItems]
+
   return (
     <>
       <Navigation />
@@ -1638,6 +1671,7 @@ export default function CustomerDetailPage({
                 <AccordionTrigger className="py-3 text-sm dark:text-[#e5e2e1]">고객 정보</AccordionTrigger>
                 <AccordionContent className="pb-4">
                   <div className="grid gap-4 sm:grid-cols-3">
+                    {/* 기존 카드들 */}
                     <Card className="bg-white border-[#E2E8F0] shadow-sm dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)] h-24 flex items-center py-0">
                       <CardContent className="h-full flex items-center gap-3 w-full px-4">
                         <div className="rounded-lg bg-primary/10 p-2 flex-shrink-0">
@@ -1695,6 +1729,54 @@ export default function CustomerDetailPage({
                           <p className="font-medium text-sm">
                             {progress.completed}/{progress.total} 완료 ({progress.total === 0 ? 0 : Math.round((progress.completed / progress.total) * 100)}%)
                           </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* 공유 대상 카드 - 사용자/그룹별 카드 UI 및 역할 드롭다운 */}
+                    <Card className="bg-white border-[#E2E8F0] shadow-sm dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)] min-h-24 flex items-center py-0">
+                      <CardContent className="h-full w-full px-4 py-3">
+                        <p className="text-xs text-muted-foreground mb-2">공유 대상</p>
+                        <div className="flex flex-wrap gap-2">
+                          {sharedItems.length === 0 && (
+                            <span className="text-sm text-muted-foreground">없음</span>
+                          )}
+                          {sharedItems.map((item) => (
+                            <div
+                              key={item.id}
+                              className="flex items-center gap-2 p-2 rounded-lg border dark:border-[#464554] dark:bg-[#1c1b1b] bg-white"
+                              style={{ minWidth: 180 }}
+                            >
+                              <div className="flex items-center justify-center h-7 w-7 rounded-full bg-primary/20 dark:bg-[#353534]">
+                                {item.type === 'group' ? (
+                                  <Users className="h-4 w-4 text-primary dark:text-[#c0c1ff]" />
+                                ) : (
+                                  <span className="text-xs font-bold text-primary dark:text-[#c0c1ff]">{item.displayName.slice(0, 2)}</span>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium truncate dark:text-[#e5e2e1]">{item.displayName}</p>
+                                <Badge variant="outline" className="text-xs py-0 mt-0.5 dark:border-[#464554] dark:text-[#c7c4d7]">
+                                  {item.type === 'group' ? '그룹' : '사용자'}
+                                </Badge>
+                              </div>
+                              <Select
+                                value={item.role}
+                                disabled
+                              >
+                                <SelectTrigger className="h-6 text-xs mt-0.5 px-2 border-none dark:bg-[#0e0e0e] dark:border-none dark:text-[#e5e2e1] focus:ring-0 focus:ring-offset-0 shadow-none">
+                                  <div className="flex items-center gap-1">
+                                    <Shield className="h-3 w-3" />
+                                    <SelectValue />
+                                  </div>
+                                </SelectTrigger>
+                                <SelectContent className="dark:bg-[#1c1b1b] dark:border-[#464554]">
+                                  <SelectItem value="user" className="text-xs dark:text-[#60a5fa] dark:focus:bg-[#2a2a2a]">사용자</SelectItem>
+                                  <SelectItem value="admin" className="text-xs dark:text-[#c0c1ff] dark:focus:bg-[#2a2a2a]">관리자</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          ))}
                         </div>
                       </CardContent>
                     </Card>

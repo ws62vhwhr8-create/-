@@ -48,6 +48,7 @@ export interface SelectedUserItem {
 export interface SelectedGroupItem {
   type: "group"
   group: EntraGroup
+  role: "admin" | "user"
 }
 
 export type SelectedItem = SelectedUserItem | SelectedGroupItem
@@ -56,6 +57,7 @@ interface EntraUserSelectDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onConfirm: (items: SelectedItem[]) => void
+  initialItems?: SelectedItem[]
 }
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -71,6 +73,7 @@ export function EntraUserSelectDialog({
   open,
   onOpenChange,
   onConfirm,
+  initialItems = [],
 }: EntraUserSelectDialogProps) {
   const [tab, setTab] = useState<"group" | "user">("group")
   const [searchQuery, setSearchQuery] = useState("")
@@ -80,6 +83,13 @@ export function EntraUserSelectDialog({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<SelectedItem[]>([])
+
+  useEffect(() => {
+    if (open) {
+      setSelected(initialItems)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
   const abortRef = useRef<AbortController | null>(null)
 
   const fetchData = useCallback(async (q: string, mode: "group" | "user") => {
@@ -131,8 +141,14 @@ export function EntraUserSelectDialog({
     if (isSelectedGroup(group.id)) {
       setSelected((s) => s.filter((x) => !(x.type === "group" && x.group.id === group.id)))
     } else {
-      setSelected((s) => [...s, { type: "group", group }])
+      setSelected((s) => [...s, { type: "group", group, role: "user" }])
     }
+  }
+
+  const updateGroupRole = (groupId: string, role: "admin" | "user") => {
+    setSelected((s) =>
+      s.map((x) => (x.type === "group" && x.group.id === groupId ? { ...x, role } : x))
+    )
   }
 
   const updateRole = (userId: string, role: "admin" | "user") => {
@@ -331,7 +347,7 @@ export function EntraUserSelectDialog({
               <ScrollArea className="h-[280px]">
                 <div className="p-3 space-y-2">
                   {/* Selected Groups */}
-                  {selectedGroups.map(({ group }) => (
+                  {selectedGroups.map(({ group, role }) => (
                     <div
                       key={group.id}
                       className="flex items-center gap-2 p-2 rounded-lg border dark:border-[#464554] dark:bg-[#1c1b1b]"
@@ -343,11 +359,25 @@ export function EntraUserSelectDialog({
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium truncate dark:text-[#e5e2e1]">{group.displayName}</p>
-                        <Badge variant="outline" className="text-xs py-0 mt-0.5 dark:border-[#464554] dark:text-[#c7c4d7]">그룹</Badge>
+                        <Select
+                          value={role}
+                          onValueChange={(v) => updateGroupRole(group.id, v as "admin" | "user")}
+                        >
+                          <SelectTrigger className="h-6 text-xs mt-0.5 px-2 border-none dark:bg-[#0e0e0e] dark:border-none dark:text-[#e5e2e1] focus:ring-0 focus:ring-offset-0 shadow-none">
+                            <div className="flex items-center gap-1">
+                              <Shield className="h-3 w-3" />
+                              <SelectValue />
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent className="dark:bg-[#1c1b1b] dark:border-[#464554]">
+                            <SelectItem value="user" className="text-xs dark:text-[#60a5fa] dark:focus:bg-[#2a2a2a]">사용자</SelectItem>
+                            <SelectItem value="admin" className="text-xs dark:text-[#c0c1ff] dark:focus:bg-[#2a2a2a]">관리자</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <button
                         type="button"
-                        onClick={() => removeSelected({ type: "group", group })}
+                        onClick={() => removeSelected({ type: "group", group, role })}
                         className="shrink-0 text-muted-foreground hover:text-destructive dark:text-[#908fa0] dark:hover:text-red-400 transition-colors"
                       >
                         <X className="h-4 w-4" />
@@ -372,7 +402,7 @@ export function EntraUserSelectDialog({
                           value={role}
                           onValueChange={(v) => updateRole(user.id, v as "admin" | "user")}
                         >
-                          <SelectTrigger className="h-6 text-xs mt-0.5 px-2 dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1]">
+                          <SelectTrigger className="h-6 text-xs mt-0.5 px-2 border-none dark:bg-[#0e0e0e] dark:border-none dark:text-[#e5e2e1] focus:ring-0 focus:ring-offset-0 shadow-none">
                             <div className="flex items-center gap-1">
                               <Shield className="h-3 w-3" />
                               <SelectValue />

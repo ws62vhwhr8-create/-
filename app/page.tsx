@@ -10,7 +10,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const currentUser = users.find((user) => user.id === currentUserId)
-    const destination = currentUser?.role === "admin" ? "/dashboard" : "/customers"
+    const destination = currentUser?.role === "admin" ? "/admin-dashboard" : "/customers"
     router.replace(destination)
   }, [users, currentUserId, router])
 

@@ -26,7 +26,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format, addDays } from "date-fns"
 import { ko } from "date-fns/locale"
-import { CalendarIcon, ArrowRight, Clock, FolderKanban, User, X, ChevronDown } from "lucide-react"
+import { CalendarIcon, ArrowRight, Clock, FolderKanban, User, Users, X, ChevronDown } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { EntraUserSelectDialog } from "@/components/entra-user-select-dialog"
 import type { SelectedItem } from "@/components/entra-user-select-dialog"
@@ -54,6 +54,7 @@ export default function NewCustomerPage() {
   const [touched, setTouched] = useState({ companyName: false, solutionId: false, salesStartDate: false, ownerName: false })
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedOwnerItems, setSelectedOwnerItems] = useState<SelectedItem[]>([])
 
   const selectedSolution = solutions.find(s => s.id === solutionId)
   const flattenedSelectedStages = selectedSolution ? flattenStages(selectedSolution.stages) : []
@@ -231,30 +232,52 @@ export default function NewCustomerPage() {
 
                 <div className="space-y-2">
                   <Label>담당자 <span className="text-red-500 dark:text-[#ffb4ab]">*</span></Label>
-                  {ownerName ? (
-                    <div className="flex items-center gap-2">
-                      <div className={cn("flex flex-1 items-center gap-2 rounded-md border bg-white dark:bg-[#1E1E1E] border-[#E2E8F0] dark:border-[#464554]/50 px-3 py-2", errors.ownerName && "border-red-500 dark:border-[#ffb4ab]")}>
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="text-xs bg-primary/20 text-primary dark:bg-[#353534] dark:text-[#c0c1ff]">
-                            {ownerName.slice(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium">{ownerName}</span>
-                        <button
-                          type="button"
-                          onClick={() => { setOwnerId(""); setOwnerName(""); setOwnerEmail("") }}
-                          className="ml-auto text-muted-foreground hover:text-foreground"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
+                  {selectedOwnerItems.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className={cn("rounded-md border bg-white dark:bg-[#1E1E1E] border-[#E2E8F0] dark:border-[#464554]/50 p-2 space-y-2", errors.ownerName && "border-red-500 dark:border-[#ffb4ab]")}>
+                        {selectedOwnerItems.map((item) => {
+                          const itemId = item.type === "user" ? item.user.id : item.group.id
+                          const name = item.type === "user" ? item.user.displayName : item.group.displayName
+                          return (
+                            <div key={itemId} className="flex items-center gap-2 p-2 rounded-lg border dark:border-[#464554] dark:bg-[#1c1b1b]">
+                              <Avatar className="h-7 w-7 shrink-0">
+                                <AvatarFallback className="text-xs bg-primary/20 text-primary dark:bg-[#353534] dark:text-[#c0c1ff]">
+                                  {item.type === "group" ? <Users className="h-3 w-3" /> : name.slice(0, 2)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium truncate dark:text-[#e5e2e1]">{name}</p>
+                                <Badge variant="outline" className="text-xs py-0 mt-0.5 dark:border-[#464554] dark:text-[#c7c4d7]">
+                                  {item.type === "group" ? "그룹" : "사용자"}
+                                </Badge>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const next = selectedOwnerItems.filter((i) => (i.type === "user" ? i.user.id : i.group.id) !== itemId)
+                                  setSelectedOwnerItems(next)
+                                  const nextUsers = next.filter((i): i is Extract<SelectedItem, { type: "user" }> => i.type === "user")
+                                  const nextGroups = next.filter((i): i is Extract<SelectedItem, { type: "group" }> => i.type === "group")
+                                  const nextNames = [...nextUsers.map((i) => i.user.displayName), ...nextGroups.map((i) => i.group.displayName)]
+                                  setOwnerName(nextNames.join(", "))
+                                  if (next.length === 1 && next[0].type === "user") {
+                                    setOwnerId(next[0].user.id)
+                                    setOwnerEmail(next[0].user.email ?? "")
+                                  } else {
+                                    setOwnerId("")
+                                    setOwnerEmail("")
+                                  }
+                                }}
+                                className="shrink-0 text-muted-foreground hover:text-destructive dark:text-[#908fa0] dark:hover:text-red-400 transition-colors"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          )
+                        })}
                       </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsOwnerPickerOpen(true)}
-                      >
-                        변경
+                      <Button type="button" variant="outline" size="sm" onClick={() => setIsOwnerPickerOpen(true)}>
+                        수정
                       </Button>
                     </div>
                   ) : (
@@ -292,14 +315,30 @@ export default function NewCustomerPage() {
                   <EntraUserSelectDialog
                     open={isOwnerPickerOpen}
                     onOpenChange={setIsOwnerPickerOpen}
+                    initialItems={selectedOwnerItems}
                     onConfirm={(items: SelectedItem[]) => {
-                      const first = items.find((i) => i.type === "user")
-                      if (first && first.type === "user") {
-                        setOwnerId(first.user.id)
-                        setOwnerName(first.user.displayName)
-                        setOwnerEmail(first.user.email ?? "")
-                        setTouched(p => ({ ...p, ownerName: true }))
+                      const confirmedUsers = items.filter((item): item is Extract<SelectedItem, { type: "user" }> => item.type === "user")
+                      const confirmedGroups = items.filter((item): item is Extract<SelectedItem, { type: "group" }> => item.type === "group")
+
+                      const confirmedNames = [
+                        ...confirmedUsers.map((item) => item.user.displayName),
+                        ...confirmedGroups.map((item) => item.group.displayName),
+                      ]
+
+                      if (confirmedNames.length === 0) return
+
+                      setSelectedOwnerItems(items)
+                      setOwnerName(confirmedNames.join(", "))
+
+                      if (confirmedUsers.length === 1 && confirmedGroups.length === 0) {
+                        setOwnerId(confirmedUsers[0].user.id)
+                        setOwnerEmail(confirmedUsers[0].user.email ?? "")
+                      } else {
+                        setOwnerId("")
+                        setOwnerEmail("")
                       }
+
+                      setTouched(p => ({ ...p, ownerName: true }))
                     }}
                   />
                 </div>

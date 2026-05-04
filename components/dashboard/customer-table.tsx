@@ -63,8 +63,21 @@ export function CustomerTable({ tone = "default" }: CustomerTableProps) {
   const activeStatusStyles = isUser ? statusStylesUser : statusStyles
   const currentUser = users.find((user) => user.id === currentUserId)
   const currentOwnerName = currentUser?.displayName
+  const currentUserIdValue = currentUser?.id
+  const currentUserGroupIds = currentUser?.groupIds ?? []
 
-  const filteredCustomers = customers.filter((customer) => {
+  const userAccessibleCustomers = customers.filter((customer) => {
+    const isOwner = customer.ownerId
+      ? customer.ownerId === currentUserIdValue
+      : customer.ownerName === currentOwnerName
+    const isSharedUser = !!currentUserIdValue && (customer.sharedUserIds ?? []).includes(currentUserIdValue)
+    const isSharedGroup = (customer.sharedGroupIds ?? []).some((groupId) => currentUserGroupIds.includes(groupId))
+    return isOwner || isSharedUser || isSharedGroup
+  })
+
+  const scopedCustomers = isUser ? userAccessibleCustomers : customers
+
+  const filteredCustomers = scopedCustomers.filter((customer) => {
     const matchesSearch = customer.companyName.toLowerCase().includes(search.toLowerCase())
     const matchesSolution = solutionFilter === "all" || customer.solutionId === solutionFilter
     const matchesStatus = statusFilter === "all" || customer.status === statusFilter
