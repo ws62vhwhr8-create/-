@@ -51,7 +51,7 @@ type CustomerTableProps = {
 }
 
 export function CustomerTable({ tone = "default" }: CustomerTableProps) {
-  const { customers, solutions, users, currentUserId } = useAppStore()
+  const { customers, solutions, users, currentUserId, currentEntraId } = useAppStore()
   const [search, setSearch] = useState("")
   const [solutionFilter, setSolutionFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("all")
@@ -70,7 +70,9 @@ export function CustomerTable({ tone = "default" }: CustomerTableProps) {
     const isOwner = customer.ownerId
       ? customer.ownerId === currentUserIdValue
       : customer.ownerName === currentOwnerName
-    const isSharedUser = !!currentUserIdValue && (customer.sharedUserIds ?? []).includes(currentUserIdValue)
+    const isSharedUser =
+      (!!currentUserIdValue && (customer.sharedUserIds ?? []).includes(currentUserIdValue)) ||
+      (!!currentEntraId && (customer.sharedUserIds ?? []).includes(currentEntraId))
     const isSharedGroup = (customer.sharedGroupIds ?? []).some((groupId) => currentUserGroupIds.includes(groupId))
     return isOwner || isSharedUser || isSharedGroup
   })

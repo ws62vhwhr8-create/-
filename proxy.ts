@@ -34,6 +34,20 @@ function isAdminFromToken(token: Awaited<ReturnType<typeof getToken>>) {
   return false
 }
 
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api/auth (API authentication routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - and the root path (/)
+     */
+    "/((?!api/auth|_next/static|_next/image|favicon.ico|$).*)",
+  ],
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith("https://") ?? false
@@ -57,6 +71,4 @@ export async function proxy(request: NextRequest) {
   return NextResponse.next()
 }
 
-export const config = {
-  matcher: ["/", "/dashboard/:path*", "/customers/:path*", "/solutions/:path*", "/users/:path*"],
-}
+// Note: middleware config is now in middleware.ts only

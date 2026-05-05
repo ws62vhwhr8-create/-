@@ -3,22 +3,8 @@ import AzureADProvider from "next-auth/providers/azure-ad"
 
 const signInTenantId = process.env.ENTRA_TENANT_ID || process.env.ENTRA_SIGNIN_TENANT_ID || "organizations"
 
-// Determine if we should use secure cookies (only on HTTPS in production)
-const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith("https://") ?? false
-const cookiePrefix = useSecureCookies ? "__Secure-" : ""
-
 export const authOptions: NextAuthOptions = {
-  cookies: {
-    sessionToken: {
-      name: `${cookiePrefix}next-auth.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: useSecureCookies,
-      },
-    },
-  },
+  debug: process.env.NODE_ENV === "development",
   providers: [
     AzureADProvider({
       clientId: process.env.ENTRA_CLIENT_ID || "",
@@ -29,8 +15,14 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, account, profile }) {
       if (account) {
-        token.accessToken = account.access_token
-        token.id_token = account.id_token
+        // Do not store large tokens in the session cookie
+        // token.accessToken = account.access_token
+        // token.id_token = account.id_token
+      }
+      if (profile) {
+        // Azure AD profile.oid is the actual Entra Object ID (GUID)
+        const oid = (profile as { oid?: string }).oid
+        if (oid) token.oid = oid
       }
       // 이메일 기반 admin 권한 부여
       const ADMIN_EMAILS = ["ha.jeong@dexconsulting.net"]
@@ -45,9 +37,10 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
-      session.accessToken = token.accessToken as string
+      // session.accessToken = token.accessToken as string
       if (session.user) {
         session.user.id = token.sub || ""
+        session.user.entraId = (token.oid as string | undefined) || token.sub || ""
         session.user.role = (token.role as string) ?? "user"
       }
       return session

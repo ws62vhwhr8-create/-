@@ -11,6 +11,7 @@ interface AppState {
   users: User[]
   groups: Group[]
   currentUserId?: string
+  currentEntraId?: string
   
   // Solution actions
   addSolution: (solution: Omit<Solution, 'id' | 'createdAt' | 'updatedAt'>) => void
@@ -31,6 +32,7 @@ interface AppState {
   deleteUser: (id: string) => void
   addGroup: (group: Omit<Group, 'id'>) => void
   setCurrentUserId: (id?: string) => void
+  setCurrentEntraId: (id?: string) => void
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 15)
@@ -455,6 +457,7 @@ export const useAppStore = create<AppState>()(
       },
 
       setCurrentUserId: (id) => set(() => ({ currentUserId: id })),
+      setCurrentEntraId: (id) => set(() => ({ currentEntraId: id })),
       
       addCustomer: (customerData) => {
         const solution = get().solutions.find((s) => s.id === customerData.solutionId)
@@ -561,6 +564,7 @@ export const useAppStore = create<AppState>()(
         users: state.users,
         groups: state.groups,
         currentUserId: state.currentUserId,
+        currentEntraId: state.currentEntraId,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {

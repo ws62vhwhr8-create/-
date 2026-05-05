@@ -14,7 +14,7 @@ type StatsCardsProps = {
 
 export function StatsCards({ tone = "default" }: StatsCardsProps) {
   const [isOpen, setIsOpen] = useState(true)
-  const { customers, users, currentUserId } = useAppStore()
+  const { customers, users, currentUserId, currentEntraId } = useAppStore()
   const isUser = tone === "user"
   const currentUser = users.find((user) => user.id === currentUserId)
   const currentOwnerName = currentUser?.displayName
@@ -24,7 +24,9 @@ export function StatsCards({ tone = "default" }: StatsCardsProps) {
     const isOwner = customer.ownerId
       ? customer.ownerId === currentUserIdValue
       : customer.ownerName === currentOwnerName
-    const isSharedUser = !!currentUserIdValue && (customer.sharedUserIds ?? []).includes(currentUserIdValue)
+    const isSharedUser =
+      (!!currentUserIdValue && (customer.sharedUserIds ?? []).includes(currentUserIdValue)) ||
+      (!!currentEntraId && (customer.sharedUserIds ?? []).includes(currentEntraId))
     const isSharedGroup = (customer.sharedGroupIds ?? []).some((groupId) => currentUserGroupIds.includes(groupId))
     return isOwner || isSharedUser || isSharedGroup
   })
