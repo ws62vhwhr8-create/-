@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, type ChangeEvent } from "react"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import { toast } from "sonner"
 import { Navigation } from "@/components/navigation"
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
@@ -32,6 +33,7 @@ import {
 import { Plus, Edit2, Trash2, Clock, Layers, X, Users, User, Check, ChevronDown, ChevronRight, Upload, Download, Search, Loader2 } from "lucide-react"
 import * as XLSX from "xlsx"
 import type { Solution, Stage } from "@/lib/types"
+import { canAccessSolution, isAdminRole } from "@/lib/permissions"
 
 const createEmptyStage = (parentStageId: string | null = null, level: number = 0): Stage => ({
   id: crypto.randomUUID(),
@@ -55,7 +57,8 @@ const normalizeStages = (stages: Stage[], parentStageId: string | null = null, l
 
 export default function SolutionsPage() {
   const router = useRouter()
-  const { solutions, addSolution, updateSolution, deleteSolution, users, groups, currentUserId } = useAppStore()
+  const { data: session } = useSession()
+  const { solutions, addSolution, updateSolution, deleteSolution, users, groups, currentUserId, currentEntraId } = useAppStore()
   
   // 상태 관리
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -430,15 +433,14 @@ export default function SolutionsPage() {
   }, [accessQuery, accessListMode, isDialogOpen, fetchAccessResults])
 
   // 접근 권한 필터링
-  const hasAccess = (solution: Solution) => {
-    const userIds = solution.userIds || []
-    const groupIds = solution.groupIds || []
-    if (userIds.length === 0 && groupIds.length === 0) return true
-    if (!currentUser) return false
-    if (userIds.includes(currentUser.id)) return true
-    const userGroups = currentUser.groupIds || []
-    return userGroups.some(g => groupIds.includes(g))
-  }
+  const isAdmin = isAdminRole(session?.user?.role) || isAdminRole(currentUser?.role)
+  const hasAccess = (solution: Solution) =>
+    canAccessSolution({
+      solution,
+      currentUser,
+      currentEntraId,
+      isAdmin,
+    })
 
   const visibleSolutions = solutions.filter(s => hasAccess(s))
 
@@ -456,7 +458,7 @@ export default function SolutionsPage() {
           <div className="w-full px-6 py-8 lg:px-12 space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold leading-tight tracking-tight dark:text-[#e5e2e1]">솔루션 관리</h1>
+                <h1 className="text-2xl font-bold leading-tight tracking-tight dark:text-[#e5e2e1]">솔루션(프로젝트) 관리</h1>
                 <p className="text-muted-foreground dark:text-[#c7c4d7] mt-1">표준화된 비즈니스 프로세스 템플릿을 관리합니다.</p>
               </div>
 

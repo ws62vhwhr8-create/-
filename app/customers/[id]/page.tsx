@@ -95,6 +95,7 @@ import type { Milestone, MilestoneNote, Customer, MilestoneFile } from "@/lib/ty
 import EntraPicker from "@/components/entra-picker"
 import type { PickerUser } from "@/components/entra-picker"
 import dynamic from 'next/dynamic'
+import { canAccessCustomer, isAdminRole } from "@/lib/permissions"
 
 const GanttChart = dynamic(() => import('@/components/gantt-chart'), {
   ssr: false,
@@ -160,7 +161,18 @@ export default function CustomerDetailPage({
   const { id } = use(params)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { customers, updateCustomer, updateMilestoneStatus, updateMilestone, deleteCustomer, users, groups, solutions } = useAppStore()
+  const {
+    customers,
+    updateCustomer,
+    updateMilestoneStatus,
+    updateMilestone,
+    deleteCustomer,
+    users,
+    groups,
+    solutions,
+    currentUserId,
+    currentEntraId,
+  } = useAppStore()
   const toEditableMilestone = (milestone: Milestone): EditableMilestone => ({
     ...milestone,
     dueDate: format(milestone.dueDate, 'yyyy-MM-dd'),
@@ -224,6 +236,16 @@ export default function CustomerDetailPage({
   const isMountedRef = useRef(true)
   
   const customer = customers.find(c => c.id === id)
+  const currentUser = users.find((user) => user.id === currentUserId)
+  const isAdmin = isAdminRole(currentUser?.role)
+  const hasCustomerAccess = customer
+    ? canAccessCustomer({
+        customer,
+        currentUser,
+        currentEntraId,
+        isAdmin,
+      })
+    : false
   const displayedMilestones = isEditing ? editingMilestones : (customer?.milestones ?? [])
   
   // Get available users based on actual shared users and groups
@@ -257,10 +279,20 @@ export default function CustomerDetailPage({
   }, [customer, users])
 
   useEffect(() => {
+    if (customer && !hasCustomerAccess) {
+      router.replace('/customers')
+    }
+  }, [customer, hasCustomerAccess, router])
+
+  useEffect(() => {
     return () => {
       isMountedRef.current = false
     }
   }, [])
+
+  if (customer && !hasCustomerAccess) {
+    return null
+  }
 
   // Initialize edit fields when customer loads or editing mode changes
   useEffect(() => {

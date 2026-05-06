@@ -46,7 +46,7 @@ const adminMenuItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "솔루션 관리",
+    title: "솔루션(프로젝트) 관리",
     href: "/solutions",
     icon: FolderKanban,
   },
@@ -66,7 +66,7 @@ export function Navigation() {
   const [mounted, setMounted] = useState(false)
 
   const currentUser = users.find((user) => user.id === currentUserId)
-  const isAdmin = currentUser?.role === "admin"
+  const isAdmin = session?.user?.role === "admin" || currentUser?.role === "admin"
   const accountName = session?.user?.name || currentUser?.displayName || "사용자"
   const accountEmail = session?.user?.email || currentUser?.email || ""
   const accountImage = session?.user?.image || ""
@@ -110,24 +110,26 @@ export function Navigation() {
       <SidebarContent>
         <SidebarSeparator className="my-0.5" />
 
-        <SidebarGroup>
-          <SidebarGroupLabel>User</SidebarGroupLabel>
-          <SidebarMenu>
-            {userMenuItems.map((item) => (
-              <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive(item.href)}
-                >
-                  <Link href={item.href}>
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
+        {!isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>User</SidebarGroupLabel>
+            <SidebarMenu>
+              {userMenuItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive(item.href)}
+                  >
+                    <Link href={item.href}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
 
         {isAdmin && (
           <SidebarGroup>

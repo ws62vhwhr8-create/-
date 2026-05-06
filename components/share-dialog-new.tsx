@@ -14,14 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Search, X, Users, User as UserIcon, Check, Send, Loader2, Shield } from "lucide-react"
+import { Search, X, Users, User as UserIcon, Check, Send, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface EntraUser {
@@ -93,7 +86,6 @@ export function ShareDialog({
   const [isSharing, setIsSharing] = useState(false)
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set())
   const [nameCache, setNameCache] = useState<Record<string, string>>({})
-  const [sharedRoles, setSharedRoles] = useState<Record<string, "user" | "admin">>({})
   const abortRef = useRef<AbortController | null>(null)
 
   const getUserName = (id: string) => nameCache[id] || users.find((u) => u.id === id)?.displayName || id
@@ -218,7 +210,6 @@ export function ShareDialog({
     setSelected([])
     setRemovedIds(new Set())
     setNameCache({})
-    setSharedRoles({})
     setError(null)
     onOpenChange(false)
   }
@@ -441,21 +432,9 @@ export function ShareDialog({
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-medium truncate dark:text-[#e5e2e1]">{entity.name}</p>
-                            <Select
-                              value={sharedRoles[entity.id] ?? "user"}
-                              onValueChange={(v) => setSharedRoles((prev) => ({ ...prev, [entity.id]: v as "user" | "admin" }))}
-                            >
-                              <SelectTrigger className="h-6 text-xs mt-0.5 px-2 border-none dark:bg-[#0e0e0e] dark:border-none dark:text-[#e5e2e1] focus:ring-0 focus:ring-offset-0 shadow-none">
-                                <div className="flex items-center gap-1">
-                                  <Shield className="h-3 w-3" />
-                                  <SelectValue />
-                                </div>
-                              </SelectTrigger>
-                              <SelectContent className="dark:bg-[#1c1b1b] dark:border-[#464554]">
-                                <SelectItem value="user" className="text-xs dark:text-[#60a5fa] dark:focus:bg-[#2a2a2a]">사용자</SelectItem>
-                                <SelectItem value="admin" className="text-xs dark:text-[#c0c1ff] dark:focus:bg-[#2a2a2a]">관리자</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <Badge variant="outline" className="text-xs py-0 mt-0.5 dark:border-[#464554] dark:text-[#c7c4d7]">
+                              그룹
+                            </Badge>
                           </div>
                           <button
                             type="button"
@@ -475,21 +454,9 @@ export function ShareDialog({
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-medium truncate dark:text-[#e5e2e1]">{entity.name}</p>
-                            <Select
-                              value={sharedRoles[entity.id] ?? "user"}
-                              onValueChange={(v) => setSharedRoles((prev) => ({ ...prev, [entity.id]: v as "user" | "admin" }))}
-                            >
-                              <SelectTrigger className="h-6 text-xs mt-0.5 px-2 border-none dark:bg-[#0e0e0e] dark:border-none dark:text-[#e5e2e1] focus:ring-0 focus:ring-offset-0 shadow-none">
-                                <div className="flex items-center gap-1">
-                                  <Shield className="h-3 w-3" />
-                                  <SelectValue />
-                                </div>
-                              </SelectTrigger>
-                              <SelectContent className="dark:bg-[#1c1b1b] dark:border-[#464554]">
-                                <SelectItem value="user" className="text-xs dark:text-[#60a5fa] dark:focus:bg-[#2a2a2a]">사용자</SelectItem>
-                                <SelectItem value="admin" className="text-xs dark:text-[#c0c1ff] dark:focus:bg-[#2a2a2a]">관리자</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <Badge variant="outline" className="text-xs py-0 mt-0.5 dark:border-[#464554] dark:text-[#c7c4d7]">
+                              사용자
+                            </Badge>
                           </div>
                           <button
                             type="button"
@@ -512,21 +479,9 @@ export function ShareDialog({
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-medium truncate dark:text-[#e5e2e1]">{getGroupName(id)}</p>
-                            <Select
-                              value={sharedRoles[id] ?? "user"}
-                              onValueChange={(v) => setSharedRoles((prev) => ({ ...prev, [id]: v as "user" | "admin" }))}
-                            >
-                              <SelectTrigger className="h-6 text-xs mt-0.5 px-2 border-none dark:bg-[#0e0e0e] dark:border-none dark:text-[#e5e2e1] focus:ring-0 focus:ring-offset-0 shadow-none">
-                                <div className="flex items-center gap-1">
-                                  <Shield className="h-3 w-3" />
-                                  <SelectValue />
-                                </div>
-                              </SelectTrigger>
-                              <SelectContent className="dark:bg-[#1c1b1b] dark:border-[#464554]">
-                                <SelectItem value="user" className="text-xs dark:text-[#60a5fa] dark:focus:bg-[#2a2a2a]">사용자</SelectItem>
-                                <SelectItem value="admin" className="text-xs dark:text-[#c0c1ff] dark:focus:bg-[#2a2a2a]">관리자</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <Badge variant="outline" className="text-xs py-0 mt-0.5 dark:border-[#464554] dark:text-[#c7c4d7]">
+                              그룹
+                            </Badge>
                           </div>
                           <button
                             type="button"
@@ -550,21 +505,9 @@ export function ShareDialog({
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-medium truncate dark:text-[#e5e2e1]">{getUserName(id)}</p>
-                            <Select
-                              value={sharedRoles[id] ?? "user"}
-                              onValueChange={(v) => setSharedRoles((prev) => ({ ...prev, [id]: v as "user" | "admin" }))}
-                            >
-                              <SelectTrigger className="h-6 text-xs mt-0.5 px-2 border-none dark:bg-[#0e0e0e] dark:border-none dark:text-[#e5e2e1] focus:ring-0 focus:ring-offset-0 shadow-none">
-                                <div className="flex items-center gap-1">
-                                  <Shield className="h-3 w-3" />
-                                  <SelectValue />
-                                </div>
-                              </SelectTrigger>
-                              <SelectContent className="dark:bg-[#1c1b1b] dark:border-[#464554]">
-                                <SelectItem value="user" className="text-xs dark:text-[#60a5fa] dark:focus:bg-[#2a2a2a]">사용자</SelectItem>
-                                <SelectItem value="admin" className="text-xs dark:text-[#c0c1ff] dark:focus:bg-[#2a2a2a]">관리자</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <Badge variant="outline" className="text-xs py-0 mt-0.5 dark:border-[#464554] dark:text-[#c7c4d7]">
+                              사용자
+                            </Badge>
                           </div>
                           <button
                             type="button"

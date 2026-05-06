@@ -34,14 +34,28 @@ import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import type { Stage } from "@/lib/types"
+import { canAccessSolution, isAdminRole } from "@/lib/permissions"
 
 function flattenStages(stages: Stage[]): Stage[] {
   return stages.flatMap((stage) => [stage, ...flattenStages(stage.children ?? [])])
 }
 
+function flattenStagesWithDisplayOrder(
+  stages: Stage[],
+  prefix: number[] = []
+): Array<Stage & { displayOrder: string }> {
+  return stages.flatMap((stage, index) => {
+    const currentPath = [...prefix, index + 1]
+    return [
+      { ...stage, displayOrder: currentPath.join("-") },
+      ...flattenStagesWithDisplayOrder(stage.children ?? [], currentPath),
+    ]
+  })
+}
+
 export default function NewCustomerPage() {
   const router = useRouter()
-  const { solutions, addCustomer } = useAppStore()
+  const { solutions, addCustomer, users, currentUserId, currentEntraId } = useAppStore()
   
   const [companyName, setCompanyName] = useState("")
   const [solutionId, setSolutionId] = useState("")
@@ -56,8 +70,22 @@ export default function NewCustomerPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedOwnerItems, setSelectedOwnerItems] = useState<SelectedItem[]>([])
 
-  const selectedSolution = solutions.find(s => s.id === solutionId)
+  const currentUser = users.find((user) => user.id === currentUserId)
+  const isAdmin = isAdminRole(currentUser?.role)
+  const accessibleSolutions = solutions.filter((solution) =>
+    canAccessSolution({
+      solution,
+      currentUser,
+      currentEntraId,
+      isAdmin,
+    }),
+  )
+
+  const selectedSolution = accessibleSolutions.find(s => s.id === solutionId)
   const flattenedSelectedStages = selectedSolution ? flattenStages(selectedSolution.stages) : []
+  const flattenedSelectedStagesWithOrder = selectedSolution
+    ? flattenStagesWithDisplayOrder(selectedSolution.stages)
+    : []
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -105,13 +133,13 @@ export default function NewCustomerPage() {
 
   // Preview milestones
   const previewMilestones = selectedSolution && salesStartDate 
-    ? flattenedSelectedStages.reduce((acc, stage, index) => {
-        const previousDuration = flattenedSelectedStages
+    ? flattenedSelectedStagesWithOrder.reduce((acc, stage, index) => {
+        const previousDuration = flattenedSelectedStagesWithOrder
           .slice(0, index)
           .reduce((sum, s) => sum + s.durationDays, 0)
         const dueDate = addDays(salesStartDate, previousDuration + stage.durationDays)
         return [...acc, { ...stage, dueDate }]
-      }, [] as (Stage & { dueDate: Date })[])
+      }, [] as Array<Stage & { dueDate: Date; displayOrder: string }>)
     : []
 
   return (
@@ -131,7 +159,7 @@ export default function NewCustomerPage() {
               <p className="text-[#64748B] dark:text-[#908fa0]">새로운 고객을 등록하고 로드맵을 자동 생성합니다.</p>
             </div>
 
-            {solutions.length === 0 ? (
+            {accessibleSolutions.length === 0 ? (
               <Card className="bg-white border-[#E2E8F0] dark:bg-[#1E1E1E] dark:border-[#333333]">
                 <CardContent className="p-6">
                   <Empty>
@@ -141,7 +169,7 @@ export default function NewCustomerPage() {
                       </EmptyMedia>
                       <EmptyTitle>등록된 솔루션이 없습니다</EmptyTitle>
                       <EmptyDescription>
-                        고객을 만들기 전에 솔루션 관리에서 워크플로우 템플릿을 먼저 등록해야 합니다.
+                        접근 가능한 솔루션이 없습니다. 관리자에게 솔루션 접근 권한을 요청하세요.
                       </EmptyDescription>
                     </EmptyHeader>
                     <EmptyContent>
@@ -222,7 +250,7 @@ export default function NewCustomerPage() {
                   </button>
                   {isSolutionOpen && (
                     <SolutionCardGrid
-                      solutions={solutions}
+                      solutions={accessibleSolutions}
                       value={solutionId}
                       onChange={(id) => { setSolutionId(id); setTouched(p => ({ ...p, solutionId: true })) }}
                     />
@@ -361,13 +389,13 @@ export default function NewCustomerPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {previewMilestones.map((milestone, index) => (
+                  {previewMilestones.map((milestone) => (
                     <div 
                       key={milestone.id}
                       className="flex items-start gap-3 p-3 rounded-lg bg-[#F8FAFC] dark:bg-[#252525] border border-[#E2E8F0] dark:border-[#333333]"
                     >
                       <Badge variant="outline" className="mt-0.5 shrink-0">
-                        {index + 1}
+                        {milestone.displayOrder}
                       </Badge>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium">{milestone.name}</p>

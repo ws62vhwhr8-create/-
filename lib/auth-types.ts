@@ -20,5 +20,6 @@ declare module "next-auth" {
     accessToken?: string
     id_token?: string
     role?: string
+    managedUserId?: string
   }
 }

@@ -2,7 +2,8 @@ import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
 
-const adminRoutePrefixes = ["/solutions", "/users"]
+const adminRoutePrefixes = ["/admin-dashboard", "/solutions", "/users"]
+const userRoutePrefixes = ["/customers", "/dashboard"]
 
 function redirectToSignIn(request: NextRequest) {
   const signInUrl = new URL("/api/auth/signin", request.url)
@@ -10,9 +11,9 @@ function redirectToSignIn(request: NextRequest) {
   return NextResponse.redirect(signInUrl)
 }
 
-function isAdminFromToken(token: Awaited<ReturnType<typeof getToken>>) {
-  if (!token) return false
-  if (typeof token === "string") return false
+function getRoleFromToken(token: Awaited<ReturnType<typeof getToken>>) {
+  if (!token) return ""
+  if (typeof token === "string") return ""
 
   const directRole =
     typeof token.role === "string"
@@ -21,17 +22,8 @@ function isAdminFromToken(token: Awaited<ReturnType<typeof getToken>>) {
         ? token.roles.find((value): value is string => typeof value === "string")
         : undefined
 
-  if (directRole === "admin") return true
-
-  if (Array.isArray(token.roles) && token.roles.some((role) => String(role).toLowerCase() === "admin")) {
-    return true
-  }
-
-  if (typeof token.sub === "string" && token.sub === "admin") {
-    return true
-  }
-
-  return false
+  if (directRole) return directRole.toLowerCase()
+  return ""
 }
 
 export const config = {
@@ -42,9 +34,9 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - and the root path (/)
+     * - and metadata file requests
      */
-    "/((?!api/auth|_next/static|_next/image|favicon.ico|$).*)",
+    "/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 }
 
@@ -63,9 +55,22 @@ export async function proxy(request: NextRequest) {
     return redirectToSignIn(request)
   }
 
+  const role = getRoleFromToken(token)
+  const isAdmin = role === "admin"
+  const isUser = role === "user"
+
+  if (!isAdmin && !isUser) {
+    return redirectToSignIn(request)
+  }
+
   const isAdminRoute = adminRoutePrefixes.some((route) => pathname.startsWith(route))
-  if (isAdminRoute && !isAdminFromToken(token)) {
+  if (isAdminRoute && !isAdmin) {
     return NextResponse.redirect(new URL("/customers", request.url))
+  }
+
+  const isUserRoute = userRoutePrefixes.some((route) => pathname.startsWith(route))
+  if (isUserRoute && isAdmin) {
+    return NextResponse.redirect(new URL("/admin-dashboard", request.url))
   }
 
   return NextResponse.next()

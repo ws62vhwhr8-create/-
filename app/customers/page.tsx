@@ -50,6 +50,7 @@ import {
 } from "lucide-react"
 import type { Customer } from "@/lib/types"
 import { ShareDialog } from "@/components/share-dialog-new"
+import { canAccessCustomer, isAdminRole } from "@/lib/permissions"
 
 const statusLabels: Record<Customer['status'], string> = {
   active: '진행중',
@@ -77,7 +78,7 @@ const statusTextClass: Record<Customer['status'], string> = {
 
 export default function CustomersPage() {
   const router = useRouter()
-  const { customers, solutions, users, groups, deleteCustomer, shareCustomer } = useAppStore()
+  const { customers, solutions, users, groups, currentUserId, currentEntraId, deleteCustomer, shareCustomer } = useAppStore()
   const [search, setSearch] = useState("")
   const [solutionFilter, setSolutionFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -86,7 +87,18 @@ export default function CustomersPage() {
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const [customerToShare, setCustomerToShare] = useState<Customer | null>(null)
 
-  const filteredCustomers = customers.filter((customer) => {
+  const currentUser = users.find((user) => user.id === currentUserId)
+  const isAdmin = isAdminRole(currentUser?.role)
+  const scopedCustomers = customers.filter((customer) =>
+    canAccessCustomer({
+      customer,
+      currentUser,
+      currentEntraId,
+      isAdmin,
+    }),
+  )
+
+  const filteredCustomers = scopedCustomers.filter((customer) => {
     const matchesSearch = customer.companyName.toLowerCase().includes(search.toLowerCase())
     const matchesSolution = solutionFilter === "all" || customer.solutionId === solutionFilter
     const matchesStatus = statusFilter === "all" || customer.status === statusFilter
@@ -244,15 +256,15 @@ export default function CustomersPage() {
                       <Building2 />
                     </EmptyMedia>
                     <EmptyTitle>
-                      {customers.length === 0 ? "등록된 고객사가 없습니다" : "검색 조건에 맞는 고객사가 없습니다"}
+                      {scopedCustomers.length === 0 ? "접근 가능한 고객사가 없습니다" : "검색 조건에 맞는 고객사가 없습니다"}
                     </EmptyTitle>
                     <EmptyDescription>
-                      {customers.length === 0
-                        ? "첫 고객을 등록하면 솔루션별 마일스톤과 파일 관리를 바로 시작할 수 있습니다."
+                      {scopedCustomers.length === 0
+                        ? "접근 권한이 할당된 고객사가 없습니다."
                         : "검색어나 필터를 조정해서 원하는 고객을 다시 찾아보세요."}
                     </EmptyDescription>
                   </EmptyHeader>
-                  {customers.length === 0 && (
+                  {scopedCustomers.length === 0 && (
                     <EmptyContent>
                       <Button asChild>
                         <Link href="/customers/new">

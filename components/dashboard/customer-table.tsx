@@ -27,6 +27,7 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import type { Customer } from "@/lib/types"
+import { canAccessCustomer, isAdminRole } from "@/lib/permissions"
 
 const statusLabels: Record<Customer['status'], string> = {
   active: '진행중',
@@ -63,19 +64,15 @@ export function CustomerTable({ tone = "default" }: CustomerTableProps) {
   const activeStatusStyles = isUser ? statusStylesUser : statusStyles
   const currentUser = users.find((user) => user.id === currentUserId)
   const currentOwnerName = currentUser?.displayName
-  const currentUserIdValue = currentUser?.id
-  const currentUserGroupIds = currentUser?.groupIds ?? []
 
-  const userAccessibleCustomers = customers.filter((customer) => {
-    const isOwner = customer.ownerId
-      ? customer.ownerId === currentUserIdValue
-      : customer.ownerName === currentOwnerName
-    const isSharedUser =
-      (!!currentUserIdValue && (customer.sharedUserIds ?? []).includes(currentUserIdValue)) ||
-      (!!currentEntraId && (customer.sharedUserIds ?? []).includes(currentEntraId))
-    const isSharedGroup = (customer.sharedGroupIds ?? []).some((groupId) => currentUserGroupIds.includes(groupId))
-    return isOwner || isSharedUser || isSharedGroup
-  })
+  const userAccessibleCustomers = customers.filter((customer) =>
+    canAccessCustomer({
+      customer,
+      currentUser,
+      currentEntraId,
+      isAdmin: isAdminRole(currentUser?.role),
+    }),
+  )
 
   const scopedCustomers = isUser ? userAccessibleCustomers : customers
 

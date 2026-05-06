@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Users, CheckCircle2, AlertTriangle, Clock, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { canAccessCustomer, isAdminRole } from "@/lib/permissions"
 
 type StatsCardsProps = {
   tone?: "default" | "user"
@@ -17,19 +18,14 @@ export function StatsCards({ tone = "default" }: StatsCardsProps) {
   const { customers, users, currentUserId, currentEntraId } = useAppStore()
   const isUser = tone === "user"
   const currentUser = users.find((user) => user.id === currentUserId)
-  const currentOwnerName = currentUser?.displayName
-  const currentUserIdValue = currentUser?.id
-  const currentUserGroupIds = currentUser?.groupIds ?? []
-  const userAccessibleCustomers = customers.filter((customer) => {
-    const isOwner = customer.ownerId
-      ? customer.ownerId === currentUserIdValue
-      : customer.ownerName === currentOwnerName
-    const isSharedUser =
-      (!!currentUserIdValue && (customer.sharedUserIds ?? []).includes(currentUserIdValue)) ||
-      (!!currentEntraId && (customer.sharedUserIds ?? []).includes(currentEntraId))
-    const isSharedGroup = (customer.sharedGroupIds ?? []).some((groupId) => currentUserGroupIds.includes(groupId))
-    return isOwner || isSharedUser || isSharedGroup
-  })
+  const userAccessibleCustomers = customers.filter((customer) =>
+    canAccessCustomer({
+      customer,
+      currentUser,
+      currentEntraId,
+      isAdmin: isAdminRole(currentUser?.role),
+    }),
+  )
   const relevantCustomers = isUser
     ? userAccessibleCustomers
     : customers
