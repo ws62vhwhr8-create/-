@@ -80,6 +80,7 @@ import {
   FolderOpen,
   FolderPlus,
   Info,
+  Loader2,
   MoreVertical,
   Pencil,
   Plus,
@@ -216,8 +217,16 @@ export default function CustomerDetailPage({
   const [folderNameDraft, setFolderNameDraft] = useState('')
   const [folderTarget, setFolderTarget] = useState<FileLibraryTarget | null>(null)
   const [selectedFileForViewer, setSelectedFileForViewer] = useState<MilestoneFile | null>(null)
+  const [pdfViewerPage, setPdfViewerPage] = useState(1)
+  const [pdfViewerSrc, setPdfViewerSrc] = useState<string | null>(null)
   const [dragOverMilestoneId, setDragOverMilestoneId] = useState<string | null>(null)
   const [isLoadingFiles, setIsLoadingFiles] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<{
+    targetKey: string
+    total: number
+    completed: number
+    currentFileName: string
+  } | null>(null)
   const milestoneExcelInputRef = useRef<HTMLInputElement | null>(null)
   const [excelImportPending, setExcelImportPending] = useState<{
     toAdd: EditableMilestone[]
@@ -771,8 +780,18 @@ export default function CustomerDetailPage({
 
   const handleViewFile = (file: MilestoneFile) => {
     if (file.isFolder) return
+    setPdfViewerPage(1)
     setSelectedFileForViewer(file)
   }
+
+  useEffect(() => {
+    if (!selectedFileForViewer || !isPdfFile(selectedFileForViewer.fileName)) {
+      setPdfViewerSrc(null)
+      return
+    }
+
+    setPdfViewerSrc(`/api/milestone-files/content?id=${encodeURIComponent(selectedFileForViewer.id)}`)
+  }, [selectedFileForViewer])
 
   const handleDownloadFile = async (file: MilestoneFile) => {
     if (file.isFolder) return
@@ -842,8 +861,26 @@ export default function CustomerDetailPage({
     
     try {
       setIsLoadingFiles(true)
+      const fileList = Array.from(files)
+      const targetKey = getFileTargetKey(target)
+      setUploadProgress({
+        targetKey,
+        total: fileList.length,
+        completed: 0,
+        currentFileName: fileList[0]?.name ?? '',
+      })
       
-      for (const file of Array.from(files)) {
+      for (let index = 0; index < fileList.length; index += 1) {
+        const file = fileList[index]
+        setUploadProgress((prev) =>
+          prev
+            ? {
+                ...prev,
+                currentFileName: file.name,
+              }
+            : prev
+        )
+
         // Cosmos DB has a 2MB per-document limit. Base64 encoding inflates size by ~33%,
         // so files larger than ~1MB would exceed the limit. Route those through the
         // chunked upload API (SharePoint) which stores only a URL in Cosmos.
@@ -867,6 +904,15 @@ export default function CustomerDetailPage({
             const errorMessage = errorData.error || `HTTP ${response.status}`
             throw new Error(`파일 업로드 실패: ${errorMessage}`)
           }
+
+          setUploadProgress((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  completed: index + 1,
+                }
+              : prev
+          )
           continue
         }
 
@@ -916,6 +962,15 @@ export default function CustomerDetailPage({
           const errorMessage = errorData.error || `HTTP ${response.status}`
           throw new Error(`파일 업로드 실패: ${errorMessage}`)
         }
+
+        setUploadProgress((prev) =>
+          prev
+            ? {
+                ...prev,
+                completed: index + 1,
+              }
+            : prev
+        )
       }
 
       await reloadFilesForTarget(target)
@@ -926,6 +981,7 @@ export default function CustomerDetailPage({
       toast.error(errorMessage)
     } finally {
       setIsLoadingFiles(false)
+      setUploadProgress(null)
     }
   }
 
@@ -2135,6 +2191,10 @@ export default function CustomerDetailPage({
                         ? files.filter((file) => file.fileName.toLowerCase().includes(normalizedSearchQuery))
                         : files
                       const inputId = `file-upload-${targetKey}`
+                      const isUploadingCurrentTarget = uploadProgress?.targetKey === targetKey
+                      const uploadPercent = isUploadingCurrentTarget && uploadProgress && uploadProgress.total > 0
+                        ? Math.round((uploadProgress.completed / uploadProgress.total) * 100)
+                        : 0
 
                       return (
                         <div className="space-y-4">
@@ -2312,19 +2372,47 @@ export default function CustomerDetailPage({
                                   multiple
                                   className="hidden"
                                   onChange={(e) => {
+                                    if (isUploadingCurrentTarget) return
                                     handleFileUpload(currentTarget, e.target.files)
                                     e.currentTarget.value = ''
                                   }}
                                 />
                                 <label
                                   htmlFor={inputId}
-                                  className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+                                  className={`inline-flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium ${isUploadingCurrentTarget ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:bg-accent hover:text-accent-foreground'}`}
                                 >
-                                  <Upload className="h-4 w-4" />
-                                  파일 업로드
+                                  {isUploadingCurrentTarget ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Upload className="h-4 w-4" />
+                                  )}
+                                  {isUploadingCurrentTarget && uploadProgress
+                                    ? `업로드 중 ${uploadProgress.completed}/${uploadProgress.total}`
+                                    : '파일 업로드'}
                                 </label>
                               </div>
                             </div>
+
+                            {isUploadingCurrentTarget && uploadProgress && (
+                              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                                <div className="flex items-center justify-between gap-3 text-xs sm:text-sm">
+                                  <div className="flex items-center gap-2 text-primary">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    <span className="font-medium">파일 업로드 진행 중</span>
+                                  </div>
+                                  <span className="text-muted-foreground">{uploadPercent}%</span>
+                                </div>
+                                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-primary/15">
+                                  <div
+                                    className="h-full rounded-full bg-primary transition-all duration-300"
+                                    style={{ width: `${uploadPercent}%` }}
+                                  />
+                                </div>
+                                <p className="mt-2 truncate text-xs text-muted-foreground">
+                                  현재 파일: {uploadProgress.currentFileName}
+                                </p>
+                              </div>
+                            )}
 
                             <div className="mt-4 rounded-md border border-border">
                               {filteredFiles.length === 0 ? (
@@ -2471,44 +2559,97 @@ export default function CustomerDetailPage({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!selectedFileForViewer} onOpenChange={(open) => !open && setSelectedFileForViewer(null)}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{selectedFileForViewer?.fileName}</DialogTitle>
-            <DialogDescription>
+      <Dialog
+        open={!!selectedFileForViewer}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedFileForViewer(null)
+            setPdfViewerPage(1)
+          }
+        }}
+      >
+        <DialogContent
+          className="w-[95vw] max-w-[235rem] sm:max-w-[235rem] h-[82vh] max-h-[90vh] overflow-hidden resize dark:bg-[#1c1b1b] dark:border-[#464554]"
+          style={{ resize: 'both' }}
+        >
+          <DialogHeader className="dark:border-b dark:border-[#464554] pb-4">
+            <DialogTitle className="dark:text-[#e5e2e1]">{selectedFileForViewer?.fileName}</DialogTitle>
+            <DialogDescription className="dark:text-[#c7c4d7]">
               {selectedFileForViewer && `크기: ${formatFileSize(selectedFileForViewer.fileSize)}`}
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-4 space-y-4">
+          <div className="mt-4 h-[calc(100%-5rem)] space-y-4 overflow-auto">
             {selectedFileForViewer && (
               <>
                 {isImageFile(selectedFileForViewer.fileName) ? (
-                  <div className="flex justify-center">
+                  <div className="flex h-[64vh] w-full items-center justify-center rounded-lg border border-border bg-muted/30 dark:bg-[#0e0e0e] dark:border-[#464554]">
                     <img
                       src={selectedFileForViewer.base64Content}
                       alt={selectedFileForViewer.fileName}
-                      className="max-w-full max-h-[400px] rounded-lg"
+                      className="h-full w-full object-contain"
                     />
                   </div>
                 ) : isPdfFile(selectedFileForViewer.fileName) ? (
-                  <iframe
-                    src={selectedFileForViewer.base64Content}
-                    className="w-full h-[500px] rounded-lg border border-border"
-                    title={selectedFileForViewer.fileName}
-                  />
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"
+                        onClick={() => setPdfViewerPage((prev) => Math.max(1, prev - 1))}
+                        disabled={pdfViewerPage <= 1}
+                      >
+                        이전 페이지
+                      </Button>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground dark:text-[#908fa0]">페이지</span>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={pdfViewerPage}
+                          onChange={(e) => {
+                            const value = Number.parseInt(e.target.value, 10)
+                            setPdfViewerPage(Number.isFinite(value) && value > 0 ? value : 1)
+                          }}
+                          className="h-8 w-20 dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1]"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"
+                        onClick={() => setPdfViewerPage((prev) => prev + 1)}
+                      >
+                        다음 페이지
+                      </Button>
+                    </div>
+                    {pdfViewerSrc ? (
+                      <iframe
+                        src={`${pdfViewerSrc.split('#')[0]}#page=${pdfViewerPage}&toolbar=1&navpanes=1`}
+                        className="w-full h-[64vh] rounded-lg border border-border"
+                        title={selectedFileForViewer.fileName}
+                      />
+                    ) : (
+                      <div className="bg-muted/50 p-4 rounded-lg dark:bg-[#0e0e0e] dark:border dark:border-[#464554]">
+                        <p className="text-sm text-muted-foreground dark:text-[#908fa0]">PDF 미리보기 소스를 찾을 수 없습니다.</p>
+                      </div>
+                    )}
+                  </div>
                 ) : isTextFile(selectedFileForViewer.fileName) ? (
-                  <div className="bg-muted/50 p-4 rounded-lg max-h-[400px] overflow-auto">
-                    <pre className="text-sm whitespace-pre-wrap break-words font-mono">
+                  <div className="bg-muted/50 p-4 rounded-lg max-h-[400px] overflow-auto dark:bg-[#0e0e0e] dark:border dark:border-[#464554]">
+                    <pre className="text-sm whitespace-pre-wrap break-words font-mono dark:text-[#c7c4d7]">
                       파일 내용을 표시할 수 없습니다.
                     </pre>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center p-8 bg-muted/50 rounded-lg">
+                  <div className="flex flex-col items-center justify-center p-8 bg-muted/50 rounded-lg dark:bg-[#0e0e0e] dark:border dark:border-[#464554]">
                     <FileText className="h-12 w-12 text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground dark:text-[#c7c4d7]">
                       이 파일 형식은 미리보기를 지원하지 않습니다.
                     </p>
-                    <p className="text-xs text-muted-foreground mt-2">
+                    <p className="text-xs text-muted-foreground mt-2 dark:text-[#908fa0]">
                       파일 형식: .{getFileExtension(selectedFileForViewer.fileName)}
                     </p>
                   </div>
@@ -2517,7 +2658,7 @@ export default function CustomerDetailPage({
                   <a
                     href={selectedFileForViewer.base64Content}
                     download={selectedFileForViewer.fileName}
-                    className="inline-flex items-center justify-center rounded-md border border-input bg-background hover:bg-accent px-3 py-2 text-sm font-medium"
+                    className="inline-flex items-center justify-center rounded-md border border-input bg-background hover:bg-accent px-3 py-2 text-sm font-medium dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"
                   >
                     <Download className="h-4 w-4 mr-2" />
                     다운로드

@@ -17,8 +17,8 @@
       ├── 인증          : NextAuth.js + Azure Entra ID (AzureAD Provider)
       ├── 앱 데이터     : PostgreSQL (Prisma ORM) ← DATABASE_URL 미설정
       ├── 파일 메타데이터: Azure Cosmos DB ← 설정 완료 ✅
-      ├── 파일 본체      : SharePoint (Microsoft Graph API) ← 환경변수 누락
-      └── 알림 이메일   : Outlook (Microsoft Graph API / sendMail) ← 환경변수 누락
+      ├── 파일 본체      : SharePoint (Microsoft Graph API) ← 환경변수 설정 완료 ✅
+      └── 알림 이메일   : Outlook (Microsoft Graph API / sendMail) ← 발신 계정 설정 완료 ✅
 ```
 
 ---
@@ -57,31 +57,20 @@
 | `MICROSOFT_GRAPH_ENDPOINT` | ✅ 설정 완료 | `https://graph.microsoft.com/v1.0` |
 | `NEXTAUTH_SECRET` | ✅ 설정 완료 | `openssl rand -base64 32`로 생성 완료 |
 | `DATABASE_URL` | ❌ 미설정 | placeholder 상태 |
-| `SHAREPOINT_SITE_ID` | ❌ 누락 | `.env.local`에 항목 없음 |
-| `SHAREPOINT_DRIVE_ID` | ❌ 누락 | `.env.local`에 항목 없음 |
+| `SHAREPOINT_SITE_ID` | ✅ 설정 완료 | Graph API 조회값 반영 완료 |
+| `SHAREPOINT_DRIVE_ID` | ✅ 설정 완료 | `Documents` 드라이브 ID 반영 완료 |
 | `SHAREPOINT_ROOT_FOLDER` | ⚠️ 선택사항 | 기본값 `milestone-files` 사용 가능 |
-| `OUTLOOK_SENDER_UPN` | ❌ 누락 | `.env.local`에 항목 없음 |
+| `OUTLOOK_SENDER_UPN` | ✅ 설정 완료 | `dex_portal@dexconsulting.net` 반영 완료 |
 
 ---
 
 ## 4. 미설정 또는 확인 필요한 환경변수
 
-`.env.local`에 추가해야 할 항목 목록:
+`.env.local`에서 아직 채워야 할 항목 목록:
 
 ```env
-# NextAuth 서명 키 (openssl rand -base64 32 로 생성)
-NEXTAUTH_SECRET=<생성 필요>
-
 # PostgreSQL 연결 문자열
 DATABASE_URL=postgresql://<user>:<password>@<host>:5432/<dbname>?sslmode=require
-
-# SharePoint (Microsoft Graph)
-SHAREPOINT_SITE_ID=<Azure Portal 또는 Graph API에서 확인>
-SHAREPOINT_DRIVE_ID=<Azure Portal 또는 Graph API에서 확인>
-SHAREPOINT_ROOT_FOLDER=milestone-files
-
-# Outlook 발신 계정
-OUTLOOK_SENDER_UPN=<발신용 M365 계정 이메일>
 ```
 
 ---
@@ -90,12 +79,12 @@ OUTLOOK_SENDER_UPN=<발신용 M365 계정 이메일>
 
 | 서비스 | 연동 상태 | 비고 |
 |--------|-----------|------|
-| Azure Entra ID (인증) | ✅ 환경변수 완료 / ⚠️ API 권한 미확인 | 앱 권한 추가 필요 (아래 참조) |
+| Azure Entra ID (인증) | ✅ 환경변수 완료 / ✅ API 권한 확인 완료 | Graph 토큰 roles 확인 및 API 호출 검증 완료 |
 | Azure Cosmos DB | ✅ 환경변수 완료 | 컨테이너 자동 생성 코드 포함 (`createIfNotExists`) |
 | PostgreSQL (Prisma) | ❌ DB 미생성 / 연결 미설정 | Azure PostgreSQL Flexible Server 권장 |
-| SharePoint | ❌ 환경변수 누락 | `SHAREPOINT_SITE_ID`, `SHAREPOINT_DRIVE_ID` 필요 |
-| Outlook (알림) | ❌ 환경변수 누락 | `OUTLOOK_SENDER_UPN` 필요 |
-| Microsoft Graph API | ⚠️ 클라이언트 코드 완성 / 권한 미확인 | 앱 등록 권한 추가 필요 |
+| SharePoint | ✅ 환경변수 설정 완료 / ✅ 권한 확인 완료 | `Sites.ReadWrite.All`, `Files.ReadWrite.All` 권한 및 API 호출 검증 완료 |
+| Outlook (알림) | ✅ 환경변수 설정 완료 | `OUTLOOK_SENDER_UPN` 설정 반영 완료 |
+| Microsoft Graph API | ✅ 권한 확인 완료 | `Mail.Send`, `Sites.ReadWrite.All`, `Files.ReadWrite.All`, `User.Read.All`, `Group.Read.All` 확인 |
 
 ---
 
@@ -222,11 +211,11 @@ NEXTAUTH_URL=https://<실제 도메인>
 | 순서 | 작업 | 이유 | 상태 |
 |------|------|------|------|
 | ~~1~~ | ~~`NEXTAUTH_SECRET` 생성~~ | ~~인증 자체가 동작하지 않음~~ | ✅ 완료 |
-| 1 | Entra ID 앱 권한 추가 (관리자 동의) | Graph API 호출 전제조건 | ⏳ 미완료 |
+| 1 | Entra ID 앱 권한 추가 (관리자 동의) | Graph API 호출 전제조건 | ✅ 완료 |
 | 2 | PostgreSQL 생성 + `DATABASE_URL` 설정 | 알림 서비스가 Prisma에 의존 | ⏳ 미완료 |
 | 3 | `pnpm prisma migrate dev` 실행 | DB 스키마 생성 | ⏳ 미완료 |
-| 4 | SharePoint ID 확인 + 환경변수 추가 | 파일 업로드 기능 동작 | ⏳ 미완료 |
-| 5 | `OUTLOOK_SENDER_UPN` 설정 | 알림 이메일 발송 | ⏳ 미완료 |
+| 4 | SharePoint ID 확인 + 환경변수 추가 | 파일 업로드 기능 동작 | ✅ 완료 |
+| 5 | `OUTLOOK_SENDER_UPN` 설정 | 알림 이메일 발송 | ✅ 완료 |
 
 ---
 
@@ -268,16 +257,16 @@ pnpm lint
 ### 환경변수
 - [x] `NEXTAUTH_SECRET` — 설정 완료
 - [ ] `DATABASE_URL` — PostgreSQL 생성 후 연결 문자열 입력
-- [ ] `SHAREPOINT_SITE_ID` — Graph Explorer에서 확인
-- [ ] `SHAREPOINT_DRIVE_ID` — Graph Explorer에서 확인
-- [ ] `OUTLOOK_SENDER_UPN` — M365 관리자에게 확인
+- [x] `SHAREPOINT_SITE_ID` — Graph API 조회 후 설정 완료
+- [x] `SHAREPOINT_DRIVE_ID` — Graph API 조회 후 설정 완료
+- [x] `OUTLOOK_SENDER_UPN` — 설정 완료 (`dex_portal@dexconsulting.net`)
 
 ### Azure Portal 작업
-- [ ] Entra ID 앱에 `Mail.Send` 권한 추가 + 관리자 동의
-- [ ] Entra ID 앱에 `Sites.ReadWrite.All` 권한 추가 + 관리자 동의
-- [ ] Entra ID 앱에 `Files.ReadWrite.All` 권한 추가 + 관리자 동의
-- [ ] Entra ID 앱에 `User.Read.All` 권한 추가 + 관리자 동의
-- [ ] Entra ID 앱에 `Group.Read.All` 권한 추가 + 관리자 동의
+- [x] Entra ID 앱에 `Mail.Send` 권한 추가 + 관리자 동의
+- [x] Entra ID 앱에 `Sites.ReadWrite.All` 권한 추가 + 관리자 동의
+- [x] Entra ID 앱에 `Files.ReadWrite.All` 권한 추가 + 관리자 동의
+- [x] Entra ID 앱에 `User.Read.All` 권한 추가 + 관리자 동의
+- [x] Entra ID 앱에 `Group.Read.All` 권한 추가 + 관리자 동의
 - [ ] PostgreSQL Flexible Server 생성
 - [ ] 방화벽 규칙 설정 (개발 IP 허용)
 

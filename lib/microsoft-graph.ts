@@ -220,7 +220,18 @@ export async function uploadFileWithSessionToSharePoint(input: {
   }
 
   const result = await lastResponse.json()
-  return result.webUrl as string
+  const directDownloadUrl = result?.['@microsoft.graph.downloadUrl'] as string | undefined
+  const webUrl = result?.webUrl as string | undefined
+
+  if (directDownloadUrl) {
+    return directDownloadUrl
+  }
+
+  if (webUrl) {
+    return webUrl
+  }
+
+  throw new Error('업로드 결과 URL을 확인할 수 없습니다.')
 }
 
 /**
