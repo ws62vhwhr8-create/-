@@ -3,7 +3,6 @@ import { NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
 
 const adminRoutePrefixes = ["/admin-dashboard", "/solutions", "/users"]
-const userRoutePrefixes = ["/customers", "/dashboard"]
 
 function redirectToSignIn(request: NextRequest) {
   const signInUrl = new URL("/api/auth/signin", request.url)
@@ -66,11 +65,6 @@ export async function proxy(request: NextRequest) {
   const isAdminRoute = adminRoutePrefixes.some((route) => pathname.startsWith(route))
   if (isAdminRoute && !isAdmin) {
     return NextResponse.redirect(new URL("/customers", request.url))
-  }
-
-  const isUserRoute = userRoutePrefixes.some((route) => pathname.startsWith(route))
-  if (isUserRoute && isAdmin) {
-    return NextResponse.redirect(new URL("/admin-dashboard", request.url))
   }
 
   return NextResponse.next()
