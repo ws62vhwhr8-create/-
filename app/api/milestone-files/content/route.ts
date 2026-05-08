@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
       return new NextResponse(bytes, {
         status: 200,
         headers: {
-          'Content-Type': file.fileType || 'application/pdf',
+          'Content-Type': file.fileType || 'application/octet-stream',
           'Content-Disposition': `inline; filename="${encodeURIComponent(file.fileName)}"`,
           'Cache-Control': 'private, no-store',
         },
@@ -98,22 +98,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No content URL for this file' }, { status: 400 })
     }
 
-    let resolvedUrl = toSharePointDownloadUrl(file.contentUrl)
+    const graphResolvedUrl = isSharePointUrl(file.contentUrl)
+      ? await resolveDownloadUrlWithGraph(file.contentUrl)
+      : null
+
+    let resolvedUrl = graphResolvedUrl || toSharePointDownloadUrl(file.contentUrl)
     let upstream = await fetch(resolvedUrl, {
       headers: {
-        Accept: 'application/pdf,*/*',
+        Accept: '*/*',
       },
       redirect: 'follow',
       cache: 'no-store',
     })
 
-    if (!upstream.ok && upstream.status === 403 && isSharePointUrl(file.contentUrl)) {
-      const graphResolvedUrl = await resolveDownloadUrlWithGraph(file.contentUrl)
-      if (graphResolvedUrl) {
-        resolvedUrl = graphResolvedUrl
+    // Legacy links may return an HTML page (200) instead of file bytes.
+    const upstreamContentType = upstream.headers.get('content-type') || ''
+    const returnedHtml = upstreamContentType.toLowerCase().includes('text/html')
+
+    if (
+      isSharePointUrl(file.contentUrl) &&
+      (!upstream.ok || returnedHtml)
+    ) {
+      const fallbackUrl = toSharePointDownloadUrl(file.contentUrl)
+      if (fallbackUrl !== resolvedUrl) {
+        resolvedUrl = fallbackUrl
         upstream = await fetch(resolvedUrl, {
           headers: {
-            Accept: 'application/pdf,*/*',
+            Accept: '*/*',
           },
           redirect: 'follow',
           cache: 'no-store',
@@ -129,7 +140,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const contentType = upstream.headers.get('content-type') || file.fileType || 'application/pdf'
+    const contentType = upstream.headers.get('content-type') || file.fileType || 'application/octet-stream'
     const arrayBuffer = await upstream.arrayBuffer()
 
     return new NextResponse(arrayBuffer, {
@@ -142,6 +153,6 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
-    return NextResponse.json({ error: `PDF content fetch failed: ${message}` }, { status: 500 })
+    return NextResponse.json({ error: `File content fetch failed: ${message}` }, { status: 500 })
   }
 }

@@ -95,14 +95,14 @@ export function CustomerTable({ tone = "default" }: CustomerTableProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-xl border border-[#E2E8F0] bg-white px-5 py-3.5 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:bg-[#1E1E1E]/60 dark:border-[#333333]">
         <div className="relative flex-1 max-w-sm">
           <Search className={cn("absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2", isUser ? "text-[#64748B] dark:text-[#908fa0]" : "text-[#64748B] dark:text-muted-foreground")} />
           <Input
             placeholder="고객사 검색..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className={cn("pl-9", isUser ? "bg-white border-[#E2E8F0] dark:bg-[#1E1E1E] dark:border-[#464554]/50" : "bg-background border-border")}
+            className={cn("pl-9 bg-transparent border-[#E2E8F0] dark:bg-transparent dark:border-[#464554]/50")}
           />
         </div>
         
@@ -172,19 +172,19 @@ export function CustomerTable({ tone = "default" }: CustomerTableProps) {
       </div>
 
       <div className={cn(
-        "hidden md:block rounded-lg border overflow-hidden dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)]",
+        "hidden md:block rounded-xl border overflow-hidden dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)]",
         isUser ? "bg-white border-[#E2E8F0] shadow-sm" : "bg-white border-[#E2E8F0] shadow-sm"
       )}>
         <Table>
           <TableHeader>
             <TableRow className={cn("dark:bg-[#1c1b1b]/80 dark:hover:bg-[#1c1b1b]/80", isUser ? "bg-[#F8FAFC] hover:bg-[#F8FAFC]" : "bg-[#F8FAFC] hover:bg-[#F8FAFC]")}>
-              <TableHead className={cn("w-[30%] text-left font-medium dark:text-[#908fa0] dark:uppercase dark:tracking-wider", isUser ? "text-[#64748B]" : "text-[#64748B]")}>고객사</TableHead>
-              <TableHead className={cn("w-[14%] text-center font-medium dark:text-[#908fa0] dark:uppercase dark:tracking-wider", isUser ? "text-[#64748B]" : "text-[#64748B]")}>솔루션</TableHead>
-              <TableHead className={cn("w-[14%] text-center font-medium dark:text-[#908fa0] dark:uppercase dark:tracking-wider", isUser ? "text-[#64748B]" : "text-[#64748B]")}>영업 시작일</TableHead>
-              <TableHead className={cn("w-[14%] text-center font-medium dark:text-[#908fa0] dark:uppercase dark:tracking-wider", isUser ? "text-[#64748B]" : "text-[#64748B]")}>영업 마감일</TableHead>
-              <TableHead className={cn("w-[12%] text-center font-medium dark:text-[#908fa0] dark:uppercase dark:tracking-wider", isUser ? "text-[#64748B]" : "text-[#64748B]")}>담당자</TableHead>
-              <TableHead className={cn("w-[14%] text-left font-medium whitespace-nowrap pl-4 dark:text-[#908fa0] dark:uppercase dark:tracking-wider", isUser ? "text-[#64748B]" : "text-[#64748B]")}>진행률</TableHead>
-              <TableHead className={cn("w-[10%] text-right font-medium pr-6 dark:text-[#908fa0] dark:uppercase dark:tracking-wider", isUser ? "text-[#64748B]" : "text-[#64748B]")}>상태</TableHead>
+              <TableHead className={cn("w-[30%] text-left text-xs font-semibold uppercase tracking-wider dark:text-[#908fa0]", isUser ? "text-[#64748B]" : "text-[#64748B]")}>고객사</TableHead>
+              <TableHead className={cn("w-[14%] text-center text-xs font-semibold uppercase tracking-wider dark:text-[#908fa0]", isUser ? "text-[#64748B]" : "text-[#64748B]")}>솔루션</TableHead>
+              <TableHead className={cn("w-[14%] text-center text-xs font-semibold uppercase tracking-wider dark:text-[#908fa0]", isUser ? "text-[#64748B]" : "text-[#64748B]")}>영업 시작일</TableHead>
+              <TableHead className={cn("w-[14%] text-center text-xs font-semibold uppercase tracking-wider dark:text-[#908fa0]", isUser ? "text-[#64748B]" : "text-[#64748B]")}>영업 마감일</TableHead>
+              <TableHead className={cn("w-[12%] text-center text-xs font-semibold uppercase tracking-wider dark:text-[#908fa0]", isUser ? "text-[#64748B]" : "text-[#64748B]")}>담당자</TableHead>
+              <TableHead className={cn("w-[14%] text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap pl-4 dark:text-[#908fa0]", isUser ? "text-[#64748B]" : "text-[#64748B]")}>진행률</TableHead>
+              <TableHead className={cn("w-[10%] text-right text-xs font-semibold uppercase tracking-wider pr-6 dark:text-[#908fa0]", isUser ? "text-[#64748B]" : "text-[#64748B]")}>상태</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

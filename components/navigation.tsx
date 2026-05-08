@@ -91,18 +91,18 @@ export function Navigation() {
           )}
         >
           {state === "collapsed" ? (
-            <div className="flex h-8 w-8 origin-left scale-[1.35] items-center justify-center rounded-lg bg-primary dark:bg-indigo-500/20 dark:border dark:border-indigo-500/30">
-              <FolderKanban className="h-4 w-4 text-primary-foreground dark:text-indigo-500" />
+            <div className="flex h-8 w-8 origin-left scale-[1.35] items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80 shadow-sm dark:from-indigo-500/30 dark:to-indigo-600/20 dark:border dark:border-indigo-500/40">
+              <FolderKanban className="h-4 w-4 text-primary-foreground dark:text-indigo-400" />
             </div>
           ) : (
             <div className="origin-left scale-[1.35]">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary dark:bg-indigo-500/20 dark:border dark:border-indigo-500/30">
-                  <FolderKanban className="h-4 w-4 text-primary-foreground dark:text-indigo-500" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80 shadow-sm dark:from-indigo-500/30 dark:to-indigo-600/20 dark:border dark:border-indigo-500/40">
+                  <FolderKanban className="h-4 w-4 text-primary-foreground dark:text-indigo-400" />
                 </div>
-                <span className="text-lg leading-none font-semibold text-foreground dark:text-indigo-500 block truncate">영업 로드맵</span>
+                <span className="text-lg leading-none font-bold text-foreground dark:text-indigo-400 block truncate tracking-tight">영업 로드맵</span>
               </div>
-              <p className="mt-0.5 text-[10px] text-muted-foreground dark:text-neutral-500 uppercase tracking-wider font-semibold">Management Portal</p>
+              <p className="mt-0.5 text-[10px] text-muted-foreground/70 dark:text-neutral-500 uppercase tracking-widest font-medium">Management Portal</p>
             </div>
           )}
         </Link>
@@ -118,6 +118,7 @@ export function Navigation() {
                 <SidebarMenuButton
                   asChild
                   isActive={isActive(item.href)}
+                  className="rounded-lg transition-all duration-150 data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-medium dark:data-[active=true]:bg-indigo-500/15 dark:data-[active=true]:text-indigo-400"
                 >
                   <Link href={item.href}>
                     <item.icon className="h-4 w-4" />
@@ -138,6 +139,7 @@ export function Navigation() {
                   <SidebarMenuButton
                     asChild
                     isActive={isActive(item.href)}
+                    className="rounded-lg transition-all duration-150 data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-medium dark:data-[active=true]:bg-indigo-500/15 dark:data-[active=true]:text-indigo-400"
                   >
                     <Link href={item.href}>
                       <item.icon className="h-4 w-4" />
@@ -164,17 +166,17 @@ export function Navigation() {
             </SidebarMenuItem>
           </SidebarMenu>
 
-          <div className="mt-2 rounded-xl border border-gray-200 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900">
-            <div className={cn("flex items-center", state === "collapsed" ? "justify-center" : "gap-2") }>
-              <Avatar className="h-9 w-9">
+          <div className="mt-2 rounded-xl border border-border/60 bg-card p-2.5 shadow-sm dark:border-neutral-700/50 dark:bg-neutral-900/80">
+            <div className={cn("flex items-center", state === "collapsed" ? "justify-center" : "gap-2.5") }>
+              <Avatar className="h-8 w-8 ring-2 ring-border/50">
                 <AvatarImage src={accountImage} alt={accountName} />
-                <AvatarFallback>{accountInitial}</AvatarFallback>
+                <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold dark:bg-indigo-500/20 dark:text-indigo-400">{accountInitial}</AvatarFallback>
               </Avatar>
 
               {state !== "collapsed" && (
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-foreground">{accountName}</p>
-                  <p className="truncate text-xs text-muted-foreground">{accountEmail}</p>
+                  <p className="truncate text-sm font-semibold text-foreground leading-tight">{accountName}</p>
+                  <p className="truncate text-[11px] text-muted-foreground/70 mt-0.5">{accountEmail}</p>
                 </div>
               )}
             </div>
@@ -182,20 +184,20 @@ export function Navigation() {
             {state !== "collapsed" ? (
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                className="mt-2 w-full justify-center"
+                className="mt-2.5 w-full justify-center text-muted-foreground hover:text-foreground hover:bg-destructive/10 hover:text-destructive dark:hover:text-red-400 dark:hover:bg-red-900/20 transition-colors"
                 onClick={() => signOut({ callbackUrl: "/api/auth/signin" })}
               >
-                <LogOut className="h-4 w-4" />
-                로그아웃
+                <LogOut className="h-3.5 w-3.5" />
+                <span className="text-xs">로그아웃</span>
               </Button>
             ) : (
               <Button
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                className="mt-2 w-full"
+                className="mt-2 w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                 onClick={() => signOut({ callbackUrl: "/api/auth/signin" })}
               >
                 <LogOut className="h-4 w-4" />

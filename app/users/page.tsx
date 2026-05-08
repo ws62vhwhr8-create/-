@@ -128,37 +128,37 @@ export default function UsersPage() {
     <div className="flex min-h-screen w-full"> 
       <Navigation />
       <SidebarInset className="flex flex-col flex-1 w-full min-w-0">
-        <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex h-14 items-center gap-4 px-4">
-            <SidebarTrigger />
+        <header className="sticky top-0 z-40 border-b border-border/60 bg-background/98 backdrop-blur-md supports-[backdrop-filter]:bg-background/80">
+          <div className="flex h-14 items-center gap-3 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <div className="h-5 w-px bg-border/70" />
+            <span className="text-sm font-medium text-muted-foreground">사용자 관리</span>
           </div>
         </header>
 
-        {/* 수정된 부분: justify-center를 제거하여 왼쪽 정렬 및 전체 확장이 가능하도록 변경 */}
         <main className="flex-1 w-full overflow-y-auto bg-[#F8FAFC] dark:bg-[#131313]">
-          {/* 수정된 부분: max-w-[1400px]를 제거하여 우측으로 끝까지 늘어나도록 변경 */}
-          <div className="w-full px-6 py-8 lg:px-12 space-y-6">
+          <div className="w-full px-6 py-8 lg:px-12 space-y-6 animate-page-in">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold font-sans text-[#1b1b23] dark:text-[#e5e2e1]">사용자 관리</h1>
-                <p className="text-[#64748B] dark:text-[#908fa0]">시스템 사용자 및 권한 관리 (Entra Mock)</p>
+                <h1 className="text-2xl font-bold tracking-tight font-sans text-[#1b1b23] dark:text-[#e5e2e1]">사용자 관리</h1>
+                <p className="text-sm text-[#64748B] dark:text-[#908fa0] mt-1">시스템 사용자 및 권한 관리</p>
               </div>
               <div>
-                <Button onClick={() => setIsPickerOpen(true)}>
+                <Button className="shadow-sm" onClick={() => setIsPickerOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" /> 사용자 추가
                 </Button>
               </div>
             </div>
 
-            <div className="w-full rounded-lg border border-[#E2E8F0] bg-white shadow-sm dark:border-[#333333] dark:border-white/15 dark:bg-[#1E1E1E] dark:bg-[#1E1E1E]/60 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)]">
-              <div className="flex flex-col gap-3 border-b border-[#E2E8F0] px-8 py-4 dark:border-[#333333] sm:flex-row sm:items-center sm:justify-between">
+            <div className="w-full rounded-xl border border-[#E2E8F0] bg-white shadow-sm dark:border-[#333333] dark:border-white/15 dark:bg-[#1E1E1E] dark:bg-[#1E1E1E]/60 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)]">
+              <div className="flex flex-col gap-3 border-b border-[#E2E8F0] px-6 py-3.5 dark:border-[#333333] sm:flex-row sm:items-center sm:justify-between">
                 <div className="relative w-full sm:max-w-sm">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748B] dark:text-[#908fa0]" />
                   <Input
                     value={assignedQuery}
                     onChange={(e) => setAssignedQuery(e.target.value)}
-                    placeholder="할당된 사용자 / 그룹 검색..."
-                    className="pl-9 bg-white border-[#E2E8F0] dark:bg-[#1E1E1E] dark:border-[#464554]/50"
+                    placeholder="사용자 / 그룹 검색..."
+                    className="pl-9 bg-transparent border-[#E2E8F0] dark:bg-transparent dark:border-[#464554]/50"
                   />
                 </div>
                 <Select value={userTypeFilter} onValueChange={(value) => setUserTypeFilter(value as 'all' | 'user' | 'owner')}>
@@ -174,12 +174,12 @@ export default function UsersPage() {
               </div>
               <div className="overflow-hidden rounded-b-lg border-t border-border dark:border-[#333333]">
                 <table className="w-full border-collapse">
-                  <thead className="border-b border-[#E2E8F0] bg-secondary/50 dark:border-[#333333] dark:bg-[#0e0e0e]">
-                    <tr className="bg-secondary/50 hover:bg-secondary/50 dark:bg-[#0e0e0e] dark:hover:bg-[#0e0e0e]">
-                      <th className="w-[30%] px-8 py-4 text-left text-sm font-bold text-[#64748B] dark:text-[#908fa0] dark:uppercase dark:tracking-wider">이름</th>
-                      <th className="w-[40%] px-8 py-4 text-left text-sm font-bold text-[#64748B] dark:text-[#908fa0] dark:uppercase dark:tracking-wider">이메일</th>
-                      <th className="w-[20%] px-8 py-4 text-left text-sm font-bold text-[#64748B] dark:text-[#908fa0] dark:uppercase dark:tracking-wider">역할</th>
-                      <th className="w-[10%] px-8 py-4 text-center text-sm font-bold text-[#64748B] dark:text-[#908fa0]">작업</th>
+                  <thead className="border-b border-[#E2E8F0] bg-[#F8FAFC] dark:border-[#333333] dark:bg-[#0e0e0e]">
+                    <tr className="hover:bg-[#F8FAFC] dark:hover:bg-[#0e0e0e]">
+                      <th className="w-[30%] px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-widest text-[#64748B] dark:text-[#908fa0]">이름</th>
+                      <th className="w-[40%] px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-widest text-[#64748B] dark:text-[#908fa0]">이메일</th>
+                      <th className="w-[20%] px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-widest text-[#64748B] dark:text-[#908fa0]">역할</th>
+                      <th className="w-[10%] px-6 py-3.5 text-center text-xs font-semibold uppercase tracking-widest text-[#64748B] dark:text-[#908fa0]">작업</th>
                     </tr>
                   </thead>
                 <tbody>

@@ -75,14 +75,14 @@ export function StatsCards({ tone = "default" }: StatsCardsProps) {
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <div className="flex items-center justify-between mb-3">
-        <h2 className={cn("text-sm font-medium", isUser ? "text-[#64748B] dark:text-[#908fa0]" : "text-[#64748B] dark:text-muted-foreground")}>고객 현황 요약</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className={cn("text-sm font-medium", isUser ? "text-[#64748B] dark:text-[#908fa0]" : "text-[#64748B] dark:text-[#908fa0]")}>고객 현황 요약</h2>
         <CollapsibleTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-8 px-2">
+          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 rounded-lg hover:bg-secondary/80">
             <ChevronDown 
               className={cn(
                 "h-4 w-4 transition-transform duration-200",
-                isUser ? "text-[#64748B] dark:text-[#908fa0]" : "text-[#64748B] dark:text-muted-foreground",
+                isUser ? "text-[#64748B] dark:text-[#908fa0]" : "text-[#64748B] dark:text-[#908fa0]",
                 isOpen ? "rotate-0" : "-rotate-90"
               )} 
             />
@@ -93,17 +93,17 @@ export function StatsCards({ tone = "default" }: StatsCardsProps) {
       <CollapsibleContent className="transition-all data-[state=closed]:animate-collapse-up data-[state=open]:animate-collapse-down">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {cards.map((card) => (
-            <Card key={card.title} className={card.cardColor}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className={cn("text-sm font-medium", isUser ? "text-[#64748B] dark:text-[#908fa0]" : "text-[#64748B] dark:text-muted-foreground")}>
+            <Card key={card.title} className={cn(card.cardColor, "overflow-hidden")}>
+              <CardHeader className="flex flex-row items-center justify-between pb-3 pt-5 px-5">
+                <CardTitle className={cn("text-sm font-medium", isUser ? "text-[#64748B] dark:text-[#908fa0]" : "text-[#64748B] dark:text-[#908fa0]")}>
                   {card.title}
                 </CardTitle>
-                <div className={`rounded-lg p-2 ${card.bgColor}`}>
+                <div className={`rounded-xl p-2.5 ${card.bgColor}`}>
                   <card.icon className={`h-4 w-4 ${card.color}`} />
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className={cn("text-3xl font-bold dark:text-[#e5e2e1]", isUser ? "text-[#1b1b23]" : "")}>{card.value}</div>
+              <CardContent className="px-5 pb-5">
+                <div className={cn("text-3xl font-bold tabular-nums tracking-tight", isUser ? "text-[#1b1b23] dark:text-[#e5e2e1]" : "dark:text-[#e5e2e1] text-[#1b1b23]")}>{card.value}</div>
               </CardContent>
             </Card>
           ))}

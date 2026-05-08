@@ -448,21 +448,23 @@ export default function SolutionsPage() {
     <>
       <Navigation />
       <SidebarInset>
-        <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex h-14 items-center gap-4 px-4">
-            <SidebarTrigger />
+        <header className="sticky top-0 z-40 border-b border-border/60 bg-background/98 backdrop-blur-md supports-[backdrop-filter]:bg-background/80">
+          <div className="flex h-14 items-center gap-3 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <div className="h-5 w-px bg-border/70" />
+            <span className="text-sm font-medium text-muted-foreground">솔루션 관리</span>
           </div>
         </header>
         
         <main className="flex-1 w-full overflow-y-auto bg-background">
-          <div className="w-full px-6 py-8 lg:px-12 space-y-6">
+          <div className="w-full px-6 py-8 lg:px-12 space-y-6 animate-page-in">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold leading-tight tracking-tight dark:text-[#e5e2e1]">솔루션(프로젝트) 관리</h1>
-                <p className="text-muted-foreground dark:text-[#c7c4d7] mt-1">표준화된 비즈니스 프로세스 템플릿을 관리합니다.</p>
+                <h1 className="text-2xl font-bold leading-tight tracking-tight dark:text-[#e5e2e1]">솔루션(Project) 관리</h1>
+                <p className="text-sm text-muted-foreground dark:text-[#c7c4d7] mt-1">표준화된 비즈니스 프로세스 템플릿을 관리합니다.</p>
               </div>
 
-              <Button onClick={() => router.push('/solutions/new')}>
+              <Button className="shadow-sm" onClick={() => router.push('/solutions/new')}>
                 <Plus className="mr-2 h-4 w-4" />
                 새 솔루션 설계
               </Button>

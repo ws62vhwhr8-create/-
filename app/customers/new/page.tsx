@@ -146,9 +146,13 @@ export default function NewCustomerPage() {
     <>
       <Navigation />
       <SidebarInset>
-        <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex h-14 items-center gap-4 px-4">
-            <SidebarTrigger />
+        <header className="sticky top-0 z-40 border-b border-border/60 bg-background/98 backdrop-blur-md supports-[backdrop-filter]:bg-background/80">
+          <div className="flex h-14 items-center gap-3 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <div className="h-5 w-px bg-border/70" />
+            <Link href="/customers" className="text-sm text-muted-foreground hover:text-foreground transition-colors">고객 관리</Link>
+            <span className="text-muted-foreground/50 text-sm">/</span>
+            <span className="text-sm font-medium text-foreground">고객 등록</span>
           </div>
         </header>
 

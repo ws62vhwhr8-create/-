@@ -187,35 +187,37 @@ export default function CustomersPage() {
     <>
       <Navigation />
       <SidebarInset>
-        <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex h-14 items-center gap-4 px-4">
-            <SidebarTrigger />
+        <header className="sticky top-0 z-40 border-b border-border/60 bg-background/98 backdrop-blur-md supports-[backdrop-filter]:bg-background/80">
+          <div className="flex h-14 items-center gap-3 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <div className="h-5 w-px bg-border/70" />
+            <span className="text-sm font-medium text-muted-foreground">고객 관리</span>
           </div>
         </header>
         
         <main className="flex-1 w-full overflow-y-auto bg-[#F8FAFC] dark:bg-[#131313]">
-          <div className="w-full px-6 py-8 lg:px-12 space-y-6">
+          <div className="w-full px-6 py-8 lg:px-12 space-y-6 animate-page-in">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-[#1b1b23] dark:text-[#e5e2e1]">고객 관리</h1>
-                <p className="text-[#64748B] dark:text-[#908fa0] mt-1">등록된 고객사를 관리합니다.</p>
+                <h1 className="text-2xl font-bold tracking-tight text-[#1b1b23] dark:text-[#e5e2e1]">고객 관리</h1>
+                <p className="text-sm text-[#64748B] dark:text-[#908fa0] mt-1">등록된 고객사를 관리합니다.</p>
               </div>
             
-              <Button onClick={() => router.push('/customers/new')}>
+              <Button className="shadow-sm" onClick={() => router.push('/customers/new')}>
                 <Plus className="mr-2 h-4 w-4" />
                 고객 등록
               </Button>
             </div>
 
             {/* Filters */}
-            <div className="flex flex-col gap-3 border-b border-[#E2E8F0] dark:border-border px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 rounded-xl border border-[#E2E8F0] bg-white px-5 py-3.5 shadow-sm sm:flex-row sm:items-center dark:bg-[#1E1E1E]/60 dark:border-[#333333]">
               <div className="relative w-full sm:max-w-sm">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748B] dark:text-[#908fa0]" />
                 <Input
                   placeholder="고객사 검색..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9 bg-white border-[#E2E8F0] dark:bg-[#1E1E1E] dark:border-[#464554]/50"
+                  className="pl-9 bg-transparent border-[#E2E8F0] dark:bg-transparent dark:border-[#464554]/50"
                 />
               </div>
 

@@ -210,6 +210,7 @@ export default function CustomerDetailPage({
   const [selectedFileTarget, setSelectedFileTarget] = useState<FileLibraryTarget | null>(null)
   const [libraryByTarget, setLibraryByTarget] = useState<Record<string, MilestoneFile[]>>({})
   const [fileSearchQuery, setFileSearchQuery] = useState('')
+  const [fileSortOption, setFileSortOption] = useState<'uploaded-desc' | 'uploaded-asc' | 'size-desc' | 'size-asc'>('uploaded-desc')
   const [isStageFolderCollapsed, setIsStageFolderCollapsed] = useState(false)
   const [collapsedStageFolderParents, setCollapsedStageFolderParents] = useState<Set<string>>(new Set())
   const [stageFolderHeight, setStageFolderHeight] = useState(192)
@@ -219,6 +220,9 @@ export default function CustomerDetailPage({
   const [selectedFileForViewer, setSelectedFileForViewer] = useState<MilestoneFile | null>(null)
   const [pdfViewerPage, setPdfViewerPage] = useState(1)
   const [pdfViewerSrc, setPdfViewerSrc] = useState<string | null>(null)
+  const [isLoadingDocxPreview, setIsLoadingDocxPreview] = useState(false)
+  const [docxPreviewError, setDocxPreviewError] = useState<string | null>(null)
+  const docxPreviewContainerRef = useRef<HTMLDivElement | null>(null)
   const [dragOverMilestoneId, setDragOverMilestoneId] = useState<string | null>(null)
   const [isLoadingFiles, setIsLoadingFiles] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{
@@ -773,9 +777,21 @@ export default function CustomerDetailPage({
     return getFileExtension(filename) === 'pdf'
   }
 
+  const isDocxFile = (filename: string) => {
+    return getFileExtension(filename) === 'docx'
+  }
+
   const isTextFile = (filename: string) => {
     const textExtensions = ['txt', 'csv', 'json', 'xml', 'html', 'css', 'js', 'ts', 'md', 'log']
     return textExtensions.includes(getFileExtension(filename))
+  }
+
+  const toggleSizeSort = () => {
+    setFileSortOption((prev) => (prev === 'size-desc' ? 'size-asc' : 'size-desc'))
+  }
+
+  const toggleUploadedSort = () => {
+    setFileSortOption((prev) => (prev === 'uploaded-desc' ? 'uploaded-asc' : 'uploaded-desc'))
   }
 
   const handleViewFile = (file: MilestoneFile) => {
@@ -791,6 +807,80 @@ export default function CustomerDetailPage({
     }
 
     setPdfViewerSrc(`/api/milestone-files/content?id=${encodeURIComponent(selectedFileForViewer.id)}`)
+  }, [selectedFileForViewer])
+
+  useEffect(() => {
+    let isCancelled = false
+
+    const loadDocxPreview = async () => {
+      if (!selectedFileForViewer || !isDocxFile(selectedFileForViewer.fileName)) {
+        setDocxPreviewError(null)
+        setIsLoadingDocxPreview(false)
+        if (docxPreviewContainerRef.current) {
+          docxPreviewContainerRef.current.innerHTML = ''
+        }
+        return
+      }
+
+      setIsLoadingDocxPreview(true)
+      setDocxPreviewError(null)
+      if (docxPreviewContainerRef.current) {
+        docxPreviewContainerRef.current.innerHTML = ''
+      }
+
+      try {
+        let arrayBuffer: ArrayBuffer | null = null
+
+        if (selectedFileForViewer.base64Content) {
+          const payload = selectedFileForViewer.base64Content.includes(',')
+            ? selectedFileForViewer.base64Content.split(',')[1]
+            : selectedFileForViewer.base64Content
+
+          const binary = atob(payload)
+          const bytes = new Uint8Array(binary.length)
+          for (let i = 0; i < binary.length; i += 1) {
+            bytes[i] = binary.charCodeAt(i)
+          }
+          arrayBuffer = bytes.buffer
+        } else {
+          const response = await fetch(`/api/milestone-files/content?id=${encodeURIComponent(selectedFileForViewer.id)}`)
+          if (!response.ok) {
+            throw new Error(`DOCX preview fetch failed: HTTP ${response.status}`)
+          }
+          arrayBuffer = await response.arrayBuffer()
+        }
+
+        const container = docxPreviewContainerRef.current
+        if (!container || isCancelled) {
+          return
+        }
+
+        const { renderAsync } = await import('docx-preview')
+        await renderAsync(arrayBuffer, container, undefined, {
+          className: 'docx-viewer',
+          inWrapper: true,
+          breakPages: true,
+          useBase64URL: true,
+          ignoreWidth: false,
+          ignoreHeight: false,
+        })
+      } catch (error) {
+        console.error('DOCX preview error:', error)
+        if (!isCancelled) {
+          setDocxPreviewError('DOCX 미리보기를 불러올 수 없습니다. 다운로드 후 확인해주세요.')
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingDocxPreview(false)
+        }
+      }
+    }
+
+    void loadDocxPreview()
+
+    return () => {
+      isCancelled = true
+    }
   }, [selectedFileForViewer])
 
   const handleDownloadFile = async (file: MilestoneFile) => {
@@ -1681,23 +1771,29 @@ export default function CustomerDetailPage({
     <>
       <Navigation />
       <SidebarInset>
-        <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex h-14 items-center gap-4 px-4">
-            <SidebarTrigger />
+        <header className="sticky top-0 z-40 border-b border-border/60 bg-background/98 backdrop-blur-md supports-[backdrop-filter]:bg-background/80">
+          <div className="flex h-14 items-center gap-3 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <div className="h-5 w-px bg-border/70" />
+            <div className="flex items-center gap-1.5 text-sm min-w-0">
+              <Link href="/customers" className="text-muted-foreground hover:text-foreground transition-colors shrink-0">\uace0\uac1d \uad00\ub9ac</Link>
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+              <span className="font-medium text-foreground truncate">{customer?.companyName ?? '\uace0\uac1d \uc0c1\uc138'}</span>
+            </div>
           </div>
         </header>
         <main className="flex-1 px-6 py-6 lg:px-10 2xl:px-14 bg-[#F8FAFC] dark:bg-transparent">
-          <div className="w-full space-y-6">
+          <div className="w-full space-y-6 animate-page-in">
             <div className="flex flex-col gap-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-3">
-                    <h1 className="text-[30px] font-bold text-[#1b1b23] dark:text-[#e5e2e1]">{customer.companyName}</h1>
+                    <h1 className="text-[28px] font-bold tracking-tight text-[#1b1b23] dark:text-[#e5e2e1]">{customer.companyName}</h1>
                     <Badge variant="outline" className={customerStatusStyles[customer.status]}>
                       {customerStatusLabels[customer.status]}
                     </Badge>
                   </div>
-                  <p className="text-[#64748B] dark:text-[#908fa0] mt-2">{customer.solutionName}</p>
+                  <p className="text-sm text-[#64748B] dark:text-[#908fa0] mt-1.5">{customer.solutionName}</p>
                 </div>
                 
                 <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -2187,9 +2283,29 @@ export default function CustomerDetailPage({
                       const targetKey = getFileTargetKey(currentTarget)
                       const files = libraryByTarget[targetKey] ?? []
                       const normalizedSearchQuery = fileSearchQuery.trim().toLowerCase()
-                      const filteredFiles = normalizedSearchQuery
+                      const searchedFiles = normalizedSearchQuery
                         ? files.filter((file) => file.fileName.toLowerCase().includes(normalizedSearchQuery))
                         : files
+                      const filteredFiles = [...searchedFiles].sort((a, b) => {
+                        if (a.isFolder && !b.isFolder) return -1
+                        if (!a.isFolder && b.isFolder) return 1
+
+                        if (fileSortOption === 'size-desc') {
+                          return b.fileSize - a.fileSize
+                        }
+
+                        if (fileSortOption === 'size-asc') {
+                          return a.fileSize - b.fileSize
+                        }
+
+                        const aTime = new Date(a.uploadedAt).getTime()
+                        const bTime = new Date(b.uploadedAt).getTime()
+                        if (fileSortOption === 'uploaded-asc') {
+                          return aTime - bTime
+                        }
+
+                        return bTime - aTime
+                      })
                       const inputId = `file-upload-${targetKey}`
                       const isUploadingCurrentTarget = uploadProgress?.targetKey === targetKey
                       const uploadPercent = isUploadingCurrentTarget && uploadProgress && uploadProgress.total > 0
@@ -2424,9 +2540,33 @@ export default function CustomerDetailPage({
                                   <TableHeader>
                                     <TableRow>
                                       <TableHead>파일명</TableHead>
-                                      <TableHead className="w-28">크기</TableHead>
-                                      <TableHead className="w-40">업로드 시간</TableHead>
-                                      <TableHead className="w-28 text-right">작업</TableHead>
+                                      <TableHead className="w-28 text-center">
+                                        <div className="flex items-center justify-center gap-1">
+                                          <span>크기</span>
+                                          <button
+                                            type="button"
+                                            className="text-xs text-muted-foreground hover:text-foreground"
+                                            onClick={toggleSizeSort}
+                                            aria-label="크기 정렬"
+                                          >
+                                            ↑↓
+                                          </button>
+                                        </div>
+                                      </TableHead>
+                                      <TableHead className="w-40 text-center">
+                                        <div className="flex items-center justify-center gap-1">
+                                          <span>업로드 일시</span>
+                                          <button
+                                            type="button"
+                                            className="text-xs text-muted-foreground hover:text-foreground"
+                                            onClick={toggleUploadedSort}
+                                            aria-label="업로드 시간 정렬"
+                                          >
+                                            ↑↓
+                                          </button>
+                                        </div>
+                                      </TableHead>
+                                      <TableHead className="w-28 text-center">작업</TableHead>
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
@@ -2457,10 +2597,10 @@ export default function CustomerDetailPage({
                                             <span className={file.isFolder ? 'truncate' : 'truncate hover:underline'}>{file.fileName}</span>
                                           </button>
                                         </TableCell>
-                                        <TableCell>{file.isFolder ? '-' : formatFileSize(file.fileSize)}</TableCell>
-                                        <TableCell>{format(new Date(file.uploadedAt), 'yyyy.MM.dd HH:mm', { locale: ko })}</TableCell>
-                                        <TableCell className="text-right">
-                                          <div className="flex justify-end gap-2">
+                                        <TableCell className="text-center">{file.isFolder ? '-' : formatFileSize(file.fileSize)}</TableCell>
+                                        <TableCell className="text-center">{format(new Date(file.uploadedAt), 'yyyy.MM.dd HH:mm', { locale: ko })}</TableCell>
+                                        <TableCell className="text-center">
+                                          <div className="flex justify-center gap-2">
                                             <button
                                               type="button"
                                               onClick={() => handleDownloadFile(file)}
@@ -2634,6 +2774,20 @@ export default function CustomerDetailPage({
                     ) : (
                       <div className="bg-muted/50 p-4 rounded-lg dark:bg-[#0e0e0e] dark:border dark:border-[#464554]">
                         <p className="text-sm text-muted-foreground dark:text-[#908fa0]">PDF 미리보기 소스를 찾을 수 없습니다.</p>
+                      </div>
+                    )}
+                  </div>
+                ) : isDocxFile(selectedFileForViewer.fileName) ? (
+                  <div className="relative rounded-lg border border-border bg-background p-4 h-[64vh] overflow-auto dark:bg-[#0e0e0e] dark:border-[#464554]">
+                    <div ref={docxPreviewContainerRef} className="min-h-full" />
+                    {isLoadingDocxPreview && (
+                      <div className="absolute inset-0 flex items-start p-4 pointer-events-none">
+                        <p className="text-sm text-muted-foreground dark:text-[#908fa0]">DOCX 미리보기를 불러오는 중입니다...</p>
+                      </div>
+                    )}
+                    {!isLoadingDocxPreview && docxPreviewError && (
+                      <div className="absolute inset-0 flex items-start p-4 pointer-events-none">
+                        <p className="text-sm text-muted-foreground dark:text-[#908fa0]">{docxPreviewError}</p>
                       </div>
                     )}
                   </div>
