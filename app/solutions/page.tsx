@@ -456,22 +456,27 @@ export default function SolutionsPage() {
           </div>
         </header>
         
-        <main className="flex-1 w-full overflow-y-auto bg-background">
+        <main className="app-surface flex-1 w-full overflow-y-auto">
           <div className="w-full px-6 py-8 lg:px-12 space-y-6 animate-page-in">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold leading-tight tracking-tight dark:text-[#e5e2e1]">솔루션(Project) 관리</h1>
-                <p className="text-sm text-muted-foreground dark:text-[#c7c4d7] mt-1">표준화된 비즈니스 프로세스 템플릿을 관리합니다.</p>
+            <div className="flex items-end justify-between gap-4">
+              <div className="w-full p-6 md:p-7">
+                <span className="menu-kicker">Solution Studio</span>
+                <div className="mt-3">
+                  <div>
+                    <h1 className="text-3xl font-bold leading-tight tracking-tight text-[#1e1b4b] dark:text-[#e5e2e1]">솔루션(Project) 관리</h1>
+                    <p className="text-sm text-[#5b5785] dark:text-[#c7c4d7] mt-1.5">표준화된 워크플로우 템플릿을 설계하고 접근 권한을 운영합니다.</p>
+                  </div>
+                </div>
               </div>
 
-              <Button className="shadow-sm" onClick={() => router.push('/solutions/new')}>
+              <Button className="ml-4 shadow-sm" onClick={() => router.push('/solutions/new')}>
                 <Plus className="mr-2 h-4 w-4" />
                 새 솔루션 설계
               </Button>
             </div>
 
             {visibleSolutions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-28 border-2 border-dashed border-gray-200 dark:border-neutral-800 rounded-[40px] bg-white/50 dark:bg-transparent w-full">
+              <div className="flex flex-col items-center justify-center py-28 border-2 border-dashed border-[#cbd5e1] dark:border-neutral-800 rounded-[28px] bg-white/70 dark:bg-transparent w-full">
                 <p className="text-gray-400 dark:text-neutral-500 font-semibold text-lg">아직 등록된 솔루션이 없습니다.</p>
               </div>
             ) : (

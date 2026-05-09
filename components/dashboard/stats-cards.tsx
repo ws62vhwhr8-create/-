@@ -43,9 +43,9 @@ export function StatsCards({ tone = "default" }: StatsCardsProps) {
       title: "전체 고객",
       value: stats.total,
       icon: Users,
-      color: isUser ? "text-[#4648d4] dark:text-[#c0c1ff]" : "text-[#4648d4] dark:text-[#c0c1ff]",
-      bgColor: isUser ? "bg-[#4648d4]/10 dark:bg-[#c0c1ff]/10" : "bg-[#4648d4]/10 dark:bg-[#c0c1ff]/10",
-      cardColor: isUser ? `bg-white border-[#E2E8F0] shadow-sm ${darkCard}` : `bg-white border-[#E2E8F0] shadow-sm ${darkCard}`,
+      color: isUser ? "text-[#4f46e5] dark:text-[#c0c1ff]" : "text-[#4f46e5] dark:text-[#c0c1ff]",
+      bgColor: isUser ? "bg-[#4f46e5]/10 dark:bg-[#c0c1ff]/10" : "bg-[#4f46e5]/10 dark:bg-[#c0c1ff]/10",
+      cardColor: isUser ? `bg-white border-[#dbd6f0] shadow-sm ${darkCard}` : `bg-white border-[#dbd6f0] shadow-sm ${darkCard}`,
     },
     {
       title: "진행중",
@@ -53,7 +53,7 @@ export function StatsCards({ tone = "default" }: StatsCardsProps) {
       icon: Clock,
       color: isUser ? "text-[#F59E0B] dark:text-[#3b82f6]" : "text-[#F59E0B] dark:text-[#3b82f6]",
       bgColor: isUser ? "bg-[#F59E0B]/10 dark:bg-[#3b82f6]/10" : "bg-[#F59E0B]/10 dark:bg-[#3b82f6]/10",
-      cardColor: isUser ? `bg-white border-[#E2E8F0] shadow-sm ${darkCard}` : `bg-white border-[#E2E8F0] shadow-sm ${darkCard}`,
+      cardColor: isUser ? `bg-white border-[#dbd6f0] shadow-sm ${darkCard}` : `bg-white border-[#dbd6f0] shadow-sm ${darkCard}`,
     },
     {
       title: "완료",
@@ -61,7 +61,7 @@ export function StatsCards({ tone = "default" }: StatsCardsProps) {
       icon: CheckCircle2,
       color: isUser ? "text-[#10B981] dark:text-[#22c55e]" : "text-[#10B981] dark:text-[#22c55e]",
       bgColor: isUser ? "bg-[#10B981]/10 dark:bg-[#22c55e]/10" : "bg-[#10B981]/10 dark:bg-[#22c55e]/10",
-      cardColor: isUser ? `bg-white border-[#E2E8F0] shadow-sm ${darkCard}` : `bg-white border-[#E2E8F0] shadow-sm ${darkCard}`,
+      cardColor: isUser ? `bg-white border-[#dbd6f0] shadow-sm ${darkCard}` : `bg-white border-[#dbd6f0] shadow-sm ${darkCard}`,
     },
     {
       title: "위험",
@@ -69,20 +69,20 @@ export function StatsCards({ tone = "default" }: StatsCardsProps) {
       icon: AlertTriangle,
       color: isUser ? "text-[#EF4444] dark:text-[#ffb4ab]" : "text-[#EF4444] dark:text-[#ffb4ab]",
       bgColor: isUser ? "bg-[#EF4444]/10 dark:bg-[#ffb4ab]/10" : "bg-[#EF4444]/10 dark:bg-[#ffb4ab]/10",
-      cardColor: isUser ? `bg-white border-[#E2E8F0] shadow-sm ${darkCard}` : `bg-white border-[#E2E8F0] shadow-sm ${darkCard}`,
+      cardColor: isUser ? `bg-white border-[#dbd6f0] shadow-sm ${darkCard}` : `bg-white border-[#dbd6f0] shadow-sm ${darkCard}`,
     },
   ]
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <div className="flex items-center justify-between mb-4">
-        <h2 className={cn("text-sm font-medium", isUser ? "text-[#64748B] dark:text-[#908fa0]" : "text-[#64748B] dark:text-[#908fa0]")}>고객 현황 요약</h2>
+        <h2 className={cn("text-sm font-medium", isUser ? "text-[#6360a0] dark:text-[#908fa0]" : "text-[#6360a0] dark:text-[#908fa0]")}>고객 현황 요약</h2>
         <CollapsibleTrigger asChild>
           <Button variant="ghost" size="sm" className="h-7 w-7 p-0 rounded-lg hover:bg-secondary/80">
             <ChevronDown 
               className={cn(
                 "h-4 w-4 transition-transform duration-200",
-                isUser ? "text-[#64748B] dark:text-[#908fa0]" : "text-[#64748B] dark:text-[#908fa0]",
+                isUser ? "text-[#6360a0] dark:text-[#908fa0]" : "text-[#6360a0] dark:text-[#908fa0]",
                 isOpen ? "rotate-0" : "-rotate-90"
               )} 
             />
@@ -95,7 +95,7 @@ export function StatsCards({ tone = "default" }: StatsCardsProps) {
           {cards.map((card) => (
             <Card key={card.title} className={cn(card.cardColor, "overflow-hidden")}>
               <CardHeader className="flex flex-row items-center justify-between pb-3 pt-5 px-5">
-                <CardTitle className={cn("text-sm font-medium", isUser ? "text-[#64748B] dark:text-[#908fa0]" : "text-[#64748B] dark:text-[#908fa0]")}>
+                <CardTitle className={cn("text-sm font-medium", isUser ? "text-[#6360a0] dark:text-[#908fa0]" : "text-[#6360a0] dark:text-[#908fa0]")}>
                   {card.title}
                 </CardTitle>
                 <div className={`rounded-xl p-2.5 ${card.bgColor}`}>

@@ -156,15 +156,16 @@ export default function NewCustomerPage() {
           </div>
         </header>
 
-        <main className="flex-1 w-full overflow-y-auto bg-[#F8FAFC] dark:bg-[#131313]">
+        <main className="app-surface flex-1 w-full overflow-y-auto">
           <div className="mx-auto w-full max-w-6xl px-6 py-8 lg:px-12">
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-[#1b1b23] dark:text-[#e5e2e1]">고객 등록</h1>
-              <p className="text-[#64748B] dark:text-[#908fa0]">새로운 고객을 등록하고 로드맵을 자동 생성합니다.</p>
+            <div className="mb-6 p-6 md:p-7">
+              <span className="menu-kicker">Customer Onboarding</span>
+              <h1 className="mt-3 text-3xl font-bold tracking-tight text-[#1e1b4b] dark:text-[#e5e2e1]">고객 등록</h1>
+              <p className="text-sm text-[#5b5785] dark:text-[#908fa0] mt-1.5">신규 고객을 등록하고 솔루션 템플릿으로 초기 로드맵을 자동 구성합니다.</p>
             </div>
 
             {accessibleSolutions.length === 0 ? (
-              <Card className="bg-white border-[#E2E8F0] dark:bg-[#1E1E1E] dark:border-[#333333]">
+              <Card className="bg-white border-[#dbd6f0] dark:bg-[#1E1E1E] dark:border-[#333333]">
                 <CardContent className="p-6">
                   <Empty>
                     <EmptyHeader>
@@ -186,7 +187,7 @@ export default function NewCustomerPage() {
               </Card>
             ) : (
               <div className="grid gap-6 lg:grid-cols-2">
-                <Card className="bg-white border-[#E2E8F0] dark:bg-[#1E1E1E] dark:border-[#333333]">
+                <Card className="bg-white border-[#dbd6f0] dark:bg-[#1E1E1E] dark:border-[#333333]">
             <CardHeader>
               <CardTitle>고객 정보</CardTitle>
               <CardDescription>고객사 정보와 적용할 솔루션을 선택하세요.</CardDescription>
@@ -214,7 +215,7 @@ export default function NewCustomerPage() {
                         variant="outline"
                         className={cn(
                           "w-full justify-start text-left font-normal bg-white dark:bg-[#1E1E1E]",
-                          !salesStartDate && "text-[#64748B] dark:text-[#908fa0]",
+                          !salesStartDate && "text-[#6360a0] dark:text-[#908fa0]",
                           errors.salesStartDate && "border-red-500 dark:border-[#ffb4ab]"
                         )}
                       >
@@ -247,7 +248,7 @@ export default function NewCustomerPage() {
                     <Label className="pointer-events-none">솔루션 <span className="text-red-500 dark:text-[#ffb4ab]">*</span></Label>
                     <ChevronDown
                       className={cn(
-                        "h-4 w-4 text-[#64748B] dark:text-[#908fa0] transition-transform duration-200",
+                        "h-4 w-4 text-[#6360a0] dark:text-[#908fa0] transition-transform duration-200",
                         isSolutionOpen ? "rotate-0" : "-rotate-90"
                       )}
                     />
@@ -266,7 +267,7 @@ export default function NewCustomerPage() {
                   <Label>담당자 <span className="text-red-500 dark:text-[#ffb4ab]">*</span></Label>
                   {selectedOwnerItems.length > 0 ? (
                     <div className="space-y-2">
-                      <div className={cn("rounded-md border bg-white dark:bg-[#1E1E1E] border-[#E2E8F0] dark:border-[#464554]/50 p-2 space-y-2", errors.ownerName && "border-red-500 dark:border-[#ffb4ab]")}>
+                      <div className={cn("rounded-md border bg-white dark:bg-[#1E1E1E] border-[#dbd6f0] dark:border-[#464554]/50 p-2 space-y-2", errors.ownerName && "border-red-500 dark:border-[#ffb4ab]")}>
                         {selectedOwnerItems.map((item) => {
                           const itemId = item.type === "user" ? item.user.id : item.group.id
                           const name = item.type === "user" ? item.user.displayName : item.group.displayName
@@ -316,7 +317,7 @@ export default function NewCustomerPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      className={cn("w-full justify-start bg-white dark:bg-[#1E1E1E] text-[#64748B] dark:text-[#908fa0] font-normal", errors.ownerName && "border-red-500 dark:border-[#ffb4ab]")}
+                      className={cn("w-full justify-start bg-white dark:bg-[#1E1E1E] text-[#6360a0] dark:text-[#908fa0] font-normal", errors.ownerName && "border-red-500 dark:border-[#ffb4ab]")}
                       onClick={() => setIsOwnerPickerOpen(true)}
                     >
                       <User className="mr-2 h-4 w-4" />
@@ -378,7 +379,7 @@ export default function NewCustomerPage() {
             </CardContent>
           </Card>
 
-                <Card className="bg-white border-[#E2E8F0] dark:bg-[#1E1E1E] dark:border-[#333333]">
+                <Card className="bg-white border-[#dbd6f0] dark:bg-[#1E1E1E] dark:border-[#333333]">
             <CardHeader>
               <CardTitle>마일스톤 미리보기</CardTitle>
               <CardDescription>
@@ -387,7 +388,7 @@ export default function NewCustomerPage() {
             </CardHeader>
             <CardContent>
               {!selectedSolution ? (
-                <div className="flex flex-col items-center justify-center py-12 text-[#64748B] dark:text-[#908fa0]">
+                <div className="flex flex-col items-center justify-center py-12 text-[#6360a0] dark:text-[#908fa0]">
                   <ArrowRight className="h-8 w-8 mb-2 opacity-50" />
                   <p className="text-sm">솔루션을 선택하면 마일스톤이 표시됩니다.</p>
                 </div>
@@ -396,14 +397,14 @@ export default function NewCustomerPage() {
                   {previewMilestones.map((milestone) => (
                     <div 
                       key={milestone.id}
-                      className="flex items-start gap-3 p-3 rounded-lg bg-[#F8FAFC] dark:bg-[#252525] border border-[#E2E8F0] dark:border-[#333333]"
+                      className="flex items-start gap-3 p-3 rounded-lg bg-[#f3f1ff] dark:bg-[#252525] border border-[#dbd6f0] dark:border-[#333333]"
                     >
                       <Badge variant="outline" className="mt-0.5 shrink-0">
                         {milestone.displayOrder}
                       </Badge>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium">{milestone.name}</p>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-[#64748B] dark:text-[#908fa0]">
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-[#6360a0] dark:text-[#908fa0]">
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
                             <span>{milestone.durationDays}일</span>
@@ -426,8 +427,8 @@ export default function NewCustomerPage() {
                   ))}
                   
                   {selectedSolution && (
-                  <div className="pt-2 border-t border-[#E2E8F0] dark:border-[#333333]">
-                      <p className="text-sm text-[#64748B] dark:text-[#908fa0]">
+                  <div className="pt-2 border-t border-[#dbd6f0] dark:border-[#333333]">
+                      <p className="text-sm text-[#6360a0] dark:text-[#908fa0]">
                         열 소요 기간: <span className="font-medium text-[#1b1b23] dark:text-[#e5e2e1]">
                           {flattenedSelectedStages.reduce((sum, s) => sum + s.durationDays, 0)}일
                         </span>

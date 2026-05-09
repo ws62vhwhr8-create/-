@@ -95,14 +95,14 @@ export function CustomerTable({ tone = "default" }: CustomerTableProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 rounded-xl border border-[#E2E8F0] bg-white px-5 py-3.5 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:bg-[#1E1E1E]/60 dark:border-[#333333]">
+      <div className="flex flex-col gap-3 rounded-xl border border-[#dbd6f0] bg-white px-5 py-3.5 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:bg-[#1E1E1E]/60 dark:border-[#333333]">
         <div className="relative flex-1 max-w-sm">
-          <Search className={cn("absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2", isUser ? "text-[#64748B] dark:text-[#908fa0]" : "text-[#64748B] dark:text-muted-foreground")} />
+          <Search className={cn("absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2", isUser ? "text-[#6360a0] dark:text-[#908fa0]" : "text-[#6360a0] dark:text-muted-foreground")} />
           <Input
             placeholder="고객사 검색..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className={cn("pl-9 bg-transparent border-[#E2E8F0] dark:bg-transparent dark:border-[#464554]/50")}
+            className={cn("pl-9 bg-transparent border-[#dbd6f0] dark:bg-transparent dark:border-[#464554]/50")}
           />
         </div>
         
@@ -116,15 +116,15 @@ export function CustomerTable({ tone = "default" }: CustomerTableProps) {
               />
               <Label
                 htmlFor="my-customers-only"
-                className="text-sm text-[#64748B] dark:text-[#908fa0] cursor-pointer whitespace-nowrap"
+                className="text-sm text-[#6360a0] dark:text-[#908fa0] cursor-pointer whitespace-nowrap"
               >
                 내 고객만 보기
               </Label>
             </div>
           )}
           <div className="flex items-center gap-2">
-            <Filter className={cn("h-4 w-4", isUser ? "text-[#64748B] dark:text-[#908fa0]" : "text-[#64748B] dark:text-muted-foreground")} />
-            <span className={cn("text-sm hidden sm:inline", isUser ? "text-[#64748B] dark:text-[#908fa0]" : "text-[#64748B] dark:text-muted-foreground")}>필터:</span>
+            <Filter className={cn("h-4 w-4", isUser ? "text-[#6360a0] dark:text-[#908fa0]" : "text-[#6360a0] dark:text-muted-foreground")} />
+            <span className={cn("text-sm hidden sm:inline", isUser ? "text-[#6360a0] dark:text-[#908fa0]" : "text-[#6360a0] dark:text-muted-foreground")}>필터:</span>
           </div>
           
           <Select value={solutionFilter} onValueChange={setSolutionFilter}>
@@ -173,24 +173,24 @@ export function CustomerTable({ tone = "default" }: CustomerTableProps) {
 
       <div className={cn(
         "hidden md:block rounded-xl border overflow-hidden dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)]",
-        isUser ? "bg-white border-[#E2E8F0] shadow-sm" : "bg-white border-[#E2E8F0] shadow-sm"
+        isUser ? "bg-white border-[#dbd6f0] shadow-sm" : "bg-white border-[#dbd6f0] shadow-sm"
       )}>
         <Table>
           <TableHeader>
-            <TableRow className={cn("dark:bg-[#1c1b1b]/80 dark:hover:bg-[#1c1b1b]/80", isUser ? "bg-[#F8FAFC] hover:bg-[#F8FAFC]" : "bg-[#F8FAFC] hover:bg-[#F8FAFC]")}>
-              <TableHead className={cn("w-[30%] text-left text-xs font-semibold uppercase tracking-wider dark:text-[#908fa0]", isUser ? "text-[#64748B]" : "text-[#64748B]")}>고객사</TableHead>
-              <TableHead className={cn("w-[14%] text-center text-xs font-semibold uppercase tracking-wider dark:text-[#908fa0]", isUser ? "text-[#64748B]" : "text-[#64748B]")}>솔루션</TableHead>
-              <TableHead className={cn("w-[14%] text-center text-xs font-semibold uppercase tracking-wider dark:text-[#908fa0]", isUser ? "text-[#64748B]" : "text-[#64748B]")}>영업 시작일</TableHead>
-              <TableHead className={cn("w-[14%] text-center text-xs font-semibold uppercase tracking-wider dark:text-[#908fa0]", isUser ? "text-[#64748B]" : "text-[#64748B]")}>영업 마감일</TableHead>
-              <TableHead className={cn("w-[12%] text-center text-xs font-semibold uppercase tracking-wider dark:text-[#908fa0]", isUser ? "text-[#64748B]" : "text-[#64748B]")}>담당자</TableHead>
-              <TableHead className={cn("w-[14%] text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap pl-4 dark:text-[#908fa0]", isUser ? "text-[#64748B]" : "text-[#64748B]")}>진행률</TableHead>
-              <TableHead className={cn("w-[10%] text-right text-xs font-semibold uppercase tracking-wider pr-6 dark:text-[#908fa0]", isUser ? "text-[#64748B]" : "text-[#64748B]")}>상태</TableHead>
+            <TableRow className={cn("dark:bg-[#1c1b1b]/80 dark:hover:bg-[#1c1b1b]/80", isUser ? "bg-[#f3f1ff] hover:bg-[#f3f1ff]" : "bg-[#f3f1ff] hover:bg-[#f3f1ff]")}>
+              <TableHead className={cn("w-[30%] text-left text-xs font-semibold uppercase tracking-wider dark:text-[#908fa0]", isUser ? "text-[#6360a0]" : "text-[#6360a0]")}>고객사</TableHead>
+              <TableHead className={cn("w-[14%] text-center text-xs font-semibold uppercase tracking-wider dark:text-[#908fa0]", isUser ? "text-[#6360a0]" : "text-[#6360a0]")}>솔루션</TableHead>
+              <TableHead className={cn("w-[14%] text-center text-xs font-semibold uppercase tracking-wider dark:text-[#908fa0]", isUser ? "text-[#6360a0]" : "text-[#6360a0]")}>영업 시작일</TableHead>
+              <TableHead className={cn("w-[14%] text-center text-xs font-semibold uppercase tracking-wider dark:text-[#908fa0]", isUser ? "text-[#6360a0]" : "text-[#6360a0]")}>영업 마감일</TableHead>
+              <TableHead className={cn("w-[12%] text-center text-xs font-semibold uppercase tracking-wider dark:text-[#908fa0]", isUser ? "text-[#6360a0]" : "text-[#6360a0]")}>담당자</TableHead>
+              <TableHead className={cn("w-[14%] text-left text-xs font-semibold uppercase tracking-wider whitespace-nowrap pl-4 dark:text-[#908fa0]", isUser ? "text-[#6360a0]" : "text-[#6360a0]")}>진행률</TableHead>
+              <TableHead className={cn("w-[10%] text-right text-xs font-semibold uppercase tracking-wider pr-6 dark:text-[#908fa0]", isUser ? "text-[#6360a0]" : "text-[#6360a0]")}>상태</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredCustomers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className={cn("h-24 text-center", isUser ? "text-[#64748B] dark:text-[#908fa0]" : "text-[#64748B] dark:text-muted-foreground")}>
+                <TableCell colSpan={7} className={cn("h-24 text-center", isUser ? "text-[#6360a0] dark:text-[#908fa0]" : "text-[#6360a0] dark:text-muted-foreground")}>
                   등록된 고객이 없습니다.
                 </TableCell>
               </TableRow>
@@ -201,20 +201,20 @@ export function CustomerTable({ tone = "default" }: CustomerTableProps) {
                   ? customer.milestones.reduce((latest, milestone) => milestone.dueDate > latest ? milestone.dueDate : latest, customer.milestones[0].dueDate)
                   : null
                 return (
-                  <TableRow key={customer.id} className={cn("dark:hover:bg-[#2A2A2A]", isUser ? "hover:bg-[#F8FAFC]" : "hover:bg-[#F8FAFC]")}>
+                  <TableRow key={customer.id} className={cn("dark:hover:bg-[#2A2A2A]", isUser ? "hover:bg-[#f3f1ff]" : "hover:bg-[#f3f1ff]")}>
                     <TableCell className={cn("font-medium", isUser ? "text-[#1b1b23] dark:text-[#e5e2e1]" : "")}>{customer.companyName}</TableCell>
                     <TableCell className="text-muted-foreground text-center">{customer.solutionName}</TableCell>
-                    <TableCell className="text-center text-[#64748B] dark:text-[#908fa0]">
+                    <TableCell className="text-center text-[#6360a0] dark:text-[#908fa0]">
                       {format(customer.salesStartDate, 'yyyy.MM.dd', { locale: ko })}
                     </TableCell>
-                    <TableCell className="text-center text-[#64748B] dark:text-[#908fa0]">
+                    <TableCell className="text-center text-[#6360a0] dark:text-[#908fa0]">
                       {salesEndDate ? format(salesEndDate, 'yyyy.MM.dd', { locale: ko }) : '-'}
                     </TableCell>
                     <TableCell className={cn("text-center", isUser ? "text-[#1b1b23] dark:text-[#e5e2e1]" : "text-muted-foreground text-center")}>{customer.ownerName}</TableCell>
                     <TableCell className="pl-4">
                       <div className="flex w-[160px] flex-col gap-1">
                         <div className="flex items-center">
-                          <span className="text-sm text-[#64748B] dark:text-[#908fa0]">
+                          <span className="text-sm text-[#6360a0] dark:text-[#908fa0]">
                             {progress.completed}/{progress.total}
                           </span>
                         </div>
@@ -249,7 +249,7 @@ export function CustomerTable({ tone = "default" }: CustomerTableProps) {
         {filteredCustomers.length === 0 ? (
           <div className={cn(
             "rounded-lg border py-10 text-center text-sm",
-            isUser ? "bg-white border-[#E2E8F0] text-[#64748B] dark:text-[#908fa0]" : "bg-white border-[#E2E8F0] text-[#64748B] dark:text-muted-foreground",
+            isUser ? "bg-white border-[#dbd6f0] text-[#6360a0] dark:text-[#908fa0]" : "bg-white border-[#dbd6f0] text-[#6360a0] dark:text-muted-foreground",
             "dark:bg-[#1E1E1E] dark:border-[#333333]"
           )}>
             등록된 고객이 없습니다.
@@ -267,7 +267,7 @@ export function CustomerTable({ tone = "default" }: CustomerTableProps) {
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <Building2 className="h-4 w-4 shrink-0 text-[#64748B] dark:text-[#908fa0]" />
+                    <Building2 className="h-4 w-4 shrink-0 text-[#6360a0] dark:text-[#908fa0]" />
                     <span className="font-semibold text-[#1b1b23] dark:text-[#e5e2e1] truncate">{customer.companyName}</span>
                   </div>
                   <Badge variant="outline" className={activeStatusStyles[customer.status]}>
@@ -277,7 +277,7 @@ export function CustomerTable({ tone = "default" }: CustomerTableProps) {
 
                 <div className="text-sm text-muted-foreground dark:text-[#908fa0]">{customer.solutionName}</div>
 
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-[#64748B] dark:text-[#908fa0]">
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-[#6360a0] dark:text-[#908fa0]">
                   <div className="flex items-center gap-1">
                     <Calendar className="h-3.5 w-3.5" />
                     <span>{format(customer.salesStartDate, 'yyyy.MM.dd', { locale: ko })}</span>
@@ -292,7 +292,7 @@ export function CustomerTable({ tone = "default" }: CustomerTableProps) {
                 </div>
 
                 <div className="space-y-1">
-                  <div className="flex items-center justify-between text-sm text-[#64748B] dark:text-[#908fa0]">
+                  <div className="flex items-center justify-between text-sm text-[#6360a0] dark:text-[#908fa0]">
                     <span>진행률</span>
                     <span>{progress.completed}/{progress.total}</span>
                   </div>

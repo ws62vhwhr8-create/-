@@ -1,6 +1,6 @@
 "use client"
 
-import { Fragment, use, useState, useMemo, useEffect, useRef } from "react"
+import { Fragment, use, useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { Navigation } from "@/components/navigation"
@@ -76,6 +76,9 @@ import {
   Download,
   Edit2,
   FileText,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
   Folder,
   FolderOpen,
   FolderPlus,
@@ -220,9 +223,21 @@ export default function CustomerDetailPage({
   const [selectedFileForViewer, setSelectedFileForViewer] = useState<MilestoneFile | null>(null)
   const [pdfViewerPage, setPdfViewerPage] = useState(1)
   const [pdfViewerSrc, setPdfViewerSrc] = useState<string | null>(null)
+  const [docxViewerPage, setDocxViewerPage] = useState(1)
+  const [docxViewerTotalPages, setDocxViewerTotalPages] = useState(1)
+  const [docxZoom, setDocxZoom] = useState(1)
   const [isLoadingDocxPreview, setIsLoadingDocxPreview] = useState(false)
   const [docxPreviewError, setDocxPreviewError] = useState<string | null>(null)
   const docxPreviewContainerRef = useRef<HTMLDivElement | null>(null)
+  const [docxContainerMounted, setDocxContainerMounted] = useState(false)
+  const docxContainerCallbackRef = useCallback((node: HTMLDivElement | null) => {
+    docxPreviewContainerRef.current = node
+    setDocxContainerMounted(!!node)
+  }, [])
+  const [textFileContent, setTextFileContent] = useState<string | null>(null)
+  const [isLoadingTextPreview, setIsLoadingTextPreview] = useState(false)
+  const [textPreviewError, setTextPreviewError] = useState<string | null>(null)
+  const [imageLoadError, setImageLoadError] = useState(false)
   const [dragOverMilestoneId, setDragOverMilestoneId] = useState<string | null>(null)
   const [isLoadingFiles, setIsLoadingFiles] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{
@@ -786,6 +801,34 @@ export default function CustomerDetailPage({
     return textExtensions.includes(getFileExtension(filename))
   }
 
+  const getDocxPageElements = useCallback(() => {
+    const container = docxPreviewContainerRef.current
+    if (!container) return [] as HTMLElement[]
+
+    const pageSet = new Set<HTMLElement>()
+    container.querySelectorAll<HTMLElement>('.docx-wrapper section.docx').forEach((el) => pageSet.add(el))
+    container.querySelectorAll<HTMLElement>('.docx-wrapper .docx').forEach((el) => pageSet.add(el))
+
+    return Array.from(pageSet)
+  }, [])
+
+  const scrollToDocxPage = useCallback((requestedPage: number) => {
+    const container = docxPreviewContainerRef.current
+    if (!container) return
+
+    const pages = getDocxPageElements()
+    if (pages.length === 0) return
+
+    const clampedPage = Math.min(Math.max(requestedPage, 1), pages.length)
+    setDocxViewerPage(clampedPage)
+
+    const target = pages[clampedPage - 1]
+    container.scrollTo({
+      top: Math.max(target.offsetTop - 12, 0),
+      behavior: 'smooth',
+    })
+  }, [getDocxPageElements])
+
   const toggleSizeSort = () => {
     setFileSortOption((prev) => (prev === 'size-desc' ? 'size-asc' : 'size-desc'))
   }
@@ -797,6 +840,10 @@ export default function CustomerDetailPage({
   const handleViewFile = (file: MilestoneFile) => {
     if (file.isFolder) return
     setPdfViewerPage(1)
+    setDocxViewerPage(1)
+    setDocxViewerTotalPages(1)
+    setDocxZoom(1)
+    setImageLoadError(false)
     setSelectedFileForViewer(file)
   }
 
@@ -851,7 +898,10 @@ export default function CustomerDetailPage({
         }
 
         const container = docxPreviewContainerRef.current
-        if (!container || isCancelled) {
+        if (!container) {
+          return
+        }
+        if (isCancelled) {
           return
         }
 
@@ -864,6 +914,11 @@ export default function CustomerDetailPage({
           ignoreWidth: false,
           ignoreHeight: false,
         })
+
+        const pages = getDocxPageElements()
+        const totalPages = Math.max(pages.length, 1)
+        setDocxViewerTotalPages(totalPages)
+        setDocxViewerPage((prev) => Math.min(Math.max(prev, 1), totalPages))
       } catch (error) {
         console.error('DOCX preview error:', error)
         if (!isCancelled) {
@@ -877,6 +932,94 @@ export default function CustomerDetailPage({
     }
 
     void loadDocxPreview()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [selectedFileForViewer, docxContainerMounted, getDocxPageElements])
+
+  useEffect(() => {
+    if (!selectedFileForViewer || !isDocxFile(selectedFileForViewer.fileName)) return
+
+    const container = docxPreviewContainerRef.current
+    if (!container) return
+
+    const wrapper = container.querySelector<HTMLElement>('.docx-wrapper')
+    if (!wrapper) return
+
+    wrapper.style.transform = `scale(${docxZoom})`
+    wrapper.style.transformOrigin = 'top center'
+    wrapper.style.width = `${100 / docxZoom}%`
+  }, [selectedFileForViewer, docxZoom, docxContainerMounted, isLoadingDocxPreview])
+
+  useEffect(() => {
+    if (!selectedFileForViewer || !isDocxFile(selectedFileForViewer.fileName) || isLoadingDocxPreview) return
+
+    const container = docxPreviewContainerRef.current
+    if (!container) return
+
+    const handleDocxScroll = () => {
+      const pages = getDocxPageElements()
+      if (pages.length === 0) return
+
+      const currentScrollTop = container.scrollTop + 16
+      let nextPage = 1
+      for (let idx = 0; idx < pages.length; idx += 1) {
+        if (pages[idx].offsetTop <= currentScrollTop) {
+          nextPage = idx + 1
+        } else {
+          break
+        }
+      }
+
+      setDocxViewerPage((prev) => (prev === nextPage ? prev : nextPage))
+      setDocxViewerTotalPages((prev) => (prev === pages.length ? prev : pages.length))
+    }
+
+    handleDocxScroll()
+    container.addEventListener('scroll', handleDocxScroll, { passive: true })
+
+    return () => {
+      container.removeEventListener('scroll', handleDocxScroll)
+    }
+  }, [selectedFileForViewer, isLoadingDocxPreview, docxContainerMounted, getDocxPageElements])
+
+  useEffect(() => {
+    let isCancelled = false
+
+    const loadTextPreview = async () => {
+      if (!selectedFileForViewer || !isTextFile(selectedFileForViewer.fileName)) {
+        setTextFileContent(null)
+        setTextPreviewError(null)
+        setIsLoadingTextPreview(false)
+        return
+      }
+
+      setIsLoadingTextPreview(true)
+      setTextFileContent(null)
+      setTextPreviewError(null)
+
+      try {
+        let text: string
+        if (selectedFileForViewer.base64Content) {
+          const payload = selectedFileForViewer.base64Content.includes(',')
+            ? selectedFileForViewer.base64Content.split(',')[1]
+            : selectedFileForViewer.base64Content
+          text = atob(payload)
+        } else {
+          const response = await fetch(`/api/milestone-files/content?id=${encodeURIComponent(selectedFileForViewer.id)}`)
+          if (!response.ok) throw new Error(`HTTP ${response.status}`)
+          text = await response.text()
+        }
+        if (!isCancelled) setTextFileContent(text)
+      } catch (error) {
+        if (!isCancelled) setTextPreviewError('텍스트 파일을 불러올 수 없습니다. 다운로드 후 확인해주세요.')
+      } finally {
+        if (!isCancelled) setIsLoadingTextPreview(false)
+      }
+    }
+
+    void loadTextPreview()
 
     return () => {
       isCancelled = true
@@ -1776,26 +1919,35 @@ export default function CustomerDetailPage({
             <SidebarTrigger className="-ml-1" />
             <div className="h-5 w-px bg-border/70" />
             <div className="flex items-center gap-1.5 text-sm min-w-0">
-              <Link href="/customers" className="text-muted-foreground hover:text-foreground transition-colors shrink-0">\uace0\uac1d \uad00\ub9ac</Link>
+              <Link href="/customers" className="text-muted-foreground hover:text-foreground transition-colors shrink-0">고객 관리</Link>
               <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
-              <span className="font-medium text-foreground truncate">{customer?.companyName ?? '\uace0\uac1d \uc0c1\uc138'}</span>
+              <span className="font-medium text-foreground truncate">{customer?.companyName ?? '고객 상세'}</span>
             </div>
           </div>
         </header>
-        <main className="flex-1 px-6 py-6 lg:px-10 2xl:px-14 bg-[#F8FAFC] dark:bg-transparent">
+        <main className="app-surface flex-1 px-6 py-6 lg:px-10 2xl:px-14">
           <div className="w-full space-y-6 animate-page-in">
-            <div className="flex flex-col gap-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="border-b border-[#dbe3ee] pb-4 dark:border-white/10">
+              <span className="menu-kicker">Customer Detail</span>
+              <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <div className="flex items-center gap-3">
-                    <h1 className="text-[28px] font-bold tracking-tight text-[#1b1b23] dark:text-[#e5e2e1]">{customer.companyName}</h1>
+                    <h1 className="text-[30px] font-bold tracking-tight text-[#1b1b23] dark:text-[#e5e2e1]">{customer.companyName}</h1>
                     <Badge variant="outline" className={customerStatusStyles[customer.status]}>
                       {customerStatusLabels[customer.status]}
                     </Badge>
                   </div>
-                  <p className="text-sm text-[#64748B] dark:text-[#908fa0] mt-1.5">{customer.solutionName}</p>
+                  <p className="text-sm text-[#6360a0] dark:text-[#908fa0] mt-1.5">{customer.solutionName}</p>
+                  <div className="mt-2 flex items-center gap-2 text-xs">
+                    <span className="rounded-full border border-[#d3cef0] bg-white/80 px-2.5 py-1 text-[#5b5785] dark:border-white/10 dark:bg-white/5 dark:text-[#c7c4d7]">
+                      진행률 {progress.completed}/{progress.total}
+                    </span>
+                    <span className="rounded-full border border-[#d3cef0] bg-white/80 px-2.5 py-1 text-[#5b5785] dark:border-white/10 dark:bg-white/5 dark:text-[#c7c4d7]">
+                      공유 {sharedItems.length}명/그룹
+                    </span>
+                  </div>
                 </div>
-                
+
                 <div className="flex items-center gap-2 flex-wrap justify-end">
                   {!isEditing && (
                     <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
@@ -1819,7 +1971,7 @@ export default function CustomerDetailPage({
                     <Download className="mr-2 h-4 w-4" />
                     Excel 내보내기
                   </Button>
-                  
+
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" disabled={isEditing}>
@@ -1856,7 +2008,7 @@ export default function CustomerDetailPage({
                 <AccordionContent className="pb-4">
                   <div className="grid gap-4 sm:grid-cols-3">
                     {/* 기존 카드들 */}
-                    <Card className="bg-white border-[#E2E8F0] shadow-sm dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)] h-24 flex items-center py-0">
+                    <Card className="bg-white border-[#dbd6f0] shadow-sm dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)] h-24 flex items-center py-0">
                       <CardContent className="h-full flex items-center gap-3 w-full px-4">
                         <div className="rounded-lg bg-primary/10 p-2 flex-shrink-0">
                           <Calendar className="h-4 w-4 text-primary" />
@@ -1879,7 +2031,7 @@ export default function CustomerDetailPage({
                       </CardContent>
                     </Card>
 
-                    <Card className="bg-white border-[#E2E8F0] shadow-sm dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)] h-24 flex items-center py-0">
+                    <Card className="bg-white border-[#dbd6f0] shadow-sm dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)] h-24 flex items-center py-0">
                       <CardContent className="h-full flex items-center gap-3 w-full px-4">
                         <div className="rounded-lg bg-chart-2/10 p-2 flex-shrink-0">
                           <Building2 className="h-4 w-4 text-chart-2" />
@@ -1903,7 +2055,7 @@ export default function CustomerDetailPage({
                       </CardContent>
                     </Card>
 
-                    <Card className="bg-white border-[#E2E8F0] shadow-sm dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)] h-24 flex items-center py-0">
+                    <Card className="bg-white border-[#dbd6f0] shadow-sm dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)] h-24 flex items-center py-0">
                       <CardContent className="h-full flex items-center gap-3 w-full px-4">
                         <div className="rounded-lg bg-chart-1/10 p-2 flex-shrink-0">
                           <CheckCircle2 className="h-4 w-4 text-chart-1" />
@@ -1918,7 +2070,7 @@ export default function CustomerDetailPage({
                     </Card>
 
                     {/* 공유 대상 카드 - 사용자/그룹별 카드 UI 및 역할 드롭다운 */}
-                    <Card className="bg-white border-[#E2E8F0] shadow-sm dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)] min-h-24 flex items-center py-0">
+                    <Card className="bg-white border-[#dbd6f0] shadow-sm dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)] min-h-24 flex items-center py-0">
                       <CardContent className="h-full w-full px-4 py-3">
                         <p className="text-xs text-muted-foreground mb-2">공유 대상</p>
                         <div className="flex flex-wrap gap-2">
@@ -2457,6 +2609,7 @@ export default function CustomerDetailPage({
                                 <div className="mt-1 flex items-center gap-2">
                                   <Badge variant="outline">{currentTarget.kind === 'stage' ? '단계' : '액션아이템'}</Badge>
                                   <p className="text-sm font-medium">{currentTarget.label}</p>
+                                  <Badge variant="secondary" className="text-xs tabular-nums">{files.length}개</Badge>
                                 </div>
                                 <p className="mt-1 text-[11px] text-muted-foreground/70">
                                   {currentTarget.kind === 'stage'
@@ -2545,11 +2698,15 @@ export default function CustomerDetailPage({
                                           <span>크기</span>
                                           <button
                                             type="button"
-                                            className="text-xs text-muted-foreground hover:text-foreground"
+                                            className="text-muted-foreground hover:text-foreground"
                                             onClick={toggleSizeSort}
                                             aria-label="크기 정렬"
                                           >
-                                            ↑↓
+                                            {fileSortOption === 'size-desc'
+                                              ? <ArrowDown className="h-3.5 w-3.5" />
+                                              : fileSortOption === 'size-asc'
+                                                ? <ArrowUp className="h-3.5 w-3.5" />
+                                                : <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />}
                                           </button>
                                         </div>
                                       </TableHead>
@@ -2558,11 +2715,15 @@ export default function CustomerDetailPage({
                                           <span>업로드 일시</span>
                                           <button
                                             type="button"
-                                            className="text-xs text-muted-foreground hover:text-foreground"
+                                            className="text-muted-foreground hover:text-foreground"
                                             onClick={toggleUploadedSort}
                                             aria-label="업로드 시간 정렬"
                                           >
-                                            ↑↓
+                                            {fileSortOption === 'uploaded-asc'
+                                              ? <ArrowUp className="h-3.5 w-3.5" />
+                                              : fileSortOption === 'uploaded-desc'
+                                                ? <ArrowDown className="h-3.5 w-3.5" />
+                                                : <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />}
                                           </button>
                                         </div>
                                       </TableHead>
@@ -2723,11 +2884,22 @@ export default function CustomerDetailPage({
               <>
                 {isImageFile(selectedFileForViewer.fileName) ? (
                   <div className="flex h-[64vh] w-full items-center justify-center rounded-lg border border-border bg-muted/30 dark:bg-[#0e0e0e] dark:border-[#464554]">
-                    <img
-                      src={selectedFileForViewer.base64Content}
-                      alt={selectedFileForViewer.fileName}
-                      className="h-full w-full object-contain"
-                    />
+                    {imageLoadError ? (
+                      <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                        <FileText className="h-12 w-12" />
+                        <p className="text-sm">이미지를 불러올 수 없습니다.</p>
+                        <p className="text-xs opacity-60">파일을 다운로드하여 확인해주세요.</p>
+                      </div>
+                    ) : (
+                      <img
+                        src={selectedFileForViewer.base64Content
+                          ? selectedFileForViewer.base64Content
+                          : `/api/milestone-files/content?id=${encodeURIComponent(selectedFileForViewer.id)}`}
+                        alt={selectedFileForViewer.fileName}
+                        className="h-full w-full object-contain"
+                        onError={() => setImageLoadError(true)}
+                      />
+                    )}
                   </div>
                 ) : isPdfFile(selectedFileForViewer.fileName) ? (
                   <div className="space-y-3">
@@ -2778,24 +2950,96 @@ export default function CustomerDetailPage({
                     )}
                   </div>
                 ) : isDocxFile(selectedFileForViewer.fileName) ? (
-                  <div className="relative rounded-lg border border-border bg-background p-4 h-[64vh] overflow-auto dark:bg-[#0e0e0e] dark:border-[#464554]">
-                    <div ref={docxPreviewContainerRef} className="min-h-full" />
-                    {isLoadingDocxPreview && (
-                      <div className="absolute inset-0 flex items-start p-4 pointer-events-none">
-                        <p className="text-sm text-muted-foreground dark:text-[#908fa0]">DOCX 미리보기를 불러오는 중입니다...</p>
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"
+                        onClick={() => scrollToDocxPage(docxViewerPage - 1)}
+                        disabled={docxViewerPage <= 1}
+                      >
+                        이전 페이지
+                      </Button>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground dark:text-[#908fa0]">페이지</span>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={docxViewerTotalPages}
+                          value={docxViewerPage}
+                          onChange={(e) => {
+                            const value = Number.parseInt(e.target.value, 10)
+                            setDocxViewerPage(Number.isFinite(value) && value > 0 ? value : 1)
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              scrollToDocxPage(docxViewerPage)
+                            }
+                          }}
+                          className="h-8 w-20 dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1]"
+                        />
+                        <span className="text-muted-foreground dark:text-[#908fa0]">/ {docxViewerTotalPages}</span>
                       </div>
-                    )}
-                    {!isLoadingDocxPreview && docxPreviewError && (
-                      <div className="absolute inset-0 flex items-start p-4 pointer-events-none">
-                        <p className="text-sm text-muted-foreground dark:text-[#908fa0]">{docxPreviewError}</p>
-                      </div>
-                    )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"
+                        onClick={() => scrollToDocxPage(docxViewerPage + 1)}
+                        disabled={docxViewerPage >= docxViewerTotalPages}
+                      >
+                        다음 페이지
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"
+                        onClick={() => setDocxZoom((prev) => Math.max(0.6, Number((prev - 0.1).toFixed(2))))}
+                      >
+                        축소
+                      </Button>
+                      <span className="w-14 text-center text-sm text-muted-foreground dark:text-[#908fa0]">
+                        {Math.round(docxZoom * 100)}%
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"
+                        onClick={() => setDocxZoom((prev) => Math.min(2, Number((prev + 0.1).toFixed(2))))}
+                      >
+                        확대
+                      </Button>
+                    </div>
+
+                    <div className="relative rounded-lg border border-border bg-background p-4 h-[64vh] overflow-auto dark:bg-[#0e0e0e] dark:border-[#464554]">
+                      <div ref={docxContainerCallbackRef} className="min-h-full" />
+                      {isLoadingDocxPreview && (
+                        <div className="absolute inset-0 flex items-start p-4 pointer-events-none">
+                          <p className="text-sm text-muted-foreground dark:text-[#908fa0]">DOCX 미리보기를 불러오는 중입니다...</p>
+                        </div>
+                      )}
+                      {!isLoadingDocxPreview && docxPreviewError && (
+                        <div className="absolute inset-0 flex items-start p-4 pointer-events-none">
+                          <p className="text-sm text-muted-foreground dark:text-[#908fa0]">{docxPreviewError}</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : isTextFile(selectedFileForViewer.fileName) ? (
-                  <div className="bg-muted/50 p-4 rounded-lg max-h-[400px] overflow-auto dark:bg-[#0e0e0e] dark:border dark:border-[#464554]">
-                    <pre className="text-sm whitespace-pre-wrap break-words font-mono dark:text-[#c7c4d7]">
-                      파일 내용을 표시할 수 없습니다.
-                    </pre>
+                  <div className="relative bg-muted/50 p-4 rounded-lg h-[64vh] overflow-auto dark:bg-[#0e0e0e] dark:border dark:border-[#464554]">
+                    {isLoadingTextPreview && (
+                      <p className="text-sm text-muted-foreground dark:text-[#908fa0]">파일 내용을 불러오는 중입니다...</p>
+                    )}
+                    {!isLoadingTextPreview && textPreviewError && (
+                      <p className="text-sm text-muted-foreground dark:text-[#908fa0]">{textPreviewError}</p>
+                    )}
+                    {!isLoadingTextPreview && textFileContent !== null && (
+                      <pre className="text-sm whitespace-pre-wrap break-words font-mono dark:text-[#c7c4d7]">{textFileContent}</pre>
+                    )}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center p-8 bg-muted/50 rounded-lg dark:bg-[#0e0e0e] dark:border dark:border-[#464554]">
@@ -2810,7 +3054,9 @@ export default function CustomerDetailPage({
                 )}
                 <div className="flex justify-end pt-4">
                   <a
-                    href={selectedFileForViewer.base64Content}
+                    href={selectedFileForViewer.base64Content
+                      ? selectedFileForViewer.base64Content
+                      : `/api/milestone-files/content?id=${encodeURIComponent(selectedFileForViewer.id)}`}
                     download={selectedFileForViewer.fileName}
                     className="inline-flex items-center justify-center rounded-md border border-input bg-background hover:bg-accent px-3 py-2 text-sm font-medium dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"
                   >

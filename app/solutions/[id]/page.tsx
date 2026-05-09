@@ -4,6 +4,7 @@ import { use, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { useSession } from "next-auth/react"
 import { Navigation } from "@/components/navigation"
 import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { useAppStore } from "@/lib/store"
@@ -17,6 +18,7 @@ import { Plus, X, Users, User, ChevronDown, ChevronRight, Clock, Layers, Save } 
 import { EntraUserSelectDialog } from "@/components/entra-user-select-dialog"
 import type { SelectedItem } from "@/components/entra-user-select-dialog"
 import type { Stage } from "@/lib/types"
+import { isAdminRole } from "@/lib/permissions"
 
 const createEmptyStage = (parentStageId: string | null = null, level: number = 0): Stage => ({
   id: crypto.randomUUID(),
@@ -47,6 +49,7 @@ export default function SolutionDetailPage({
   const router = useRouter()
   const { solutions, users, groups, currentUserId, updateSolution } = useAppStore()
 
+  const { data: session } = useSession()
   const solution = useMemo(() => solutions.find((item) => item.id === id), [solutions, id])
   const currentUser = users.find((item) => item.id === currentUserId)
 
@@ -84,6 +87,9 @@ export default function SolutionDetailPage({
   const hasAccess = useMemo(() => {
     if (!solution) return false
 
+    const isAdmin = isAdminRole(session?.user?.role) || isAdminRole(currentUser?.role)
+    if (isAdmin) return true
+
     const userIds = solution.userIds || []
     const groupIds = solution.groupIds || []
     if (userIds.length === 0 && groupIds.length === 0) return true
@@ -91,7 +97,7 @@ export default function SolutionDetailPage({
     if (userIds.includes(currentUser.id)) return true
     const userGroups = currentUser.groupIds || []
     return userGroups.some((groupId) => groupIds.includes(groupId))
-  }, [solution, currentUser])
+  }, [solution, currentUser, session])
 
   const getAllStages = (stages: Stage[]): Stage[] => {
     const result: Stage[] = []
@@ -210,7 +216,7 @@ export default function SolutionDetailPage({
               <SidebarTrigger />
             </div>
           </header>
-          <main className="flex-1 px-4 py-6 lg:px-6">
+          <main className="app-surface flex-1 px-4 py-6 lg:px-6">
             <Card>
               <CardHeader>
                 <CardTitle>솔루션을 찾을 수 없습니다.</CardTitle>
@@ -238,7 +244,7 @@ export default function SolutionDetailPage({
               <SidebarTrigger />
             </div>
           </header>
-          <main className="flex-1 px-4 py-6 lg:px-6">
+          <main className="app-surface flex-1 px-4 py-6 lg:px-6">
             <Card>
               <CardHeader>
                 <CardTitle>접근 권한이 없습니다.</CardTitle>
@@ -266,8 +272,18 @@ export default function SolutionDetailPage({
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-6 lg:px-6">
+        <main className="app-surface flex-1 px-4 py-6 lg:px-6">
           <div className="w-full space-y-6">
+            <div className="p-6 md:p-7">
+              <span className="menu-kicker">Workflow Designer</span>
+              <div className="mt-3">
+                <div>
+                  <h1 className="text-3xl font-bold tracking-tight text-[#1e1b4b] dark:text-[#e5e2e1]">{formData.name || solution.name}</h1>
+                  <p className="text-sm text-[#5b5785] dark:text-[#908fa0] mt-1.5">단계 구조, 소요 기간, 접근 대상을 관리하는 솔루션 편집 화면입니다.</p>
+                </div>
+              </div>
+            </div>
+
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div />
 
@@ -483,7 +499,7 @@ export default function SolutionDetailPage({
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full justify-start bg-white dark:bg-[#1E1E1E] text-[#64748B] dark:text-[#908fa0] font-normal"
+                  className="w-full justify-start bg-white dark:bg-[#1E1E1E] text-[#6360a0] dark:text-[#908fa0] font-normal"
                   onClick={() => setIsAccessPickerOpen(true)}
                 >
                   <User className="mr-2 h-4 w-4" />

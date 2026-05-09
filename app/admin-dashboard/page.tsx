@@ -34,12 +34,15 @@ export default function AdminDashboardPage() {
           </div>
         </header>
 
-        <main className="flex-1 w-full overflow-y-auto bg-[#F8FAFC] dark:bg-[#131313]">
+        <main className="app-surface flex-1 w-full overflow-y-auto">
           <div className="w-full px-6 py-8 lg:px-12 space-y-6 animate-page-in">
-            <div className="mb-6">
-              <div>
-                <h1 className="text-2xl font-bold leading-tight tracking-tight text-[#1b1b23] dark:text-[#e5e2e1]">대시보드</h1>
-                <p className="text-sm text-[#64748B] dark:text-[#908fa0] mt-1">전체 고객사 진행 현황</p>
+            <div className="p-6 md:p-7">
+              <span className="menu-kicker">Admin Command</span>
+              <div className="mt-3">
+                <div>
+                  <h1 className="text-3xl font-bold leading-tight tracking-tight text-[#1e1b4b] dark:text-[#e5e2e1]">운영 대시보드</h1>
+                  <p className="text-sm text-[#5b5785] dark:text-[#908fa0] mt-1.5">전체 고객사의 진행 현황, 지연 리스크, 완료 속도를 한 화면에서 모니터링합니다.</p>
+                </div>
               </div>
             </div>
 

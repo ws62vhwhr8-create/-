@@ -136,29 +136,34 @@ export default function UsersPage() {
           </div>
         </header>
 
-        <main className="flex-1 w-full overflow-y-auto bg-[#F8FAFC] dark:bg-[#131313]">
+        <main className="app-surface flex-1 w-full overflow-y-auto">
           <div className="w-full px-6 py-8 lg:px-12 space-y-6 animate-page-in">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight font-sans text-[#1b1b23] dark:text-[#e5e2e1]">사용자 관리</h1>
-                <p className="text-sm text-[#64748B] dark:text-[#908fa0] mt-1">시스템 사용자 및 권한 관리</p>
+            <div className="flex items-end justify-between gap-4">
+              <div className="w-full p-6 md:p-7">
+                <span className="menu-kicker">Access Console</span>
+                <div className="mt-3">
+                  <div>
+                    <h1 className="text-3xl font-bold tracking-tight text-[#1e1b4b] dark:text-[#e5e2e1]">사용자 관리</h1>
+                    <p className="text-sm text-[#5b5785] dark:text-[#908fa0] mt-1.5">시스템 사용자, 역할, 그룹 맵핑을 통합 운영합니다.</p>
+                  </div>
+                </div>
               </div>
               <div>
-                <Button className="shadow-sm" onClick={() => setIsPickerOpen(true)}>
+                <Button className="ml-4 shadow-sm" onClick={() => setIsPickerOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" /> 사용자 추가
                 </Button>
               </div>
             </div>
 
-            <div className="w-full rounded-xl border border-[#E2E8F0] bg-white shadow-sm dark:border-[#333333] dark:border-white/15 dark:bg-[#1E1E1E] dark:bg-[#1E1E1E]/60 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)]">
-              <div className="flex flex-col gap-3 border-b border-[#E2E8F0] px-6 py-3.5 dark:border-[#333333] sm:flex-row sm:items-center sm:justify-between">
+            <div className="w-full rounded-2xl border border-[#dbe3ee] bg-white/92 shadow-[0_20px_48px_-36px_rgba(15,23,42,0.55)] dark:border-[#333333] dark:border-white/15 dark:bg-[#1E1E1E] dark:bg-[#1E1E1E]/60 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)]">
+              <div className="flex flex-col gap-3 border-b border-[#dbd6f0] px-6 py-3.5 dark:border-[#333333] sm:flex-row sm:items-center sm:justify-between">
                 <div className="relative w-full sm:max-w-sm">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748B] dark:text-[#908fa0]" />
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6360a0] dark:text-[#908fa0]" />
                   <Input
                     value={assignedQuery}
                     onChange={(e) => setAssignedQuery(e.target.value)}
                     placeholder="사용자 / 그룹 검색..."
-                    className="pl-9 bg-transparent border-[#E2E8F0] dark:bg-transparent dark:border-[#464554]/50"
+                    className="pl-9 bg-transparent border-[#dbd6f0] dark:bg-transparent dark:border-[#464554]/50"
                   />
                 </div>
                 <Select value={userTypeFilter} onValueChange={(value) => setUserTypeFilter(value as 'all' | 'user' | 'owner')}>
@@ -174,12 +179,12 @@ export default function UsersPage() {
               </div>
               <div className="overflow-hidden rounded-b-lg border-t border-border dark:border-[#333333]">
                 <table className="w-full border-collapse">
-                  <thead className="border-b border-[#E2E8F0] bg-[#F8FAFC] dark:border-[#333333] dark:bg-[#0e0e0e]">
-                    <tr className="hover:bg-[#F8FAFC] dark:hover:bg-[#0e0e0e]">
-                      <th className="w-[30%] px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-widest text-[#64748B] dark:text-[#908fa0]">이름</th>
-                      <th className="w-[40%] px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-widest text-[#64748B] dark:text-[#908fa0]">이메일</th>
-                      <th className="w-[20%] px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-widest text-[#64748B] dark:text-[#908fa0]">역할</th>
-                      <th className="w-[10%] px-6 py-3.5 text-center text-xs font-semibold uppercase tracking-widest text-[#64748B] dark:text-[#908fa0]">작업</th>
+                  <thead className="border-b border-[#dbd6f0] bg-[#f3f1ff] dark:border-[#333333] dark:bg-[#0e0e0e]">
+                    <tr className="hover:bg-[#f3f1ff] dark:hover:bg-[#0e0e0e]">
+                      <th className="w-[30%] px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-widest text-[#6360a0] dark:text-[#908fa0]">이름</th>
+                      <th className="w-[40%] px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-widest text-[#6360a0] dark:text-[#908fa0]">이메일</th>
+                      <th className="w-[20%] px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-widest text-[#6360a0] dark:text-[#908fa0]">역할</th>
+                      <th className="w-[10%] px-6 py-3.5 text-center text-xs font-semibold uppercase tracking-widest text-[#6360a0] dark:text-[#908fa0]">작업</th>
                     </tr>
                   </thead>
                 <tbody>
@@ -188,11 +193,11 @@ export default function UsersPage() {
                     const cleanName = getCleanName(user.displayName);
 
                     return (
-                      <tr key={user.id} className="border-b border-[#E2E8F0] transition-colors hover:bg-secondary/30 dark:border-[#333333] dark:hover:bg-[#323232]">
+                      <tr key={user.id} className="border-b border-[#dbd6f0] transition-colors hover:bg-secondary/30 dark:border-[#333333] dark:hover:bg-[#323232]">
                         <td className="py-5 px-8">
                           <span className="font-bold text-base text-slate-900 dark:text-[#e5e2e1]">{cleanName}</span>
                         </td>
-                        <td className="py-5 px-8 text-[#64748B] dark:text-muted-foreground">
+                        <td className="py-5 px-8 text-[#6360a0] dark:text-muted-foreground">
                           <div className="flex items-center gap-2">
                             <Mail className="h-4 w-4 flex-shrink-0 opacity-70" />
                             <span className="text-sm">{user.email}</span>

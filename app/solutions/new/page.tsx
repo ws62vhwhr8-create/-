@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, type ChangeEvent } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Navigation } from "@/components/navigation"
@@ -71,6 +72,7 @@ export default function NewSolutionPage() {
   }
 
   const totalDuration = getAllStages(formData.stages).reduce((sum, s) => sum + (Number(s.durationDays) || 0), 0)
+  const totalStages = getAllStages(formData.stages).length
 
   const getStageNameWidth = (value: string) => {
     const length = value.trim().length
@@ -318,18 +320,43 @@ export default function NewSolutionPage() {
     <>
       <Navigation />
       <SidebarInset>
-        <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex h-14 items-center gap-4 px-4">
-            <SidebarTrigger />
+        <header className="sticky top-0 z-40 border-b border-border/60 bg-background/98 backdrop-blur-md supports-[backdrop-filter]:bg-background/80">
+          <div className="flex h-14 items-center gap-3 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <div className="h-5 w-px bg-border/70" />
+            <div className="flex items-center gap-1.5 text-sm min-w-0">
+              <Link href="/solutions" className="text-muted-foreground hover:text-foreground transition-colors shrink-0">솔루션 관리</Link>
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+              <span className="font-medium text-foreground truncate">새 솔루션 설계</span>
+            </div>
           </div>
         </header>
 
-        <main className="flex-1 w-full overflow-y-auto bg-background">
+        <main className="app-surface flex-1 w-full overflow-y-auto">
           <div className="w-full px-6 py-8 lg:px-12">
-            <div className="overflow-hidden flex flex-col rounded-[32px] bg-white p-10 dark:bg-[#1c1b1b] dark:border dark:border-[#464554]">
-              <div className="pb-4 dark:border-b dark:border-[#464554]">
-                <h1 className="text-2xl font-bold dark:text-[#e5e2e1]">새 솔루션 설계</h1>
+            <div className="mb-6 border-b border-[#dbe3ee] pb-4 dark:border-white/10">
+              <span className="menu-kicker">Solution Composer</span>
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold tracking-tight text-[#1e1b4b] dark:text-[#e5e2e1]">새 솔루션 설계</h1>
+                  <p className="text-sm text-[#6360a0] dark:text-[#908fa0] mt-1.5">워크플로우 스테이지와 접근 대상을 설계해 신규 고객 온보딩 템플릿을 구성합니다.</p>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="rounded-full border border-[#d3cef0] bg-white/80 px-2.5 py-1 text-[#5b5785] dark:border-white/10 dark:bg-white/5 dark:text-[#c7c4d7]">
+                    총 {totalStages}단계
+                  </span>
+                  <span className="rounded-full border border-[#d3cef0] bg-white/80 px-2.5 py-1 text-[#5b5785] dark:border-white/10 dark:bg-white/5 dark:text-[#c7c4d7]">
+                    예상 {totalDuration}일
+                  </span>
+                  <span className="rounded-full border border-[#d3cef0] bg-white/80 px-2.5 py-1 text-[#5b5785] dark:border-white/10 dark:bg-white/5 dark:text-[#c7c4d7]">
+                    접근 대상 {formData.userIds.length + formData.groupIds.length}개
+                  </span>
+                </div>
               </div>
+            </div>
+
+            <div className="overflow-hidden flex flex-col rounded-[32px] bg-white p-10 dark:bg-[#1c1b1b] dark:border dark:border-[#464554]">
+              <div className="pb-4 dark:border-b dark:border-[#464554]" />
 
               <div className="space-y-8 py-4 flex-1 overflow-y-auto">
                 <div className="grid gap-6">
@@ -516,7 +543,7 @@ export default function NewSolutionPage() {
                       <Button
                         type="button"
                         variant="outline"
-                        className="w-full justify-start bg-white dark:bg-[#1E1E1E] text-[#64748B] dark:text-[#908fa0] font-normal"
+                        className="w-full justify-start bg-white dark:bg-[#1E1E1E] text-[#6360a0] dark:text-[#908fa0] font-normal"
                         onClick={() => setIsAccessPickerOpen(true)}
                       >
                         <User className="mr-2 h-4 w-4" />

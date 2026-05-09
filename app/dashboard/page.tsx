@@ -18,12 +18,15 @@ export default function UserDashboardPage() {
           </div>
         </header>
 
-        <main className="flex-1 w-full overflow-y-auto bg-[#F8FAFC] dark:bg-[#131313]">
+        <main className="app-surface flex-1 w-full overflow-y-auto">
           <div className="w-full px-6 py-8 lg:px-12 space-y-6 animate-page-in">
-            <div className="mb-6">
-              <div>
-                <h1 className="text-2xl font-bold leading-tight tracking-tight text-[#1b1b23] dark:text-[#e5e2e1]">대시보드</h1>
-                <p className="text-sm text-[#64748B] dark:text-[#908fa0] mt-1">내가 생성한 고객 및 나에게 공유된 고객 진행 현황</p>
+            <div className="p-6 md:p-7">
+              <span className="menu-kicker">User Workspace</span>
+              <div className="mt-3">
+                <div>
+                  <h1 className="text-3xl font-bold leading-tight tracking-tight text-[#1e1b4b] dark:text-[#e5e2e1]">개인 대시보드</h1>
+                  <p className="text-sm text-[#5b5785] dark:text-[#908fa0] mt-1.5">내가 생성한 고객과 공유 받은 고객의 진행 흐름을 빠르게 확인합니다.</p>
+                </div>
               </div>
             </div>
 

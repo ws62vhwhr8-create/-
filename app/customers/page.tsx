@@ -195,29 +195,34 @@ export default function CustomersPage() {
           </div>
         </header>
         
-        <main className="flex-1 w-full overflow-y-auto bg-[#F8FAFC] dark:bg-[#131313]">
+        <main className="app-surface flex-1 w-full overflow-y-auto">
           <div className="w-full px-6 py-8 lg:px-12 space-y-6 animate-page-in">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-[#1b1b23] dark:text-[#e5e2e1]">고객 관리</h1>
-                <p className="text-sm text-[#64748B] dark:text-[#908fa0] mt-1">등록된 고객사를 관리합니다.</p>
+            <div className="flex items-end justify-between gap-4">
+              <div className="w-full p-6 md:p-7">
+                <span className="menu-kicker">Customer Portfolio</span>
+                <div className="mt-3">
+                  <div>
+                    <h1 className="text-3xl font-bold tracking-tight text-[#1e1b4b] dark:text-[#e5e2e1]">고객 관리</h1>
+                    <p className="text-sm text-[#5b5785] dark:text-[#908fa0] mt-1.5">고객 상태, 진행률, 담당자, 공유 현황을 빠르게 탐색하고 관리합니다.</p>
+                  </div>
+                </div>
               </div>
-            
-              <Button className="shadow-sm" onClick={() => router.push('/customers/new')}>
+
+              <Button className="ml-4 shadow-sm" onClick={() => router.push('/customers/new')}>
                 <Plus className="mr-2 h-4 w-4" />
                 고객 등록
               </Button>
             </div>
 
             {/* Filters */}
-            <div className="flex flex-col gap-3 rounded-xl border border-[#E2E8F0] bg-white px-5 py-3.5 shadow-sm sm:flex-row sm:items-center dark:bg-[#1E1E1E]/60 dark:border-[#333333]">
+            <div className="flex flex-col gap-3 rounded-2xl border border-[#dbe3ee] bg-white/92 px-5 py-3.5 shadow-[0_20px_48px_-36px_rgba(15,23,42,0.55)] sm:flex-row sm:items-center dark:bg-[#1E1E1E]/60 dark:border-[#333333]">
               <div className="relative w-full sm:max-w-sm">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#64748B] dark:text-[#908fa0]" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6360a0] dark:text-[#908fa0]" />
                 <Input
                   placeholder="고객사 검색..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9 bg-transparent border-[#E2E8F0] dark:bg-transparent dark:border-[#464554]/50"
+                  className="pl-9 bg-transparent border-[#dbd6f0] dark:bg-transparent dark:border-[#464554]/50"
                 />
               </div>
 
@@ -250,7 +255,7 @@ export default function CustomersPage() {
 
           {/* Customer Cards Grid */}
           {filteredCustomers.length === 0 ? (
-            <Card className="border-[#E2E8F0] bg-white shadow-sm dark:border-[#333333] dark:bg-[#1E1E1E]/60">
+            <Card className="border-[#dbd6f0] bg-white shadow-sm dark:border-[#333333] dark:bg-[#1E1E1E]/60">
               <CardContent className="p-6">
                 <Empty>
                   <EmptyHeader>
@@ -286,7 +291,7 @@ export default function CustomersPage() {
                 return (
                   <Card 
                     key={customer.id} 
-                    className="bg-white border-[#E2E8F0] shadow-[0_4px_20px_-4px_rgba(30,41,59,0.05)] hover:shadow-[0_12px_24px_-8px_rgba(30,41,59,0.1)] hover:-translate-y-1 transition-all duration-300 cursor-pointer group relative overflow-hidden dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)]"
+                    className="bg-white border-[#dbd6f0] shadow-[0_4px_20px_-4px_rgba(30,41,59,0.05)] hover:shadow-[0_12px_24px_-8px_rgba(30,41,59,0.1)] hover:-translate-y-1 transition-all duration-300 cursor-pointer group relative overflow-hidden dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)]"
                   >
                     {/* Kebab Menu */}
                     <div className="absolute top-3 right-3 z-10">
@@ -329,13 +334,13 @@ export default function CustomersPage() {
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#efecf8] dark:bg-primary/10">
-                            <Building2 className="h-5 w-5 text-[#4648d4] dark:text-primary" />
+                            <Building2 className="h-5 w-5 text-[#4f46e5] dark:text-primary" />
                           </div>
                           <div>
                             <h3 className="font-semibold text-[#1b1b23] dark:text-[#e5e2e1]">
                               {customer.companyName}
                             </h3>
-                            <p className="text-sm text-[#64748B] dark:text-[#908fa0]">
+                            <p className="text-sm text-[#6360a0] dark:text-[#908fa0]">
                               {customer.solutionName}
                             </p>
                           </div>
@@ -343,7 +348,7 @@ export default function CustomersPage() {
                       </div>
                       
                       <div className="space-y-3">
-                      <div className="flex items-center gap-4 text-sm text-[#64748B] dark:text-[#908fa0]">
+                      <div className="flex items-center gap-4 text-sm text-[#6360a0] dark:text-[#908fa0]">
                         <div className="flex items-center gap-1.5">
                           <Calendar className="h-3.5 w-3.5" />
                           <span>{format(customer.salesStartDate, 'yyyy.MM.dd', { locale: ko })}</span>
@@ -356,7 +361,7 @@ export default function CustomersPage() {
                       
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between text-sm">
-                          <span className="text-[#64748B] dark:text-[#908fa0]">진행률</span>
+                          <span className="text-[#6360a0] dark:text-[#908fa0]">진행률</span>
                           <span className={`font-medium ${statusTextClass[customer.status]}`}>
                             {progress.completed}/{progress.total} ({progress.percentage}%)
                           </span>
