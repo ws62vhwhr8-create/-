@@ -278,9 +278,9 @@ export default function SolutionDetailPage({
           </div>
         </header>
 
-        <main className="app-surface flex-1 px-6 py-8 lg:px-12">
+        <main className="app-surface flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-12">
           <div className="w-full space-y-6 animate-page-in">
-            <div className="rounded-2xl border border-[#dbe3ee] bg-white/88 px-6 py-6 shadow-[0_20px_48px_-36px_rgba(37,22,120,0.35)] dark:border-white/10 dark:bg-[#1E1E1E]/60">
+            <div className="rounded-2xl border border-[#dbe3ee] bg-white/88 px-4 py-5 shadow-[0_20px_48px_-36px_rgba(37,22,120,0.35)] sm:px-6 sm:py-6 dark:border-white/10 dark:bg-[#1E1E1E]/60">
               <span className="menu-kicker">Workflow Designer</span>
               <div className="mt-3">
                 <div>
@@ -293,7 +293,7 @@ export default function SolutionDetailPage({
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div />
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="flex items-center gap-1 border-[#d3cef0] bg-white/90 text-[#5b5785] dark:border-[#464554]/30 dark:text-[#c7c4d7]">
                   <Clock className="h-3 w-3" /> 총 {totalDuration}일
                 </Badge>
@@ -344,7 +344,7 @@ export default function SolutionDetailPage({
                 <CardTitle className="dark:text-[#e5e2e1]">워크플로우 설계</CardTitle>
                 <div className="flex items-center gap-2">
                   {isWorkflowOpen && (
-                    <Button type="button" variant="outline" size="sm" onClick={addStage}>
+                    <Button type="button" variant="outline" size="sm" onClick={addStage} className="hidden sm:inline-flex">
                       <Plus className="h-4 w-4 mr-1" /> 단계 추가
                     </Button>
                   )}
@@ -361,9 +361,14 @@ export default function SolutionDetailPage({
               </CardHeader>
               {isWorkflowOpen && (
                 <CardContent className="space-y-2">
+                <div className="sm:hidden">
+                  <Button type="button" variant="outline" size="sm" onClick={addStage} className="w-full">
+                    <Plus className="mr-1 h-4 w-4" /> 단계 추가
+                  </Button>
+                </div>
                 {formData.stages.map((stage, stageIndex) => (
                   <div key={stage.id}>
-                    <div className="flex items-center gap-3 rounded-xl border border-[#e5def6] bg-[#f9f7ff] p-3 dark:bg-[#2a2a2a] dark:border-[#464554]/30">
+                    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#e5def6] bg-[#f9f7ff] p-3 sm:gap-3 dark:bg-[#2a2a2a] dark:border-[#464554]/30">
                       {stage.children && stage.children.length > 0 ? (
                         <button
                           type="button"
@@ -387,9 +392,9 @@ export default function SolutionDetailPage({
                         value={stage.name}
                         onChange={(e) => handleUpdateStage(stage.id, "name", e.target.value)}
                         placeholder="단계명을 입력하세요"
-                        className="flex-1 bg-white dark:bg-[#1E1E1E] dark:border-[#464554]/50"
+                        className="min-w-[180px] flex-1 bg-white dark:bg-[#1E1E1E] dark:border-[#464554]/50"
                       />
-                      <div className="flex items-center gap-2 w-28 shrink-0">
+                      <div className="flex w-full items-center gap-2 sm:w-28 sm:shrink-0">
                         <Input
                           type="number"
                           value={stage.durationDays}
@@ -412,7 +417,7 @@ export default function SolutionDetailPage({
 
                     {expandedStages.has(stage.id) && stage.children && stage.children.map((child2, child2Index) => (
                       <div key={child2.id}>
-                        <div className="ml-4 mt-2 flex items-center gap-3 rounded-xl border border-[#ddd6ff] bg-[#f3f1ff] p-3 dark:bg-[#c0c1ff]/5 dark:border-[#c0c1ff]/20">
+                        <div className="ml-2 mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-[#ddd6ff] bg-[#f3f1ff] p-3 sm:ml-4 sm:gap-3 dark:bg-[#c0c1ff]/5 dark:border-[#c0c1ff]/20">
                           {child2.children && child2.children.length > 0 ? (
                             <button
                               type="button"
@@ -436,9 +441,9 @@ export default function SolutionDetailPage({
                             value={child2.name}
                             onChange={(e) => handleUpdateStage(child2.id, "name", e.target.value)}
                             placeholder="하위 단계명을 입력하세요"
-                            className="flex-1 bg-white dark:bg-[#1E1E1E] dark:border-[#464554]/50"
+                            className="min-w-[180px] flex-1 bg-white dark:bg-[#1E1E1E] dark:border-[#464554]/50"
                           />
-                          <div className="flex items-center gap-2 w-28 shrink-0">
+                          <div className="flex w-full items-center gap-2 sm:w-28 sm:shrink-0">
                             <Input
                               type="number"
                               value={child2.durationDays}
@@ -460,7 +465,7 @@ export default function SolutionDetailPage({
                         </div>
 
                         {expandedStages.has(child2.id) && child2.children && child2.children.map((child3, child3Index) => (
-                          <div key={child3.id} className="ml-8 mt-2 flex items-center gap-3 rounded-xl border border-[#efd9ff] bg-[#f9f1ff] p-3 dark:bg-[#ddb7ff]/5 dark:border-[#ddb7ff]/20">
+                          <div key={child3.id} className="ml-4 mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-[#efd9ff] bg-[#f9f1ff] p-3 sm:ml-8 sm:gap-3 dark:bg-[#ddb7ff]/5 dark:border-[#ddb7ff]/20">
                             <div className="w-6" />
                             <span className="min-w-8 h-8 px-2 flex items-center justify-center rounded-full border border-[#e4beff] bg-white text-xs font-bold text-[#9d5ac8] dark:bg-[#353534] dark:text-[#ddb7ff] dark:border-[#ddb7ff]/30">
                               {`${stageIndex + 1}-${child2Index + 1}-${child3Index + 1}`}
@@ -469,9 +474,9 @@ export default function SolutionDetailPage({
                               value={child3.name}
                               onChange={(e) => handleUpdateStage(child3.id, "name", e.target.value)}
                               placeholder="3단계명을 입력하세요"
-                              className="flex-1 bg-white dark:bg-[#1E1E1E] dark:border-[#464554]/50"
+                              className="min-w-[180px] flex-1 bg-white dark:bg-[#1E1E1E] dark:border-[#464554]/50"
                             />
-                            <div className="flex items-center gap-2 w-28 shrink-0">
+                            <div className="flex w-full items-center gap-2 sm:w-28 sm:shrink-0">
                               <Input
                                 type="number"
                                 value={child3.durationDays}
@@ -559,9 +564,9 @@ export default function SolutionDetailPage({
               </CardContent>
             </Card>
 
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" className="border-[#d3cef0] bg-white/90 text-[#4b4678] hover:bg-[#f4f1ff]" onClick={() => router.push("/solutions")}>목록으로</Button>
-              <Button onClick={handleSave} className="gap-2">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button variant="outline" className="w-full border-[#d3cef0] bg-white/90 text-[#4b4678] hover:bg-[#f4f1ff] sm:w-auto" onClick={() => router.push("/solutions")}>목록으로</Button>
+              <Button onClick={handleSave} className="w-full gap-2 sm:w-auto">
                 <Save className="h-4 w-4" /> 저장
               </Button>
             </div>

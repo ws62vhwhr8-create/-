@@ -1925,9 +1925,9 @@ export default function CustomerDetailPage({
             </div>
           </div>
         </header>
-        <main className="app-surface flex-1 px-6 py-8 lg:px-12">
+        <main className="app-surface flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-12">
           <div className="w-full space-y-6 animate-page-in">
-            <div className="rounded-2xl border border-[#dbe3ee] bg-white/88 px-6 py-6 shadow-[0_20px_48px_-36px_rgba(37,22,120,0.35)] dark:border-white/10 dark:bg-[#1E1E1E]/60">
+            <div className="rounded-2xl border border-[#dbe3ee] bg-white/88 px-4 py-5 shadow-[0_20px_48px_-36px_rgba(37,22,120,0.35)] sm:px-6 sm:py-6 dark:border-white/10 dark:bg-[#1E1E1E]/60">
               <span className="menu-kicker">Customer Detail</span>
               <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
@@ -1948,33 +1948,33 @@ export default function CustomerDetailPage({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap justify-end">
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                   {!isEditing && (
-                    <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="border-[#d3cef0] bg-white/90 text-[#4b4678] hover:bg-[#f4f1ff]">
+                    <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="w-full border-[#d3cef0] bg-white/90 text-[#4b4678] hover:bg-[#f4f1ff] sm:w-auto">
                       <Edit2 className="mr-2 h-4 w-4" />
                       수정
                     </Button>
                   )}
                   {isEditing && (
                     <>
-                      <Button variant="outline" size="sm" onClick={handleSaveEdits} className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100">
+                      <Button variant="outline" size="sm" onClick={handleSaveEdits} className="w-full border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 sm:w-auto">
                         <Check className="mr-2 h-4 w-4" />
                         저장
                       </Button>
-                      <Button variant="outline" size="sm" onClick={handleCancelEdits} className="border-[#d3cef0] bg-white/90 text-[#4b4678] hover:bg-[#f4f1ff]">
+                      <Button variant="outline" size="sm" onClick={handleCancelEdits} className="w-full border-[#d3cef0] bg-white/90 text-[#4b4678] hover:bg-[#f4f1ff] sm:w-auto">
                         <X className="mr-2 h-4 w-4" />
                         취소
                       </Button>
                     </>
                   )}
-                  <Button variant="outline" size="sm" onClick={handleExportExcel} className="border-[#d3cef0] bg-white/90 text-[#4b4678] hover:bg-[#f4f1ff]">
+                  <Button variant="outline" size="sm" onClick={handleExportExcel} className="w-full border-[#d3cef0] bg-white/90 text-[#4b4678] hover:bg-[#f4f1ff] sm:w-auto">
                     <Download className="mr-2 h-4 w-4" />
                     Excel 내보내기
                   </Button>
 
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="border-rose-200 bg-rose-50/85 text-rose-700 hover:bg-rose-100 hover:text-rose-700" disabled={isEditing}>
+                      <Button variant="outline" size="sm" className="w-full border-rose-200 bg-rose-50/85 text-rose-700 hover:bg-rose-100 hover:text-rose-700 sm:w-auto" disabled={isEditing}>
                         <Trash2 className="mr-2 h-4 w-4" />
                         삭제
                       </Button>
