@@ -81,7 +81,10 @@ export function Navigation() {
   }
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar
+      collapsible="icon"
+      className="border-r border-[#d9d1f0] bg-[linear-gradient(180deg,#fdfcff_0%,#f7f4ff_55%,#f4f3ff_100%)] dark:bg-[linear-gradient(180deg,#161616_0%,#131313_100%)] dark:border-[#262626]"
+    >
       <SidebarHeader className="h-24 !gap-0 !py-0 justify-center">
         <Link
           href="/"
@@ -91,13 +94,13 @@ export function Navigation() {
           )}
         >
           {state === "collapsed" ? (
-            <div className="flex h-8 w-8 origin-left scale-[1.35] items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80 shadow-sm dark:from-indigo-500/30 dark:to-indigo-600/20 dark:border dark:border-indigo-500/40">
+              <div className="flex h-8 w-8 origin-left scale-[1.35] items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80 shadow-[0_10px_28px_-20px_rgba(79,70,229,0.8)] dark:from-indigo-500/30 dark:to-indigo-600/20 dark:border dark:border-indigo-500/40">
               <FolderKanban className="h-4 w-4 text-primary-foreground dark:text-indigo-400" />
             </div>
           ) : (
             <div className="origin-left scale-[1.35]">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80 shadow-sm dark:from-indigo-500/30 dark:to-indigo-600/20 dark:border dark:border-indigo-500/40">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80 shadow-[0_10px_28px_-20px_rgba(79,70,229,0.8)] dark:from-indigo-500/30 dark:to-indigo-600/20 dark:border dark:border-indigo-500/40">
                   <FolderKanban className="h-4 w-4 text-primary-foreground dark:text-indigo-400" />
                 </div>
                 <span className="text-lg leading-none font-bold text-foreground dark:text-indigo-400 block truncate tracking-tight">영업 로드맵</span>
@@ -107,7 +110,7 @@ export function Navigation() {
           )}
         </Link>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="[&_[data-sidebar=menu-button]]:rounded-xl [&_[data-sidebar=menu-button]]:px-2.5 [&_[data-sidebar=menu-button]]:py-2 [&_[data-sidebar=menu-button]]:font-medium">
         <SidebarSeparator className="my-0.5" />
 
         <SidebarGroup>
@@ -118,7 +121,7 @@ export function Navigation() {
                 <SidebarMenuButton
                   asChild
                   isActive={isActive(item.href)}
-                  className="rounded-lg transition-all duration-150 data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-medium dark:data-[active=true]:bg-indigo-500/15 dark:data-[active=true]:text-indigo-400"
+                  className="rounded-xl transition-all duration-150 hover:bg-[#f1edff] hover:text-[#433c7a] data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-medium data-[active=true]:shadow-[inset_0_0_0_1px_rgba(79,70,229,0.28)] dark:data-[active=true]:bg-indigo-500/15 dark:data-[active=true]:text-indigo-400 dark:data-[active=true]:shadow-[inset_0_0_0_1px_rgba(192,193,255,0.28)]"
                 >
                   <Link href={item.href}>
                     <item.icon className="h-4 w-4" />
@@ -139,7 +142,7 @@ export function Navigation() {
                   <SidebarMenuButton
                     asChild
                     isActive={isActive(item.href)}
-                    className="rounded-lg transition-all duration-150 data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-medium dark:data-[active=true]:bg-indigo-500/15 dark:data-[active=true]:text-indigo-400"
+                    className="rounded-xl transition-all duration-150 hover:bg-[#f1edff] hover:text-[#433c7a] data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-medium data-[active=true]:shadow-[inset_0_0_0_1px_rgba(79,70,229,0.28)] dark:data-[active=true]:bg-indigo-500/15 dark:data-[active=true]:text-indigo-400 dark:data-[active=true]:shadow-[inset_0_0_0_1px_rgba(192,193,255,0.28)]"
                   >
                     <Link href={item.href}>
                       <item.icon className="h-4 w-4" />
@@ -166,7 +169,7 @@ export function Navigation() {
             </SidebarMenuItem>
           </SidebarMenu>
 
-          <div className="mt-2 rounded-xl border border-border/60 bg-card p-2.5 shadow-sm dark:border-neutral-700/50 dark:bg-neutral-900/80">
+          <div className="mt-2 rounded-xl border border-[#d9d1f0] bg-white/85 p-2.5 shadow-[0_16px_32px_-28px_rgba(79,70,229,0.65)] dark:border-neutral-700/50 dark:bg-neutral-900/80">
             <div className={cn("flex items-center", state === "collapsed" ? "justify-center" : "gap-2.5") }>
               <Avatar className="h-8 w-8 ring-2 ring-border/50">
                 <AvatarImage src={accountImage} alt={accountName} />

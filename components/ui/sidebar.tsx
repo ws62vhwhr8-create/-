@@ -105,7 +105,7 @@ function Sidebar({
       <Sheet open={openMobile} onOpenChange={setOpenMobile}>
         <SheetContent
           side="left"
-          className="w-[var(--sidebar-width)] p-0 [&>button]:hidden bg-white dark:bg-neutral-900 border-r border-border dark:border-neutral-800"
+          className="w-[var(--sidebar-width)] p-0 [&>button]:hidden bg-[var(--sidebar)] text-[var(--sidebar-foreground)] dark:bg-neutral-900 border-r border-[var(--sidebar-border)] dark:border-neutral-800"
         >
           <div className="flex h-full w-full flex-col overflow-hidden">
             {children}
@@ -143,7 +143,7 @@ function Sidebar({
         )}
         {...props}
       >
-        <div className="bg-white dark:bg-neutral-900 border-r border-border dark:border-neutral-800 flex h-full w-full flex-col shadow-sm overflow-hidden overflow-x-hidden">
+        <div className="bg-[var(--sidebar)] text-[var(--sidebar-foreground)] dark:bg-neutral-900 border-r border-[var(--sidebar-border)] dark:border-neutral-800 flex h-full w-full flex-col shadow-sm overflow-hidden overflow-x-hidden">
   {children}
 </div>
       </div>
@@ -194,7 +194,7 @@ function SidebarGroupLabel({ className, ...props }: React.ComponentProps<'div'>)
   return (
     <div 
       className={cn(
-        'px-3 text-sm font-bold text-gray-500 dark:text-neutral-600 uppercase tracking-wider mb-2 transition-opacity duration-200',
+        'mb-2 px-3 text-sm font-bold uppercase tracking-wider text-[#7670a2] dark:text-neutral-600 transition-opacity duration-200',
         state === 'collapsed' ? 'opacity-0' : 'opacity-100', // 접혔을 때 텍스트 안보이게 처리
         className
       )} 
@@ -213,12 +213,12 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<'li'>) {
 
 
 const sidebarMenuButtonVariants = cva(
-  'flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-medium transition-all hover:bg-gray-100 dark:hover:bg-neutral-800 dark:hover:text-neutral-200 active:bg-gray-200 dark:active:opacity-80 overflow-hidden whitespace-nowrap',
+  'flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px] font-medium transition-all hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-accent-foreground)] dark:hover:bg-neutral-800 dark:hover:text-neutral-200 active:opacity-90 dark:active:opacity-80 overflow-hidden whitespace-nowrap',
   {
     variants: {
       isActive: {
-        true: 'bg-gray-100 text-[#111827] font-bold shadow-sm dark:bg-indigo-500/10 dark:text-indigo-400 dark:font-semibold dark:shadow-none dark:rounded-r-none dark:border-r-2 dark:border-indigo-500',
-        false: 'text-gray-500 dark:text-neutral-500',
+        true: 'bg-[var(--sidebar-accent)] text-[var(--sidebar-primary)] font-semibold shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--sidebar-primary)_24%,white)] dark:bg-indigo-500/10 dark:text-indigo-400 dark:font-semibold dark:shadow-none dark:rounded-r-none dark:border-r-2 dark:border-indigo-500',
+        false: 'text-[#696389] dark:text-neutral-500',
       },
     },
     defaultVariants: { isActive: false },
@@ -231,11 +231,11 @@ function SidebarMenuButton({ isActive, className, asChild, ...props }: React.Com
 }
 
 function SidebarSeparator({ className, ...props }: React.ComponentProps<'div'>) {
-  return <div className={cn('mx-2 my-2 h-px bg-gray-100 dark:bg-neutral-800', className)} {...props} />
+  return <div className={cn('mx-2 my-2 h-px bg-[color-mix(in_oklab,var(--sidebar-border)_78%,white)] dark:bg-neutral-800', className)} {...props} />
 }
 
 function SidebarMenuSub({ className, ...props }: React.ComponentProps<'ul'>) {
-  return <ul className={cn('ml-8 mt-1 flex flex-col gap-1 border-l border-gray-100 pl-2', className)} {...props} />
+  return <ul className={cn('ml-8 mt-1 flex flex-col gap-1 border-l border-[color-mix(in_oklab,var(--sidebar-border)_78%,white)] pl-2', className)} {...props} />
 }
 
 function SidebarMenuSubItem({ ...props }: React.ComponentProps<'li'>) {
@@ -246,8 +246,8 @@ function SidebarMenuSubButton({ isActive, className, ...props }: React.Component
   return (
     <button 
       className={cn(
-        'flex w-full items-center rounded-md px-3 py-2 text-sm text-gray-500 hover:text-[#111827] hover:bg-gray-50', 
-        isActive && 'text-[#111827] font-semibold', 
+        'flex w-full items-center rounded-md px-3 py-2 text-sm text-[#6f6993] hover:text-[var(--sidebar-accent-foreground)] hover:bg-[var(--sidebar-accent)]', 
+        isActive && 'text-[var(--sidebar-primary)] font-semibold', 
         className
       )} 
       {...props} 
