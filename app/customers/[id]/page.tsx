@@ -1711,7 +1711,7 @@ export default function CustomerDetailPage({
           </div>
 
           {isReplyEditing && (
-            <div className="space-y-2 rounded-md border border-border bg-background p-3 dark:bg-[#1E1E1E] dark:border-[#333333]" style={{ marginLeft: '20px' }}>
+            <div className="space-y-2 rounded-md border border-[#dbe3ee] bg-white/85 p-3 shadow-sm dark:bg-[#1E1E1E] dark:border-[#333333]" style={{ marginLeft: '20px' }}>
               <Textarea
                 value={noteDrafts[draftKey] || ''}
                 onChange={(e) => setNoteDrafts((prev) => ({
@@ -1925,24 +1925,24 @@ export default function CustomerDetailPage({
             </div>
           </div>
         </header>
-        <main className="app-surface flex-1 px-6 py-6 lg:px-10 2xl:px-14">
+        <main className="app-surface flex-1 px-6 py-8 lg:px-12">
           <div className="w-full space-y-6 animate-page-in">
-            <div className="border-b border-[#dbe3ee] pb-4 dark:border-white/10">
+            <div className="rounded-2xl border border-[#dbe3ee] bg-white/88 px-6 py-6 shadow-[0_20px_48px_-36px_rgba(37,22,120,0.35)] dark:border-white/10 dark:bg-[#1E1E1E]/60">
               <span className="menu-kicker">Customer Detail</span>
               <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <div className="flex items-center gap-3">
-                    <h1 className="text-[30px] font-bold tracking-tight text-[#1b1b23] dark:text-[#e5e2e1]">{customer.companyName}</h1>
+                    <h1 className="text-3xl font-bold tracking-tight text-[#1e1b4b] dark:text-[#e5e2e1]">{customer.companyName}</h1>
                     <Badge variant="outline" className={customerStatusStyles[customer.status]}>
                       {customerStatusLabels[customer.status]}
                     </Badge>
                   </div>
-                  <p className="text-sm text-[#6360a0] dark:text-[#908fa0] mt-1.5">{customer.solutionName}</p>
+                  <p className="mt-1.5 text-sm text-[#5b5785] dark:text-[#908fa0]">{customer.solutionName}</p>
                   <div className="mt-2 flex items-center gap-2 text-xs">
-                    <span className="rounded-full border border-[#d3cef0] bg-white/80 px-2.5 py-1 text-[#5b5785] dark:border-white/10 dark:bg-white/5 dark:text-[#c7c4d7]">
+                    <span className="rounded-full border border-[#d3cef0] bg-white/90 px-2.5 py-1 text-[#5b5785] dark:border-white/10 dark:bg-white/5 dark:text-[#c7c4d7]">
                       진행률 {progress.completed}/{progress.total}
                     </span>
-                    <span className="rounded-full border border-[#d3cef0] bg-white/80 px-2.5 py-1 text-[#5b5785] dark:border-white/10 dark:bg-white/5 dark:text-[#c7c4d7]">
+                    <span className="rounded-full border border-[#d3cef0] bg-white/90 px-2.5 py-1 text-[#5b5785] dark:border-white/10 dark:bg-white/5 dark:text-[#c7c4d7]">
                       공유 {sharedItems.length}명/그룹
                     </span>
                   </div>
@@ -1950,31 +1950,31 @@ export default function CustomerDetailPage({
 
                 <div className="flex items-center gap-2 flex-wrap justify-end">
                   {!isEditing && (
-                    <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                    <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="border-[#d3cef0] bg-white/90 text-[#4b4678] hover:bg-[#f4f1ff]">
                       <Edit2 className="mr-2 h-4 w-4" />
                       수정
                     </Button>
                   )}
                   {isEditing && (
                     <>
-                      <Button variant="outline" size="sm" onClick={handleSaveEdits} className="bg-green-50 text-green-700 hover:bg-green-100">
+                      <Button variant="outline" size="sm" onClick={handleSaveEdits} className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100">
                         <Check className="mr-2 h-4 w-4" />
                         저장
                       </Button>
-                      <Button variant="outline" size="sm" onClick={handleCancelEdits}>
+                      <Button variant="outline" size="sm" onClick={handleCancelEdits} className="border-[#d3cef0] bg-white/90 text-[#4b4678] hover:bg-[#f4f1ff]">
                         <X className="mr-2 h-4 w-4" />
                         취소
                       </Button>
                     </>
                   )}
-                  <Button variant="outline" size="sm" onClick={handleExportExcel}>
+                  <Button variant="outline" size="sm" onClick={handleExportExcel} className="border-[#d3cef0] bg-white/90 text-[#4b4678] hover:bg-[#f4f1ff]">
                     <Download className="mr-2 h-4 w-4" />
                     Excel 내보내기
                   </Button>
 
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" disabled={isEditing}>
+                      <Button variant="outline" size="sm" className="border-rose-200 bg-rose-50/85 text-rose-700 hover:bg-rose-100 hover:text-rose-700" disabled={isEditing}>
                         <Trash2 className="mr-2 h-4 w-4" />
                         삭제
                       </Button>
@@ -2002,7 +2002,7 @@ export default function CustomerDetailPage({
               </div>
             </div>
 
-            <Accordion type="single" collapsible defaultValue="customer-summary" className="rounded-lg border border-border dark:border-[#333333] px-4">
+            <Accordion type="single" collapsible defaultValue="customer-summary" className="rounded-2xl border border-[#dbe3ee] bg-white/92 px-4 shadow-[0_20px_48px_-36px_rgba(37,22,120,0.32)] dark:border-[#333333] dark:bg-[#1E1E1E]/60">
               <AccordionItem value="customer-summary" className="border-b-0">
                 <AccordionTrigger className="py-3 text-sm dark:text-[#e5e2e1]">고객 정보</AccordionTrigger>
                 <AccordionContent className="pb-4">
@@ -2122,14 +2122,14 @@ export default function CustomerDetailPage({
             </Accordion>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-              <TabsList className="bg-secondary/70 dark:bg-[#1c1b1b] border border-border dark:border-[#333333]">
+              <TabsList className="rounded-xl border border-[#dbe3ee] bg-white/88 p-1 shadow-sm dark:bg-[#1c1b1b] dark:border-[#333333]">
                 <TabsTrigger value="table" className="dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-indigo-400 dark:data-[state=active]:border-b-2 dark:data-[state=active]:border-indigo-500 dark:text-[#c7c4d7]">마일스톤 테이블</TabsTrigger>
                 <TabsTrigger value="milestone-detail" className="dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-indigo-400 dark:data-[state=active]:border-b-2 dark:data-[state=active]:border-indigo-500 dark:text-[#c7c4d7]">파일 라이브러리</TabsTrigger>
                 <TabsTrigger value="gantt" className="dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-indigo-400 dark:data-[state=active]:border-b-2 dark:data-[state=active]:border-indigo-500 dark:text-[#c7c4d7]">간이 WBS</TabsTrigger>
               </TabsList>
               
               <TabsContent value="table">
-                <Card className="bg-secondary/30 border-border shadow-sm dark:bg-[#171616] dark:border-[#333333]">
+                <Card className="border-[#dbe3ee] bg-white/92 shadow-[0_20px_48px_-36px_rgba(37,22,120,0.32)] dark:bg-[#171616] dark:border-[#333333]">
                   <CardHeader className="flex flex-row items-start justify-between">
                     <div>
                       <CardTitle className="dark:text-[#e5e2e1]">마일스톤 목록</CardTitle>
@@ -2156,7 +2156,7 @@ export default function CustomerDetailPage({
                         return (
                           <div
                             key={milestone.id}
-                            className="rounded-lg border border-border bg-background p-3 space-y-2 dark:bg-[#1E1E1E] dark:border-[#333333]"
+                            className="space-y-2 rounded-xl border border-[#dbe3ee] bg-white/90 p-3 shadow-sm dark:bg-[#1E1E1E] dark:border-[#333333]"
                           >
                             <div className="flex items-center justify-between gap-2">
                               <Badge variant="outline" className="font-mono text-xs whitespace-nowrap">{getStageLabel(displayedMilestones, index)}</Badge>
@@ -2173,7 +2173,7 @@ export default function CustomerDetailPage({
                     </div>
 
                     {/* 데스크탑 테이블 (md 이상) */}
-                    <div className="hidden md:block rounded-lg border border-border dark:border-[#333333] overflow-hidden">
+                    <div className="hidden overflow-hidden rounded-xl border border-[#dbe3ee] bg-white/75 md:block dark:border-[#333333]">
                       <Table>
                         <TableHeader>
                           <TableRow className="bg-secondary/50 hover:bg-secondary/50 dark:bg-[#0e0e0e] dark:hover:bg-[#0e0e0e]">
@@ -2209,7 +2209,7 @@ export default function CustomerDetailPage({
 
                             return (
                             <Fragment key={milestone.id}>
-                            <TableRow className="hover:bg-secondary/30 dark:hover:bg-[#323232] h-14">
+                            <TableRow className="h-14 hover:bg-[#f3f1ff]/70 dark:hover:bg-[#323232]">
                               <TableCell className="py-3">
                                 <Badge variant="outline" className="font-mono text-xs whitespace-nowrap">{getStageLabel(displayedMilestones, index)}</Badge>
                               </TableCell>
@@ -2342,7 +2342,7 @@ export default function CustomerDetailPage({
                               </TableCell>
                             </TableRow>
                             {expandedMilestones.has(milestone.id) && (
-                              <TableRow className="bg-secondary/20 dark:bg-[#1E1E1E]">
+                              <TableRow className="bg-[#f6f4ff] dark:bg-[#1E1E1E]">
                                 <TableCell colSpan={8} className="py-4">
                                   <div className="space-y-3">
                                     <div className="space-y-2">
@@ -2356,7 +2356,7 @@ export default function CustomerDetailPage({
                                     </div>
 
                                     {sourceMilestone && noteEditTarget === milestone.id && (
-                                      <div className="space-y-2 rounded-md border border-border bg-background p-3 dark:bg-[#1E1E1E] dark:border-[#333333]">
+                                      <div className="space-y-2 rounded-md border border-[#dbe3ee] bg-white/85 p-3 shadow-sm dark:bg-[#1E1E1E] dark:border-[#333333]">
                                         <Textarea
                                           value={noteDrafts[getDraftKey(milestone.id)] || ''}
                                           onChange={(e) => setNoteDrafts((prev) => ({
@@ -2401,7 +2401,7 @@ export default function CustomerDetailPage({
               </TabsContent>
 
               <TabsContent value="milestone-detail">
-                <Card className="bg-secondary/30 border-border dark:bg-[#171616] dark:border-[#333333]">
+                <Card className="border-[#dbe3ee] bg-white/92 shadow-[0_20px_48px_-36px_rgba(37,22,120,0.32)] dark:bg-[#171616] dark:border-[#333333]">
                   <CardHeader>
                     <CardTitle>파일 라이브러리</CardTitle>
                     <CardDescription>마일스톤 목록에서 단계/액션아이템을 클릭해 파일 라이브러리를 관리합니다.</CardDescription>
@@ -2467,7 +2467,7 @@ export default function CustomerDetailPage({
                       return (
                         <div className="space-y-4">
                           <div>
-                            <div className="rounded-lg border border-border bg-secondary/20 p-4 dark:bg-[#1E1E1E] dark:border-[#333333]">
+                            <div className="rounded-lg border border-[#dbe3ee] bg-white/75 p-4 dark:bg-[#1E1E1E] dark:border-[#333333]">
                               <div className="flex items-center justify-between">
                                 <div>
                                   <p className="text-xs text-muted-foreground">단계 (폴더)</p>
@@ -2534,7 +2534,7 @@ export default function CustomerDetailPage({
                                           )}
                                           <button
                                             type="button"
-                                            className={`min-w-0 flex-1 rounded-md border bg-background px-3 py-2 text-left text-sm hover:bg-secondary dark:hover:bg-[#323232] transition-colors${milestone.id === selectedMilestoneId ? ' border-primary/50 dark:bg-[#323232]' : ' border-border'}${dragOverMilestoneId === milestone.id ? ' ring-2 ring-primary/50 bg-primary/5 dark:bg-primary/10' : ''}`}
+                                            className={`min-w-0 flex-1 rounded-md border bg-white/90 px-3 py-2 text-left text-sm transition-colors hover:bg-[#f3f1ff] dark:hover:bg-[#323232]${milestone.id === selectedMilestoneId ? ' border-primary/50 dark:bg-[#323232]' : ' border-[#dbe3ee]'}${dragOverMilestoneId === milestone.id ? ' ring-2 ring-primary/50 bg-primary/5 dark:bg-primary/10' : ''}`}
                                             style={{ paddingLeft: `${12 + (level * 16)}px` }}
                                             onClick={() => {
                                               setSelectedMilestoneId(milestone.id)
@@ -2797,7 +2797,7 @@ export default function CustomerDetailPage({
               </TabsContent>
               
               <TabsContent value="gantt">
-                <Card className="bg-secondary/30 border-border dark:bg-[#171616] dark:border-[#333333]">
+                <Card className="border-[#dbe3ee] bg-white/92 shadow-[0_20px_48px_-36px_rgba(37,22,120,0.32)] dark:bg-[#171616] dark:border-[#333333]">
                   <CardHeader>
                     <CardTitle>간이 WBS</CardTitle>
                     <CardDescription>워크플로우 단계를 WBS로 구현하여 조회 및 다운로드 할 수 있습니다.</CardDescription>
