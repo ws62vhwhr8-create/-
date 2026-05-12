@@ -76,6 +76,8 @@ export interface MilestoneFile {
   id: string
   milestoneId: string
   noteId: string | null
+  parentFolderId?: string | null
+  folderPath?: string[]
   fileName: string
   fileSize: number
   fileType: string

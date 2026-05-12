@@ -56,7 +56,7 @@ export function SolutionCardGrid({ solutions, value, onChange }: SolutionCardGri
       {showSearch && (
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[#64748B] dark:text-[#908fa0] pointer-events-none" />
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[#6360a0] dark:text-[#908fa0] pointer-events-none" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -67,7 +67,7 @@ export function SolutionCardGrid({ solutions, value, onChange }: SolutionCardGri
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
-            className="h-9 rounded-md border border-[#E2E8F0] dark:border-[#464554]/50 bg-white dark:bg-[#1E1E1E] px-2 text-sm text-[#1b1b23] dark:text-[#e5e2e1] focus:outline-none focus:ring-2 focus:ring-ring"
+            className="h-9 rounded-md border border-[#dbd6f0] dark:border-[#464554]/50 bg-white dark:bg-[#1E1E1E] px-2 text-sm text-[#1b1b23] dark:text-[#e5e2e1] focus:outline-none focus:ring-2 focus:ring-ring"
           >
             <option value="default">기본 순</option>
             <option value="stages">단계 수 순</option>
@@ -77,7 +77,7 @@ export function SolutionCardGrid({ solutions, value, onChange }: SolutionCardGri
       )}
 
       {filtered.length === 0 ? (
-        <p className="py-4 text-center text-sm text-[#64748B] dark:text-[#908fa0]">
+        <p className="py-4 text-center text-sm text-[#6360a0] dark:text-[#908fa0]">
           검색 결과가 없습니다.
         </p>
       ) : (
@@ -97,7 +97,7 @@ export function SolutionCardGrid({ solutions, value, onChange }: SolutionCardGri
                   "hover:bg-[#F3FBF4] dark:hover:bg-[#252525]",
                   isSelected
                     ? ""
-                    : "border-[#E2E8F0] dark:border-[#333333] bg-white dark:bg-[#1E1E1E]"
+                    : "border-[#dbd6f0] dark:border-[#333333] bg-white dark:bg-[#1E1E1E]"
                 )}
                 style={isSelected ? { borderColor: 'var(--primary)', backgroundColor: 'color-mix(in srgb, var(--primary) 8%, transparent)' } : {}}
               >
@@ -110,11 +110,11 @@ export function SolutionCardGrid({ solutions, value, onChange }: SolutionCardGri
                   )}
                 </div>
                 {solution.description && (
-                  <p className="text-xs text-[#64748B] dark:text-[#908fa0] line-clamp-2 leading-relaxed">
+                  <p className="text-xs text-[#6360a0] dark:text-[#908fa0] line-clamp-2 leading-relaxed">
                     {solution.description}
                   </p>
                 )}
-                <div className="flex items-center gap-3 text-xs text-[#64748B] dark:text-[#908fa0] mt-0.5">
+                <div className="flex items-center gap-3 text-xs text-[#6360a0] dark:text-[#908fa0] mt-0.5">
                   <span className="flex items-center gap-1">
                     <Layers className="h-3 w-3" />
                     {stageCount}단계

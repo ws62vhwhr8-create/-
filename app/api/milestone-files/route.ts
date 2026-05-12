@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const milestoneId = searchParams.get('milestoneId')
     const noteId = searchParams.get('noteId')
+    const parentFolderId = searchParams.get('parentFolderId')
 
     if (!milestoneId) {
       return NextResponse.json(
@@ -33,6 +34,13 @@ export async function GET(request: NextRequest) {
         parameters.push({ name: '@noteId', value: noteId })
       } else {
         query += ` AND (c.noteId = null OR NOT IS_DEFINED(c.noteId))`
+      }
+
+      if (parentFolderId) {
+        query += ` AND c.parentFolderId = @parentFolderId`
+        parameters.push({ name: '@parentFolderId', value: parentFolderId })
+      } else {
+        query += ` AND (c.parentFolderId = null OR NOT IS_DEFINED(c.parentFolderId))`
       }
 
       const { resources } = await container.items.query({ query, parameters }).fetchAll()
@@ -63,7 +71,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { milestoneId, noteId, fileName, fileSize, fileType, base64Content, kind, isFolder } = body
+    const { milestoneId, noteId, fileName, fileSize, fileType, base64Content, kind, isFolder, parentFolderId, folderPath } = body
 
     if (!milestoneId || !fileName) {
       return NextResponse.json(
@@ -79,6 +87,10 @@ export async function POST(request: NextRequest) {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         milestoneId,
         noteId: noteId || null,
+        parentFolderId: parentFolderId || null,
+        folderPath: Array.isArray(folderPath)
+          ? folderPath.filter((segment: unknown): segment is string => typeof segment === 'string')
+          : [],
         fileName,
         fileSize,
         fileType,
@@ -100,6 +112,9 @@ export async function POST(request: NextRequest) {
           isFolder: Boolean(isFolder),
           base64Content,
           fileType,
+          folderPath: Array.isArray(folderPath)
+            ? folderPath.filter((segment: unknown): segment is string => typeof segment === 'string')
+            : [],
         })
       } catch (sharePointError) {
         await container.item(file.id, file.milestoneId).delete().catch(() => undefined)
@@ -133,7 +148,7 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { id, milestoneId, noteId, kind } = body
+    const { id, milestoneId, noteId, kind, parentFolderId, folderPath } = body
 
     if (!id || !milestoneId) {
       return NextResponse.json({ error: 'id and milestoneId are required' }, { status: 400 })
@@ -151,10 +166,22 @@ export async function PATCH(request: NextRequest) {
       }
 
       const existing = resources[0] as MilestoneFile
+      const normalizedFolderPath = Array.isArray(folderPath)
+        ? folderPath.filter((segment: unknown): segment is string => typeof segment === 'string')
+        : (existing.folderPath ?? [])
+      const normalizedParentFolderId = parentFolderId === undefined
+        ? (existing.parentFolderId ?? null)
+        : (parentFolderId || null)
 
       if (existing.milestoneId === milestoneId) {
         // Same partition key — update in place
-        const updated: MilestoneFile = { ...existing, noteId: noteId ?? null, kind: kind ?? existing.kind }
+        const updated: MilestoneFile = {
+          ...existing,
+          noteId: noteId ?? null,
+          kind: kind ?? existing.kind,
+          parentFolderId: normalizedParentFolderId,
+          folderPath: normalizedFolderPath,
+        }
         const { resource } = await container.item(id, milestoneId).replace(updated)
         return NextResponse.json(resource)
       } else {
@@ -165,6 +192,8 @@ export async function PATCH(request: NextRequest) {
           milestoneId,
           noteId: noteId ?? null,
           kind: kind ?? existing.kind,
+          parentFolderId: normalizedParentFolderId,
+          folderPath: normalizedFolderPath,
         }
         const { resource } = await container.items.create(updated)
         return NextResponse.json(resource)

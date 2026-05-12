@@ -49,6 +49,7 @@ type SharePointSyncInput = {
   isFolder?: boolean;
   base64Content?: string;
   fileType?: string;
+  folderPath?: string[];
 };
 
 const encodePath = (path: string) => path.split('/').map((segment) => encodeURIComponent(segment)).join('/');
@@ -106,12 +107,17 @@ export async function syncMilestoneFileToSharePoint(input: SharePointSyncInput):
   const { driveId, rootFolder } = getSharePointConfig();
   const client = getGraphClient();
 
+  const normalizedFolderPath = (input.folderPath ?? [])
+    .map((segment) => sanitizePathSegment(segment))
+    .filter((segment) => segment.length > 0);
+
   const baseSegments = [
     rootFolder,
     sanitizePathSegment(input.milestoneId),
     input.kind === 'stage'
       ? 'stage'
       : `action-item/${sanitizePathSegment(input.noteId || 'unknown')}`,
+    ...normalizedFolderPath,
   ]
     .join('/')
     .split('/');
@@ -151,9 +157,14 @@ export async function uploadFileWithSessionToSharePoint(input: {
   fileName: string
   fileType?: string
   fileBuffer: Buffer
+  folderPath?: string[]
 }): Promise<string> {
   const { driveId, rootFolder } = getSharePointConfig()
   const client = getGraphClient()
+
+  const normalizedFolderPath = (input.folderPath ?? [])
+    .map((segment) => sanitizePathSegment(segment))
+    .filter((segment) => segment.length > 0)
 
   const baseSegments = [
     rootFolder,
@@ -161,6 +172,7 @@ export async function uploadFileWithSessionToSharePoint(input: {
     input.kind === 'stage'
       ? 'stage'
       : `action-item/${sanitizePathSegment(input.noteId || 'unknown')}`,
+    ...normalizedFolderPath,
   ]
     .join('/')
     .split('/')

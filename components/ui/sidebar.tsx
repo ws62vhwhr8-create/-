@@ -88,7 +88,7 @@ function SidebarProvider({
 function Sidebar({ 
   side = 'left', 
   variant = 'sidebar', 
-  collapsible = 'icon', // 기본값을 icon으로 설정하여 접혔을 때 아이콘이 남게 함
+  collapsible = 'offcanvas',
   className, 
   children, 
   ...props 
@@ -128,7 +128,7 @@ function Sidebar({
         className={cn(
           'relative h-screen w-[var(--sidebar-width)] bg-transparent transition-[width] duration-200 ease-linear',
           'group-data-[collapsible=offcanvas]:w-0',
-          'group-data-[state=collapsed]:w-[var(--sidebar-width-icon)]'
+          'group-data-[state=collapsed]:w-0'
         )}
       />
       {/* 실제 보이는 고정된 사이드바 본체 */}
@@ -136,9 +136,9 @@ function Sidebar({
         className={cn(
           'fixed inset-y-0 z-10 flex h-screen w-[var(--sidebar-width)] transition-[left,right,width] duration-200 ease-linear',
           side === 'left' 
-            ? 'left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]' 
-            : 'right-0',
-          'group-data-[state=collapsed]:w-[var(--sidebar-width-icon)]',
+            ? 'left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)] group-data-[state=collapsed]:left-[calc(var(--sidebar-width)*-1)]' 
+            : 'right-0 group-data-[state=collapsed]:right-[calc(var(--sidebar-width)*-1)]',
+          'group-data-[state=collapsed]:w-0',
           className
         )}
         {...props}

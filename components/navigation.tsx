@@ -94,18 +94,18 @@ export function Navigation() {
           )}
         >
           {state === "collapsed" ? (
-              <div className="flex h-8 w-8 origin-left scale-[1.35] items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80 shadow-[0_10px_28px_-20px_rgba(79,70,229,0.8)] dark:from-indigo-500/30 dark:to-indigo-600/20 dark:border dark:border-indigo-500/40">
-              <FolderKanban className="h-4 w-4 text-primary-foreground dark:text-indigo-400" />
+              <div className="flex h-8 w-8 origin-left scale-[1.35] items-center justify-center rounded-lg border border-[#dbd6f0] bg-[#f3f1ff] shadow-sm dark:border-indigo-500/40 dark:bg-indigo-500/15">
+              <FolderKanban className="h-4 w-4 text-[#4f46e5] dark:text-indigo-400" />
             </div>
           ) : (
             <div className="origin-left scale-[1.35]">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/80 shadow-[0_10px_28px_-20px_rgba(79,70,229,0.8)] dark:from-indigo-500/30 dark:to-indigo-600/20 dark:border dark:border-indigo-500/40">
-                  <FolderKanban className="h-4 w-4 text-primary-foreground dark:text-indigo-400" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#dbd6f0] bg-[#f3f1ff] shadow-sm dark:border-indigo-500/40 dark:bg-indigo-500/15">
+                  <FolderKanban className="h-4 w-4 text-[#4f46e5] dark:text-indigo-400" />
                 </div>
-                <span className="text-lg leading-none font-bold text-foreground dark:text-indigo-400 block truncate tracking-tight">영업 로드맵</span>
+                <span className="text-lg leading-none font-bold text-[#1e1b4b] dark:text-indigo-400 block truncate tracking-tight">영업 로드맵</span>
               </div>
-              <p className="mt-0.5 text-[10px] text-muted-foreground/70 dark:text-neutral-500 uppercase tracking-widest font-medium">Management Portal</p>
+              <p className="mt-0.5 text-[10px] text-[#6360a0] dark:text-neutral-500 uppercase tracking-widest font-medium">Management Portal</p>
             </div>
           )}
         </Link>
@@ -155,21 +155,23 @@ export function Navigation() {
           </SidebarGroup>
         )}
 
-        <SidebarSeparator className="mt-auto mb-2" />
-        <SidebarGroup className="pt-0">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                type="button"
-                onClick={() => setTheme(mounted && resolvedTheme === "dark" ? "light" : "dark")}
-              >
-                {mounted && resolvedTheme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                <span>{mounted && resolvedTheme === "dark" ? "다크모드 Off" : "다크모드 On"}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+        <SidebarSeparator className="mt-auto mb-0" />
+        <SidebarGroup className="pt-0 pb-0">
+          <div className="space-y-2">
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  type="button"
+                  className="-mt-[5px]"
+                  onClick={() => setTheme(mounted && resolvedTheme === "dark" ? "light" : "dark")}
+                >
+                  {mounted && resolvedTheme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  <span>{mounted && resolvedTheme === "dark" ? "다크모드 Off" : "다크모드 On"}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
 
-          <div className="mt-2 rounded-xl border border-[#d9d1f0] bg-white/85 p-2.5 shadow-[0_16px_32px_-28px_rgba(79,70,229,0.65)] dark:border-neutral-700/50 dark:bg-neutral-900/80">
+            <div className="rounded-xl border border-[#d9d1f0] bg-white/85 p-2.5 shadow-[0_16px_32px_-28px_rgba(79,70,229,0.65)] dark:border-neutral-700/50 dark:bg-neutral-900/80">
             <div className={cn("flex items-center", state === "collapsed" ? "justify-center" : "gap-2.5") }>
               <Avatar className="h-8 w-8 ring-2 ring-border/50">
                 <AvatarImage src={accountImage} alt={accountName} />
@@ -207,6 +209,7 @@ export function Navigation() {
                 <span className="sr-only">로그아웃</span>
               </Button>
             )}
+            </div>
           </div>
         </SidebarGroup>
       </SidebarContent>

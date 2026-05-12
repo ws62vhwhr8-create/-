@@ -137,6 +137,8 @@ type FileLibraryTarget = {
   noteId: string | null
   kind: 'stage' | 'action-item'
   label: string
+  parentFolderId: string | null
+  folderPath: string[]
 }
 
 type EditableMilestone = Omit<Milestone, 'dueDate' | 'notifyDate'> & {
@@ -198,6 +200,13 @@ export default function CustomerDetailPage({
   const [editingMilestones, setEditingMilestones] = useState<EditableMilestone[]>([])
   const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set())
   const [activeTab, setActiveTab] = useState("table")
+    // Collapse customer info accordion when switching to file library tab
+    const [customerSummaryOpen, setCustomerSummaryOpen] = useState<string | undefined>("customer-summary")
+    useEffect(() => {
+      if (activeTab === "milestone-detail") {
+        setCustomerSummaryOpen(undefined)
+      }
+    }, [activeTab])
   const [selectedMilestoneId, setSelectedMilestoneId] = useState<string | null>(null)
   const [noteEditTarget, setNoteEditTarget] = useState<string | null>(null)
   const [replyTarget, setReplyTarget] = useState<{ milestoneId: string; parentNoteId: string } | null>(null)
@@ -351,6 +360,8 @@ export default function CustomerDetailPage({
       noteId: null,
       kind: 'stage',
       label: milestone.stageName,
+      parentFolderId: null,
+      folderPath: [],
     })
   }, [customer, selectedMilestoneId, selectedFileTarget?.milestoneId, selectedFileTarget?.noteId])
 
@@ -751,6 +762,8 @@ export default function CustomerDetailPage({
         noteId: null,
         kind: 'stage',
         label: milestone.stageName,
+        parentFolderId: null,
+        folderPath: [],
       })
     }
     setActiveTab("milestone-detail")
@@ -758,7 +771,10 @@ export default function CustomerDetailPage({
   }
 
   const getFileTargetKey = (target: FileLibraryTarget) => (
-    target.noteId ? `${target.milestoneId}::note::${target.noteId}` : `${target.milestoneId}::stage`
+    [
+      target.noteId ? `${target.milestoneId}::note::${target.noteId}` : `${target.milestoneId}::stage`,
+      target.parentFolderId ?? 'root',
+    ].join('::')
   )
 
   const openActionItemFileLibrary = (milestone: Milestone, note: MilestoneNote) => {
@@ -768,6 +784,8 @@ export default function CustomerDetailPage({
       noteId: note.id,
       kind: 'action-item',
       label: note.content,
+      parentFolderId: null,
+      folderPath: [],
     })
     setActiveTab('milestone-detail')
     setExpandedMilestones((prev) => new Set(prev).add(milestone.id))
@@ -1061,6 +1079,7 @@ export default function CustomerDetailPage({
     const params = new URLSearchParams({
       milestoneId: target.milestoneId,
       ...(target.noteId && { noteId: target.noteId }),
+      ...(target.parentFolderId && { parentFolderId: target.parentFolderId }),
     })
 
     const response = await fetch(`/api/milestone-files?${params}`)
@@ -1126,6 +1145,8 @@ export default function CustomerDetailPage({
           formData.append('milestoneId', target.milestoneId)
           if (target.noteId) formData.append('noteId', target.noteId)
           formData.append('kind', target.kind)
+          formData.append('parentFolderId', target.parentFolderId ?? '')
+          formData.append('folderPath', JSON.stringify(target.folderPath))
 
           const response = await fetch('/api/milestone-files/upload', {
             method: 'POST',
@@ -1182,6 +1203,8 @@ export default function CustomerDetailPage({
           isFolder: false,
           base64Content: base64Content,
           kind: target.kind,
+          parentFolderId: target.parentFolderId,
+          folderPath: target.folderPath,
         }
         
         const response = await fetch('/api/milestone-files', {
@@ -1244,6 +1267,8 @@ export default function CustomerDetailPage({
           fileType: 'application/x-folder',
           isFolder: true,
           kind: folderTarget.kind,
+          parentFolderId: folderTarget.parentFolderId,
+          folderPath: folderTarget.folderPath,
         }),
       })
 
@@ -1277,6 +1302,8 @@ export default function CustomerDetailPage({
           milestoneId: targetMilestone.id,
           noteId: null,
           kind: 'stage',
+          parentFolderId: null,
+          folderPath: [],
         }),
       })
       if (!response.ok) {
@@ -1294,6 +1321,8 @@ export default function CustomerDetailPage({
         noteId: null,
         kind: 'stage',
         label: targetMilestone.stageName,
+        parentFolderId: null,
+        folderPath: [],
       }
       await reloadFilesForTarget(targetFileTarget)
     } catch (error) {
@@ -2002,7 +2031,7 @@ export default function CustomerDetailPage({
               </div>
             </div>
 
-            <Accordion type="single" collapsible defaultValue="customer-summary" className="rounded-2xl border border-[#dbe3ee] bg-white/92 px-4 shadow-[0_20px_48px_-36px_rgba(37,22,120,0.32)] dark:border-[#333333] dark:bg-[#1E1E1E]/60">
+            <Accordion type="single" collapsible value={customerSummaryOpen} onValueChange={setCustomerSummaryOpen} className="rounded-2xl border border-[#dbe3ee] bg-white/92 px-4 shadow-[0_20px_48px_-36px_rgba(37,22,120,0.32)] dark:border-[#333333] dark:bg-[#1E1E1E]/60">
               <AccordionItem value="customer-summary" className="border-b-0">
                 <AccordionTrigger className="py-3 text-sm dark:text-[#e5e2e1]">고객 정보</AccordionTrigger>
                 <AccordionContent className="pb-4">
@@ -2122,20 +2151,20 @@ export default function CustomerDetailPage({
             </Accordion>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-              <TabsList className="bg-secondary/70 dark:bg-[#1c1b1b] border border-border dark:border-[#333333]">
-                <TabsTrigger value="table" className="dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-indigo-400 dark:data-[state=active]:border-b-2 dark:data-[state=active]:border-indigo-500 dark:text-[#c7c4d7]">마일스톤 테이블</TabsTrigger>
-                <TabsTrigger value="milestone-detail" className="dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-indigo-400 dark:data-[state=active]:border-b-2 dark:data-[state=active]:border-indigo-500 dark:text-[#c7c4d7]">파일 라이브러리</TabsTrigger>
-                <TabsTrigger value="gantt" className="dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-indigo-400 dark:data-[state=active]:border-b-2 dark:data-[state=active]:border-indigo-500 dark:text-[#c7c4d7]">간이 WBS</TabsTrigger>
+              <TabsList className="bg-[#f3f1ff] border border-[#dbd6f0] p-1 shadow-sm dark:bg-[#1c1b1b] dark:border-[#333333]">
+                <TabsTrigger value="table" className="rounded-md px-4 text-[#6360a0] transition-all data-[state=active]:bg-white data-[state=active]:text-[#1e1b4b] data-[state=active]:shadow-sm dark:text-[#c7c4d7] dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-indigo-400 dark:data-[state=active]:border-b-2 dark:data-[state=active]:border-indigo-500">마일스톤 테이블</TabsTrigger>
+                <TabsTrigger value="milestone-detail" className="rounded-md px-4 text-[#6360a0] transition-all data-[state=active]:bg-white data-[state=active]:text-[#1e1b4b] data-[state=active]:shadow-sm dark:text-[#c7c4d7] dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-indigo-400 dark:data-[state=active]:border-b-2 dark:data-[state=active]:border-indigo-500">파일 라이브러리</TabsTrigger>
+                <TabsTrigger value="gantt" className="rounded-md px-4 text-[#6360a0] transition-all data-[state=active]:bg-white data-[state=active]:text-[#1e1b4b] data-[state=active]:shadow-sm dark:text-[#c7c4d7] dark:data-[state=active]:bg-transparent dark:data-[state=active]:text-indigo-400 dark:data-[state=active]:border-b-2 dark:data-[state=active]:border-indigo-500">간이 WBS</TabsTrigger>
               </TabsList>
               
               <TabsContent value="table">
-                <Card className="bg-secondary/30 border-border shadow-sm dark:bg-[#171616] dark:border-[#333333]">
-                  <CardHeader className="flex flex-row items-start justify-between">
-                    <div>
-                      <CardTitle className="dark:text-[#e5e2e1]">마일스톤 목록</CardTitle>
-                      <CardDescription className="dark:text-[#908fa0]">각 단계의 진행 상태를 관리합니다.</CardDescription>
+                <Card className="bg-white/95 border border-[#dbd6f0] shadow-lg rounded-xl dark:bg-[#171616] dark:border-[#333333]">
+                  <CardHeader className="flex flex-col sm:flex-row items-start justify-between gap-4 px-4 sm:px-6 pt-[10px] pb-2 border-b border-[#ece8fa] dark:border-[#333333]">
+                    <div className="flex flex-col gap-1">
+                      <CardTitle className="text-lg font-bold tracking-tight text-[#1e1b4b] dark:text-[#e5e2e1]">마일스톤 목록</CardTitle>
+                      <CardDescription className="text-xs text-[#6360a0] dark:text-[#908fa0] mt-1">각 단계의 진행 상태를 관리합니다.</CardDescription>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => milestoneExcelInputRef.current?.click()}>
+                    <Button variant="outline" size="sm" className="self-start border-[#dbd6f0] bg-[#f3f1ff] text-[#1e1b4b] hover:bg-[#e9e6fa] dark:bg-[#23213a] dark:border-[#333333] dark:text-[#e5e2e1]" onClick={() => milestoneExcelInputRef.current?.click()}>
                       <Upload className="mr-2 h-4 w-4" />
                       Excel 가져오기
                     </Button>
@@ -2156,7 +2185,7 @@ export default function CustomerDetailPage({
                         return (
                           <div
                             key={milestone.id}
-                            className="rounded-lg border border-border bg-background p-3 space-y-2 dark:bg-[#1E1E1E] dark:border-[#333333]"
+                            className="rounded-lg border border-[#dbd6f0] bg-[#f3f1ff] p-3 space-y-2 dark:bg-[#23213a] dark:border-[#333333]"
                           >
                             <div className="flex items-center justify-between gap-2">
                               <Badge variant="outline" className="font-mono text-xs whitespace-nowrap">{getStageLabel(displayedMilestones, index)}</Badge>
@@ -2173,10 +2202,10 @@ export default function CustomerDetailPage({
                     </div>
 
                     {/* 데스크탑 테이블 (md 이상) */}
-                    <div className="hidden md:block rounded-lg border border-border dark:border-[#333333] overflow-hidden">
+                    <div className="hidden md:block rounded-lg border border-[#dbd6f0] bg-[#f3f1ff] overflow-hidden dark:border-[#333333] dark:bg-[#23213a]">
                       <Table>
                         <TableHeader>
-                          <TableRow className="bg-secondary/50 hover:bg-secondary/50 dark:bg-[#0e0e0e] dark:hover:bg-[#0e0e0e]">
+                          <TableRow className="bg-[#ece8fa] hover:bg-[#ece8fa] dark:bg-[#23213a] dark:hover:bg-[#23213a]">
                             <TableHead className="w-16 text-muted-foreground dark:text-[#908fa0] dark:uppercase dark:tracking-wider">단계</TableHead>
                             <TableHead className="text-muted-foreground dark:text-[#908fa0] dark:uppercase dark:tracking-wider">단계명</TableHead>
                             <TableHead className="text-muted-foreground dark:text-[#908fa0] dark:uppercase dark:tracking-wider">담당자</TableHead>
@@ -2209,7 +2238,7 @@ export default function CustomerDetailPage({
 
                             return (
                             <Fragment key={milestone.id}>
-                            <TableRow className="hover:bg-secondary/30 dark:hover:bg-[#323232] h-14">
+                            <TableRow className="bg-white/95 hover:bg-[#ece8fa] dark:bg-[#23213a] dark:hover:bg-[#323232] h-14">
                               <TableCell className="py-3">
                                 <Badge variant="outline" className="font-mono text-xs whitespace-nowrap">{getStageLabel(displayedMilestones, index)}</Badge>
                               </TableCell>
@@ -2342,7 +2371,7 @@ export default function CustomerDetailPage({
                               </TableCell>
                             </TableRow>
                             {expandedMilestones.has(milestone.id) && (
-                              <TableRow className="bg-secondary/20 dark:bg-[#1E1E1E]">
+                              <TableRow className="bg-[#f3f1ff] dark:bg-[#23213a]">
                                 <TableCell colSpan={8} className="py-4">
                                   <div className="space-y-3">
                                     <div className="space-y-2">
@@ -2356,7 +2385,7 @@ export default function CustomerDetailPage({
                                     </div>
 
                                     {sourceMilestone && noteEditTarget === milestone.id && (
-                                      <div className="space-y-2 rounded-md border border-border bg-background p-3 dark:bg-[#1E1E1E] dark:border-[#333333]">
+                                      <div className="space-y-2 rounded-md border border-[#dbd6f0] bg-white/95 p-3 dark:bg-[#23213a] dark:border-[#333333]">
                                         <Textarea
                                           value={noteDrafts[getDraftKey(milestone.id)] || ''}
                                           onChange={(e) => setNoteDrafts((prev) => ({
@@ -2401,22 +2430,288 @@ export default function CustomerDetailPage({
               </TabsContent>
 
               <TabsContent value="milestone-detail">
-                <Card className="bg-secondary/30 border-border dark:bg-[#171616] dark:border-[#333333]">
-                  <CardHeader>
-                    <CardTitle>파일 라이브러리</CardTitle>
-                    <CardDescription>마일스톤 목록에서 단계/액션아이템을 클릭해 파일 라이브러리를 관리합니다.</CardDescription>
+                {/* 단계(폴더) 영역 복원 */}
+                <div className="mb-4">
+                  <Card className="bg-white/95 border border-[#dbd6f0] shadow-lg rounded-xl dark:bg-[#171616] dark:border-[#333333]">
+                    <CardHeader className="flex flex-row items-start justify-between gap-4 px-6 pt-[10px] pb-2 border-b border-[#ece8fa] dark:border-[#333333]">
+                      <div className="flex flex-col gap-1">
+                        <CardTitle className="text-lg font-bold tracking-tight text-[#1e1b4b] dark:text-[#e5e2e1]">단계 (폴더)</CardTitle>
+                        <CardDescription className="text-xs text-[#6360a0] dark:text-[#908fa0] mt-1">단계별 폴더를 한눈에 관리하고 파일을 드래그하여 이동할 수 있습니다.</CardDescription>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => setIsStageFolderCollapsed((prev) => !prev)}
+                      >
+                        {isStageFolderCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </Button>
+                    </CardHeader>
+                    {!isStageFolderCollapsed && (
+                      <CardContent className="pt-2 pb-2 px-6">
+                        <div className="group/folder relative">
+                          <div
+                            className="space-y-2 overflow-y-auto pr-1"
+                            style={{ height: stageFolderHeight }}
+                          >
+                            {customer.milestones.map((milestone, index) => {
+                              const level = milestone.stageLevel ?? 0
+                              // 부모가 접혀 있으면 이 항목을 숨김
+                              const isHidden = customer.milestones.some((m, i) => {
+                                if (i >= index) return false
+                                const ml = m.stageLevel ?? 0
+                                if (ml >= level) return false
+                                if (collapsedStageFolderParents.has(m.id)) {
+                                  for (let j = i + 1; j < index; j++) {
+                                    if ((customer.milestones[j].stageLevel ?? 0) <= ml) return false
+                                  }
+                                  return true
+                                }
+                                return false
+                              })
+                              if (isHidden) return null
+                              const hasChildren = index + 1 < customer.milestones.length &&
+                                (customer.milestones[index + 1].stageLevel ?? 0) > level
+                              const isParentCollapsed = collapsedStageFolderParents.has(milestone.id)
+                              return (
+                                <div key={milestone.id} className="flex items-center gap-1">
+                                  {hasChildren ? (
+                                    <button
+                                      type="button"
+                                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-[#ece8fa] dark:hover:bg-[#23213a]"
+                                      onClick={() => setCollapsedStageFolderParents((prev) => {
+                                        const next = new Set(prev)
+                                        if (next.has(milestone.id)) next.delete(milestone.id)
+                                        else next.add(milestone.id)
+                                        return next
+                                      })}
+                                    >
+                                      {isParentCollapsed
+                                        ? <ChevronRight className="h-3 w-3" />
+                                        : <ChevronDown className="h-3 w-3" />}
+                                    </button>
+                                  ) : (
+                                    <span className="h-5 w-5 shrink-0" />
+                                  )}
+                                  <button
+                                    type="button"
+                                    className={`min-w-0 flex-1 rounded-md border border-[#dbd6f0] bg-[#f3f1ff] px-3 py-2 text-left text-sm hover:bg-[#e9e6fa] dark:bg-[#23213a] dark:border-[#333333] dark:hover:bg-[#323232] transition-colors${milestone.id === selectedMilestoneId ? ' border-primary/50 dark:bg-[#323232]' : ''}${dragOverMilestoneId === milestone.id ? ' ring-2 ring-primary/50 bg-primary/5 dark:bg-primary/10' : ''}`}
+                                    style={{ paddingLeft: `${12 + (level * 16)}px` }}
+                                    onClick={() => {
+                                      setSelectedMilestoneId(milestone.id)
+                                      setSelectedFileTarget({
+                                        milestoneId: milestone.id,
+                                        noteId: null,
+                                        kind: 'stage',
+                                        label: milestone.stageName,
+                                      })
+                                    }}
+                                    onDragOver={(e) => {
+                                      e.preventDefault()
+                                      e.dataTransfer.dropEffect = 'move'
+                                      setDragOverMilestoneId(milestone.id)
+                                    }}
+                                    onDragLeave={(e) => {
+                                      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                                        setDragOverMilestoneId(null)
+                                      }
+                                    }}
+                                    onDrop={(e) => {
+                                      e.preventDefault()
+                                      setDragOverMilestoneId(null)
+                                      const fileId = e.dataTransfer.getData('fileId')
+                                      const sourceKey = e.dataTransfer.getData('sourceKey')
+                                      if (fileId && sourceKey) {
+                                        void handleMoveFile(fileId, sourceKey, milestone)
+                                      }
+                                    }}
+                                  >
+                                    <span className="mr-2 inline-flex rounded border border-[#dbd6f0] bg-[#ece8fa] px-1 font-mono text-[11px] dark:bg-[#23213a] dark:border-[#333333]">{getStageLabel(customer.milestones, index)}</span>
+                                    <span className="inline-flex items-center gap-2 align-middle">
+                                      {milestone.id === selectedMilestoneId
+                                        ? <FolderOpen className={`h-4 w-4 ${level === 0 ? 'text-amber-500 dark:text-amber-400' : 'text-amber-400/80 dark:text-amber-400/70'}`} />
+                                        : <Folder className={`h-4 w-4 ${level === 0 ? 'text-amber-500 dark:text-amber-400' : 'text-amber-400/80 dark:text-amber-400/70'}`} />}
+                                      <span className="truncate">{milestone.stageName}</span>
+                                    </span>
+                                  </button>
+                                </div>
+                              )
+                            })}
+                          </div>
+                          <div
+                            className="absolute bottom-0 left-0 right-0 h-2 cursor-row-resize opacity-0 transition-opacity group-hover/folder:opacity-100 flex items-center justify-center"
+                            onMouseDown={(e) => {
+                              e.preventDefault()
+                              const startY = e.clientY
+                              const startH = stageFolderHeight
+                              const onMove = (ev: MouseEvent) => {
+                                const next = Math.max(64, startH + ev.clientY - startY)
+                                setStageFolderHeight(next)
+                              }
+                              const onUp = () => {
+                                window.removeEventListener('mousemove', onMove)
+                                window.removeEventListener('mouseup', onUp)
+                              }
+                              window.addEventListener('mousemove', onMove)
+                              window.addEventListener('mouseup', onUp)
+                            }}
+                          >
+                            <div className="h-1 w-10 rounded-full bg-[#dbd6f0] dark:bg-[#333333]" />
+                          </div>
+                        </div>
+                      </CardContent>
+                    )}
+                  </Card>
+                </div>
+                {/* Teams-style File Library UI redesign start */}
+                <Card className="bg-white/95 border border-[#dbd6f0] shadow-lg rounded-xl dark:bg-[#171616] dark:border-[#333333]">
+                  <CardHeader className="flex flex-row items-start justify-between gap-4 px-6 pt-[10px] pb-2 border-b border-[#ece8fa] dark:border-[#333333]">
+                    <div className="flex flex-col gap-1">
+                      {/* Robust Breadcrumb for 단계(폴더) navigation */}
+                      {selectedMilestoneId && customer && (() => {
+                        // Find the 단계(폴더) path for the selected milestone robustly
+                        const milestones = customer.milestones;
+                        const idx = milestones.findIndex(m => m.id === selectedMilestoneId);
+                        if (idx === -1) return null;
+                        const path: { id: string, name: string, level: number }[] = [];
+                        let curIdx = idx;
+                        let curLevel = milestones[curIdx].stageLevel ?? 0;
+                        // Walk up the milestone list to build the path
+                        while (curIdx >= 0) {
+                          const m = milestones[curIdx];
+                          if ((m.stageLevel ?? 0) === curLevel) {
+                            path.unshift({ id: m.id, name: m.stageName, level: curLevel });
+                            curLevel--;
+                          }
+                          curIdx--;
+                        }
+                        // If path is empty, fallback to just the selected milestone
+                        if (path.length === 0 && milestones[idx]) {
+                          path.push({ id: milestones[idx].id, name: milestones[idx].stageName, level: milestones[idx].stageLevel ?? 0 });
+                        }
+                        const selectedMilestone = milestones[idx]
+                        const folderTrail =
+                          selectedFileTarget &&
+                          selectedFileTarget.milestoneId === selectedMilestone.id &&
+                          selectedFileTarget.kind === 'stage'
+                            ? selectedFileTarget.folderPath
+                            : []
+
+                        return (
+                          <nav className="flex flex-wrap items-center gap-1 text-xs text-[#6360a0] dark:text-[#908fa0] mb-1 select-none">
+                            {path.map((p, i) => (
+                              <Fragment key={p.id}>
+                                {i > 0 && <ChevronRight className="inline h-3.5 w-3.5 mx-0.5 text-[#b3b0d7] dark:text-[#908fa0]/60" />}
+                                <button
+                                  type="button"
+                                  className={`hover:underline hover:text-indigo-600 dark:hover:text-indigo-300 ${i === path.length - 1 ? 'font-semibold text-[#1e1b4b] dark:text-[#e5e2e1] cursor-default' : 'cursor-pointer'}`}
+                                  disabled={i === path.length - 1}
+                                  onClick={() => {
+                                    setSelectedMilestoneId(p.id);
+                                    setSelectedFileTarget({ milestoneId: p.id, noteId: null, kind: 'stage', label: p.name, parentFolderId: null, folderPath: [] });
+                                  }}
+                                >
+                                  {p.name}
+                                </button>
+                              </Fragment>
+                            ))}
+                            {folderTrail.map((folderName, folderIndex) => (
+                              <Fragment key={`${folderName}-${folderIndex}`}>
+                                <ChevronRight className="inline h-3.5 w-3.5 mx-0.5 text-[#b3b0d7] dark:text-[#908fa0]/60" />
+                                <button
+                                  type="button"
+                                  className={`hover:underline hover:text-indigo-600 dark:hover:text-indigo-300 ${folderIndex === folderTrail.length - 1 ? 'font-semibold text-[#1e1b4b] dark:text-[#e5e2e1] cursor-default' : 'cursor-pointer'}`}
+                                  disabled={folderIndex === folderTrail.length - 1}
+                                  onClick={() => {
+                                    if (!selectedFileTarget || selectedFileTarget.kind !== 'stage') return
+                                    const nextFolderPath = folderTrail.slice(0, folderIndex + 1)
+                                    const rootTarget: FileLibraryTarget = {
+                                      milestoneId: selectedMilestone.id,
+                                      noteId: null,
+                                      kind: 'stage',
+                                      label: selectedMilestone.stageName,
+                                      parentFolderId: null,
+                                      folderPath: [],
+                                    }
+                                    const nextParentFolder = nextFolderPath.reduce<MilestoneFile | undefined>((parent, segmentName, idx) => {
+                                      const lookupTarget: FileLibraryTarget = {
+                                        ...rootTarget,
+                                        parentFolderId: parent?.id ?? null,
+                                        folderPath: nextFolderPath.slice(0, idx),
+                                      }
+                                      const filesAtLevel = libraryByTarget[getFileTargetKey(lookupTarget)] ?? []
+                                      return filesAtLevel.find((item) => item.isFolder && item.fileName === segmentName)
+                                    }, undefined)
+
+                                    setSelectedFileTarget({
+                                      ...rootTarget,
+                                      label: folderName,
+                                      parentFolderId: nextParentFolder?.id ?? null,
+                                      folderPath: nextFolderPath,
+                                    })
+                                  }}
+                                >
+                                  {folderName}
+                                </button>
+                              </Fragment>
+                            ))}
+                          </nav>
+                        );
+                      })()}
+                      <CardTitle className="text-lg font-bold tracking-tight text-[#1e1b4b] dark:text-[#e5e2e1]">파일 라이브러리</CardTitle>
+                      <CardDescription className="text-xs text-[#6360a0] dark:text-[#908fa0] mt-1">폴더/파일을 한눈에 관리하고 업로드할 수 있습니다.</CardDescription>
+                    </div>
+                    <div className="flex w-full sm:w-auto flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-9 flex-1 sm:flex-none min-w-[120px] px-4 text-sm font-medium border-[#dbd6f0] bg-[#f3f1ff] hover:bg-[#e9e6fa] dark:bg-[#23213a] dark:border-[#333333] dark:text-[#e5e2e1]"
+                        onClick={() => {
+                          if (!selectedMilestoneId) return;
+                          const milestone = customer.milestones.find(m => m.id === selectedMilestoneId);
+                          if (!milestone) return;
+                          const target = selectedFileTarget && selectedFileTarget.milestoneId === milestone.id
+                            ? selectedFileTarget
+                            : { milestoneId: milestone.id, noteId: null, kind: 'stage' as const, label: milestone.stageName, parentFolderId: null, folderPath: [] }
+                          handleCreateFolder(target);
+                        }}
+                        disabled={isLoadingFiles || !selectedMilestoneId}
+                      >
+                        <FolderPlus className="h-4 w-4 mr-2" /> 새 폴더
+                      </Button>
+                      <label htmlFor={`file-upload-teams-style`} className="h-9 flex-1 sm:flex-none min-w-[120px] px-4 flex items-center justify-center gap-2 rounded-md border border-[#dbd6f0] bg-[#f3f1ff] text-sm font-medium cursor-pointer hover:bg-[#e9e6fa] dark:bg-[#23213a] dark:border-[#333333] dark:text-[#e5e2e1]">
+                        <Upload className="h-4 w-4" /> 파일 업로드
+                        <input
+                          id={`file-upload-teams-style`}
+                          type="file"
+                          multiple
+                          className="hidden"
+                          onChange={(e) => {
+                            if (!selectedMilestoneId || isLoadingFiles) return;
+                            const milestone = customer.milestones.find(m => m.id === selectedMilestoneId);
+                            if (!milestone) return;
+                            const target = selectedFileTarget && selectedFileTarget.milestoneId === milestone.id
+                              ? selectedFileTarget
+                              : { milestoneId: milestone.id, noteId: null, kind: 'stage' as const, label: milestone.stageName, parentFolderId: null, folderPath: [] }
+                            handleFileUpload(target, e.target.files);
+                            e.currentTarget.value = '';
+                          }}
+                        />
+                      </label>
+                    </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="px-4 sm:px-6 pb-6 pt-4">
                     {(() => {
                       const selectedMilestone = customer.milestones.find((m) => m.id === selectedMilestoneId)
                       if (!selectedMilestone) {
                         return (
-                          <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
-                            <div className="rounded-full bg-muted p-4">
-                              <FolderOpen className="h-8 w-8 text-muted-foreground" />
+                          <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
+                            <div className="rounded-full bg-[#f3f1ff] p-5 dark:bg-[#23213a]">
+                              <FolderOpen className="h-10 w-10 text-[#b3b0d7] dark:text-[#908fa0]" />
                             </div>
-                            <p className="text-sm font-medium text-muted-foreground">마일스톤 단계를 선택하면 파일을 관리할 수 있습니다.</p>
-                            <p className="text-xs text-muted-foreground/60">위 마일스톤 테이블에서 단계를 클릭해주세요.</p>
+                            <p className="text-base font-semibold text-[#5b5785] dark:text-[#908fa0]">마일스톤 단계를 선택하면 파일을 관리할 수 있습니다.</p>
+                            <p className="text-xs text-[#b3b0d7] dark:text-[#908fa0]/60">상단 마일스톤 테이블에서 단계를 클릭해주세요.</p>
                           </div>
                         )
                       }
@@ -2429,9 +2724,10 @@ export default function CustomerDetailPage({
                               noteId: null,
                               kind: 'stage' as const,
                               label: selectedMilestone.stageName,
+                              parentFolderId: null,
+                              folderPath: [],
                             }
                       )
-
                       const targetKey = getFileTargetKey(currentTarget)
                       const files = libraryByTarget[targetKey] ?? []
                       const normalizedSearchQuery = fileSearchQuery.trim().toLowerCase()
@@ -2441,298 +2737,130 @@ export default function CustomerDetailPage({
                       const filteredFiles = [...searchedFiles].sort((a, b) => {
                         if (a.isFolder && !b.isFolder) return -1
                         if (!a.isFolder && b.isFolder) return 1
-
-                        if (fileSortOption === 'size-desc') {
-                          return b.fileSize - a.fileSize
-                        }
-
-                        if (fileSortOption === 'size-asc') {
-                          return a.fileSize - b.fileSize
-                        }
-
+                        if (fileSortOption === 'size-desc') return b.fileSize - a.fileSize
+                        if (fileSortOption === 'size-asc') return a.fileSize - b.fileSize
                         const aTime = new Date(a.uploadedAt).getTime()
                         const bTime = new Date(b.uploadedAt).getTime()
-                        if (fileSortOption === 'uploaded-asc') {
-                          return aTime - bTime
-                        }
-
+                        if (fileSortOption === 'uploaded-asc') return aTime - bTime
                         return bTime - aTime
                       })
-                      const inputId = `file-upload-${targetKey}`
                       const isUploadingCurrentTarget = uploadProgress?.targetKey === targetKey
                       const uploadPercent = isUploadingCurrentTarget && uploadProgress && uploadProgress.total > 0
                         ? Math.round((uploadProgress.completed / uploadProgress.total) * 100)
                         : 0
 
                       return (
-                        <div className="space-y-4">
-                          <div>
-                            <div className="rounded-lg border border-border bg-secondary/20 p-4 dark:bg-[#1E1E1E] dark:border-[#333333]">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="text-xs text-muted-foreground">단계 (폴더)</p>
-                                  <p className="text-[11px] text-muted-foreground/60 mt-0.5">단계별 파일 폴더입니다. 파일을 드래그하여 이동할 수 있습니다.</p>
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  onClick={() => setIsStageFolderCollapsed((prev) => !prev)}
-                                >
-                                  {isStageFolderCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                </Button>
-                              </div>
-                              {!isStageFolderCollapsed && (
-                                <div className="group/folder relative mt-2">
-                                  <div
-                                    className="space-y-2 overflow-y-auto pr-1"
-                                    style={{ height: stageFolderHeight }}
-                                  >
-                                    {customer.milestones.map((milestone, index) => {
-                                      const level = milestone.stageLevel ?? 0
-                                      // 부모가 접혀 있으면 이 항목을 숨김
-                                      const isHidden = customer.milestones.some((m, i) => {
-                                        if (i >= index) return false
-                                        const ml = m.stageLevel ?? 0
-                                        if (ml >= level) return false
-                                        if (collapsedStageFolderParents.has(m.id)) {
-                                          // m 이후 index 사이에 level <= ml 인 항목이 없으면 m의 자식
-                                          for (let j = i + 1; j < index; j++) {
-                                            if ((customer.milestones[j].stageLevel ?? 0) <= ml) return false
-                                          }
-                                          return true
-                                        }
-                                        return false
-                                      })
-                                      if (isHidden) return null
+                        <div className="flex flex-col gap-4">
+                          <div className="flex flex-col gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Input
+                                type="text"
+                                value={fileSearchQuery}
+                                onChange={(e) => setFileSearchQuery(e.target.value)}
+                                placeholder="파일명 검색"
+                                className="h-9 w-full sm:w-56 border-[#dbd6f0] bg-[#f3f1ff] text-sm focus:ring-2 focus:ring-indigo-200 dark:bg-[#23213a] dark:border-[#333333] dark:text-[#e5e2e1]"
+                              />
 
-                                      // 자식이 있는지 확인
-                                      const hasChildren = index + 1 < customer.milestones.length &&
-                                        (customer.milestones[index + 1].stageLevel ?? 0) > level
-                                      const isParentCollapsed = collapsedStageFolderParents.has(milestone.id)
-
-                                      return (
-                                        <div key={milestone.id} className="flex items-center gap-1">
-                                          {hasChildren ? (
-                                            <button
-                                              type="button"
-                                              className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-secondary"
-                                              onClick={() => setCollapsedStageFolderParents((prev) => {
-                                                const next = new Set(prev)
-                                                if (next.has(milestone.id)) next.delete(milestone.id)
-                                                else next.add(milestone.id)
-                                                return next
-                                              })}
-                                            >
-                                              {isParentCollapsed
-                                                ? <ChevronRight className="h-3 w-3" />
-                                                : <ChevronDown className="h-3 w-3" />}
-                                            </button>
-                                          ) : (
-                                            <span className="h-5 w-5 shrink-0" />
-                                          )}
-                                          <button
-                                            type="button"
-                                            className={`min-w-0 flex-1 rounded-md border bg-background px-3 py-2 text-left text-sm hover:bg-secondary dark:hover:bg-[#323232] transition-colors${milestone.id === selectedMilestoneId ? ' border-primary/50 dark:bg-[#323232]' : ' border-border'}${dragOverMilestoneId === milestone.id ? ' ring-2 ring-primary/50 bg-primary/5 dark:bg-primary/10' : ''}`}
-                                            style={{ paddingLeft: `${12 + (level * 16)}px` }}
-                                            onClick={() => {
-                                              setSelectedMilestoneId(milestone.id)
-                                              setSelectedFileTarget({
-                                                milestoneId: milestone.id,
-                                                noteId: null,
-                                                kind: 'stage',
-                                                label: milestone.stageName,
-                                              })
-                                            }}
-                                            onDragOver={(e) => {
-                                              e.preventDefault()
-                                              e.dataTransfer.dropEffect = 'move'
-                                              setDragOverMilestoneId(milestone.id)
-                                            }}
-                                            onDragLeave={(e) => {
-                                              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                                                setDragOverMilestoneId(null)
-                                              }
-                                            }}
-                                            onDrop={(e) => {
-                                              e.preventDefault()
-                                              setDragOverMilestoneId(null)
-                                              const fileId = e.dataTransfer.getData('fileId')
-                                              const sourceKey = e.dataTransfer.getData('sourceKey')
-                                              if (fileId && sourceKey) {
-                                                void handleMoveFile(fileId, sourceKey, milestone)
-                                              }
-                                            }}
-                                          >
-                                            <span className="mr-2 inline-flex rounded border border-border px-1 font-mono text-[11px]">{getStageLabel(customer.milestones, index)}</span>
-                                            <span className="inline-flex items-center gap-2 align-middle">
-                                              {milestone.id === selectedMilestoneId
-                                                ? <FolderOpen className={`h-4 w-4 ${level === 0 ? 'text-amber-500 dark:text-amber-400' : 'text-amber-400/80 dark:text-amber-400/70'}`} />
-                                                : <Folder className={`h-4 w-4 ${level === 0 ? 'text-amber-500 dark:text-amber-400' : 'text-amber-400/80 dark:text-amber-400/70'}`} />}
-                                              <span className="truncate">{milestone.stageName}</span>
-                                            </span>
-                                          </button>
-                                        </div>
-                                      )
-                                    })}
-                                  </div>
-                                  <div
-                                    className="absolute bottom-0 left-0 right-0 h-2 cursor-row-resize opacity-0 transition-opacity group-hover/folder:opacity-100 flex items-center justify-center"
-                                    onMouseDown={(e) => {
-                                      e.preventDefault()
-                                      const startY = e.clientY
-                                      const startH = stageFolderHeight
-                                      const onMove = (ev: MouseEvent) => {
-                                        const next = Math.max(64, startH + ev.clientY - startY)
-                                        setStageFolderHeight(next)
-                                      }
-                                      const onUp = () => {
-                                        window.removeEventListener('mousemove', onMove)
-                                        window.removeEventListener('mouseup', onUp)
-                                      }
-                                      window.addEventListener('mousemove', onMove)
-                                      window.addEventListener('mouseup', onUp)
-                                    }}
-                                  >
-                                    <div className="h-1 w-10 rounded-full bg-border" />
-                                  </div>
-                                </div>
-                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 min-w-0">
+                              <Badge variant="outline" className="text-xs px-2 py-1 bg-[#ece8fa] border-[#dbd6f0] text-[#6360a0] dark:bg-[#23213a] dark:border-[#333333] dark:text-[#e5e2e1]">
+                                {currentTarget.kind === 'stage' ? '단계' : '액션아이템'}
+                              </Badge>
+                              <span className="text-sm font-medium text-[#1e1b4b] dark:text-[#e5e2e1] max-w-full truncate">{currentTarget.label}</span>
+                              <Badge variant="secondary" className="text-xs tabular-nums bg-[#ece8fa] text-[#6360a0] dark:bg-[#23213a] dark:text-[#e5e2e1]">{files.length}개</Badge>
                             </div>
                           </div>
 
-                          <div className="rounded-lg border border-border bg-background p-4 dark:bg-[#1E1E1E] dark:border-[#333333]">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                              <div>
-                                <p className="text-xs text-muted-foreground">선택된 항목</p>
-                                <div className="mt-1 flex items-center gap-2">
-                                  <Badge variant="outline">{currentTarget.kind === 'stage' ? '단계' : '액션아이템'}</Badge>
-                                  <p className="text-sm font-medium">{currentTarget.label}</p>
-                                  <Badge variant="secondary" className="text-xs tabular-nums">{files.length}개</Badge>
+                          {isUploadingCurrentTarget && uploadProgress && (
+                            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 flex flex-col gap-2">
+                              <div className="flex items-center justify-between gap-3 text-xs sm:text-sm">
+                                <div className="flex items-center gap-2 text-primary">
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  <span className="font-medium">파일 업로드 진행 중</span>
                                 </div>
-                                <p className="mt-1 text-[11px] text-muted-foreground/70">
-                                  {currentTarget.kind === 'stage'
-                                    ? '이 단계 폴더에 마일스톤 단계 전반의 공유 파일을 업로드하세요.'
-                                    : '이 노트 폴더에 해당 액션아이템의 관련 첨부파일을 업로드하세요.'}
-                                </p>
+                                <span className="text-muted-foreground">{uploadPercent}%</span>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <Input
-                                  type="text"
-                                  value={fileSearchQuery}
-                                  onChange={(e) => setFileSearchQuery(e.target.value)}
-                                  placeholder="파일명 검색"
-                                  className="h-9 w-48"
+                              <div className="h-1.5 w-full overflow-hidden rounded-full bg-primary/15">
+                                <div
+                                  className="h-full rounded-full bg-primary transition-all duration-300"
+                                  style={{ width: `${uploadPercent}%` }}
                                 />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  className="h-9"
-                                  onClick={() => handleCreateFolder(currentTarget)}
-                                  disabled={isLoadingFiles}
-                                >
-                                  <FolderPlus className="h-4 w-4 mr-2" />
-                                  폴더 생성
-                                </Button>
-                                <input
-                                  id={inputId}
-                                  type="file"
-                                  multiple
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    if (isUploadingCurrentTarget) return
-                                    handleFileUpload(currentTarget, e.target.files)
-                                    e.currentTarget.value = ''
-                                  }}
-                                />
-                                <label
-                                  htmlFor={inputId}
-                                  className={`inline-flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium ${isUploadingCurrentTarget ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:bg-accent hover:text-accent-foreground'}`}
-                                >
-                                  {isUploadingCurrentTarget ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Upload className="h-4 w-4" />
-                                  )}
-                                  {isUploadingCurrentTarget && uploadProgress
-                                    ? `업로드 중 ${uploadProgress.completed}/${uploadProgress.total}`
-                                    : '파일 업로드'}
-                                </label>
                               </div>
+                              <p className="truncate text-xs text-muted-foreground">
+                                현재 파일: {uploadProgress.currentFileName}
+                              </p>
                             </div>
+                          )}
 
-                            {isUploadingCurrentTarget && uploadProgress && (
-                              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
-                                <div className="flex items-center justify-between gap-3 text-xs sm:text-sm">
-                                  <div className="flex items-center gap-2 text-primary">
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    <span className="font-medium">파일 업로드 진행 중</span>
-                                  </div>
-                                  <span className="text-muted-foreground">{uploadPercent}%</span>
-                                </div>
-                                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-primary/15">
-                                  <div
-                                    className="h-full rounded-full bg-primary transition-all duration-300"
-                                    style={{ width: `${uploadPercent}%` }}
-                                  />
-                                </div>
-                                <p className="mt-2 truncate text-xs text-muted-foreground">
-                                  현재 파일: {uploadProgress.currentFileName}
-                                </p>
+                          <div className="rounded-lg border border-[#dbd6f0] bg-[#f3f1ff] p-0 overflow-hidden dark:bg-[#23213a] dark:border-[#333333]">
+                            {filteredFiles.length === 0 ? (
+                              <div className="flex h-32 items-center justify-center text-base text-[#b3b0d7] dark:text-[#908fa0]">
+                                {files.length === 0 ? '업로드된 파일이 없습니다.' : '검색 결과가 없습니다.'}
                               </div>
-                            )}
-
-                            <div className="mt-4 rounded-md border border-border">
-                              {filteredFiles.length === 0 ? (
-                                <div className="flex h-28 items-center justify-center text-sm text-muted-foreground">
-                                  {files.length === 0 ? '업로드된 파일이 없습니다.' : '검색 결과가 없습니다.'}
-                                </div>
-                              ) : (
-                                <Table>
-                                  <TableHeader>
-                                    <TableRow>
-                                      <TableHead>파일명</TableHead>
-                                      <TableHead className="w-28 text-center">
+                            ) : (
+                              <div className="overflow-x-auto">
+                                <table className="min-w-[760px] w-full divide-y divide-[#ece8fa] dark:divide-[#333333]">
+                                  <thead className="bg-[#ece8fa] dark:bg-[#23213a]">
+                                    <tr>
+                                      <th className="px-4 py-2 text-left text-xs font-semibold text-[#6360a0] dark:text-[#e5e2e1]">파일명</th>
+                                      <th className="px-4 py-2 text-center text-xs font-semibold text-[#6360a0] dark:text-[#e5e2e1]">
                                         <div className="flex items-center justify-center gap-1">
                                           <span>크기</span>
-                                          <button
-                                            type="button"
-                                            className="text-muted-foreground hover:text-foreground"
-                                            onClick={toggleSizeSort}
-                                            aria-label="크기 정렬"
-                                          >
-                                            {fileSortOption === 'size-desc'
-                                              ? <ArrowDown className="h-3.5 w-3.5" />
-                                              : fileSortOption === 'size-asc'
-                                                ? <ArrowUp className="h-3.5 w-3.5" />
-                                                : <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />}
-                                          </button>
+                                          <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                              <button type="button" className="inline-flex items-center justify-center rounded hover:bg-[#dbd6f0] dark:hover:bg-[#333333] p-0.5 transition-colors">
+                                                <ChevronDown className="h-3 w-3" />
+                                              </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="center" className="min-w-[100px] bg-white opacity-100 dark:bg-white">
+                                              <DropdownMenuItem
+                                                onClick={() => setFileSortOption('size-asc')}
+                                                className={fileSortOption === 'size-asc' ? 'font-semibold text-indigo-600 dark:text-indigo-400' : ''}
+                                              >
+                                                작은 순
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem
+                                                onClick={() => setFileSortOption('size-desc')}
+                                                className={fileSortOption === 'size-desc' ? 'font-semibold text-indigo-600 dark:text-indigo-400' : ''}
+                                              >
+                                                큰 순
+                                              </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
                                         </div>
-                                      </TableHead>
-                                      <TableHead className="w-40 text-center">
+                                      </th>
+                                      <th className="px-4 py-2 text-center text-xs font-semibold text-[#6360a0] dark:text-[#e5e2e1]">
                                         <div className="flex items-center justify-center gap-1">
                                           <span>업로드 일시</span>
-                                          <button
-                                            type="button"
-                                            className="text-muted-foreground hover:text-foreground"
-                                            onClick={toggleUploadedSort}
-                                            aria-label="업로드 시간 정렬"
-                                          >
-                                            {fileSortOption === 'uploaded-asc'
-                                              ? <ArrowUp className="h-3.5 w-3.5" />
-                                              : fileSortOption === 'uploaded-desc'
-                                                ? <ArrowDown className="h-3.5 w-3.5" />
-                                                : <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />}
-                                          </button>
+                                          <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                              <button type="button" className="inline-flex items-center justify-center rounded hover:bg-[#dbd6f0] dark:hover:bg-[#333333] p-0.5 transition-colors">
+                                                <ChevronDown className="h-3 w-3" />
+                                              </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="center" className="min-w-[110px] bg-white opacity-100 dark:bg-white">
+                                              <DropdownMenuItem
+                                                onClick={() => setFileSortOption('uploaded-asc')}
+                                                className={fileSortOption === 'uploaded-asc' ? 'font-semibold text-indigo-600 dark:text-indigo-400' : ''}
+                                              >
+                                                오래된 순
+                                              </DropdownMenuItem>
+                                              <DropdownMenuItem
+                                                onClick={() => setFileSortOption('uploaded-desc')}
+                                                className={fileSortOption === 'uploaded-desc' ? 'font-semibold text-indigo-600 dark:text-indigo-400' : ''}
+                                              >
+                                                최신순
+                                              </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
                                         </div>
-                                      </TableHead>
-                                      <TableHead className="w-28 text-center">작업</TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
+                                      </th>
+                                      <th className="px-4 py-2 text-center text-xs font-semibold text-[#6360a0] dark:text-[#e5e2e1]">작업</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="bg-white/95 dark:bg-[#23213a]">
                                     {filteredFiles.map((file) => (
-                                      <TableRow
+                                      <tr
                                         key={file.id}
                                         draggable={!file.isFolder}
                                         onDragStart={(e) => {
@@ -2742,30 +2870,41 @@ export default function CustomerDetailPage({
                                             e.dataTransfer.effectAllowed = 'move'
                                           }
                                         }}
-                                        className={!file.isFolder ? 'cursor-grab active:cursor-grabbing' : undefined}
+                                        className={!file.isFolder ? 'cursor-grab active:cursor-grabbing group hover:bg-[#ece8fa] dark:hover:bg-[#23213a]/80 transition-colors' : 'group hover:bg-[#ece8fa] dark:hover:bg-[#23213a]/80 transition-colors'}
                                       >
-                                        <TableCell>
+                                        <td className="px-4 py-2 whitespace-nowrap">
                                           <button
                                             type="button"
-                                            onClick={() => !file.isFolder && handleViewFile(file)}
-                                            className={file.isFolder ? 'flex items-center gap-2 cursor-default' : 'flex items-center gap-2 cursor-pointer hover:text-primary transition-colors'}
+                                            onClick={() => {
+                                              if (file.isFolder) {
+                                                setSelectedFileTarget({
+                                                  ...currentTarget,
+                                                  label: file.fileName,
+                                                  parentFolderId: file.id,
+                                                  folderPath: [...currentTarget.folderPath, file.fileName],
+                                                })
+                                                return
+                                              }
+                                              handleViewFile(file)
+                                            }}
+                                            className={file.isFolder ? 'flex items-center gap-2 cursor-pointer hover:text-indigo-600 transition-colors max-w-[320px]' : 'flex items-center gap-2 cursor-pointer hover:text-indigo-600 transition-colors max-w-[320px]'}
                                           >
                                             {file.isFolder ? (
                                               <Folder className="h-4 w-4 text-amber-500 dark:text-amber-400" />
                                             ) : (
-                                              <FileText className="h-4 w-4 text-muted-foreground" />
+                                              <FileText className="h-4 w-4 text-[#b3b0d7] dark:text-[#908fa0] group-hover:text-indigo-600" />
                                             )}
                                             <span className={file.isFolder ? 'truncate' : 'truncate hover:underline'}>{file.fileName}</span>
                                           </button>
-                                        </TableCell>
-                                        <TableCell className="text-center">{file.isFolder ? '-' : formatFileSize(file.fileSize)}</TableCell>
-                                        <TableCell className="text-center">{format(new Date(file.uploadedAt), 'yyyy.MM.dd HH:mm', { locale: ko })}</TableCell>
-                                        <TableCell className="text-center">
+                                        </td>
+                                        <td className="px-4 py-2 text-center text-sm text-[#6360a0] dark:text-[#e5e2e1] whitespace-nowrap">{file.isFolder ? '-' : formatFileSize(file.fileSize)}</td>
+                                        <td className="px-4 py-2 text-center text-sm text-[#6360a0] dark:text-[#e5e2e1] whitespace-nowrap">{format(new Date(file.uploadedAt), 'yyyy.MM.dd HH:mm', { locale: ko })}</td>
+                                        <td className="px-4 py-2 text-center whitespace-nowrap">
                                           <div className="flex justify-center gap-2">
                                             <button
                                               type="button"
                                               onClick={() => handleDownloadFile(file)}
-                                              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background hover:bg-accent"
+                                              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[#dbd6f0] bg-[#f3f1ff] hover:bg-[#e9e6fa] dark:bg-[#23213a] dark:border-[#333333] dark:text-[#e5e2e1]"
                                               disabled={isLoadingFiles || Boolean(file.isFolder)}
                                             >
                                               <Download className="h-4 w-4" />
@@ -2774,33 +2913,36 @@ export default function CustomerDetailPage({
                                               type="button"
                                               variant="outline"
                                               size="icon"
-                                              className="h-8 w-8"
+                                              className="h-8 w-8 border-[#dbd6f0] bg-[#f3f1ff] hover:bg-[#e9e6fa] dark:bg-[#23213a] dark:border-[#333333] dark:text-[#e5e2e1]"
                                               onClick={() => handleRemoveFile(currentTarget, file.id)}
                                               disabled={isLoadingFiles}
                                             >
                                               <Trash2 className="h-4 w-4" />
                                             </Button>
                                           </div>
-                                        </TableCell>
-                                      </TableRow>
+                                        </td>
+                                      </tr>
                                     ))}
-                                  </TableBody>
-                                </Table>
-                              )}
-                            </div>
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )
                     })()}
                   </CardContent>
                 </Card>
+                {/* Teams-style File Library UI redesign end */}
               </TabsContent>
               
               <TabsContent value="gantt">
-                <Card className="border-[#dbe3ee] bg-white/92 shadow-[0_20px_48px_-36px_rgba(37,22,120,0.32)] dark:bg-[#171616] dark:border-[#333333]">
-                  <CardHeader>
-                    <CardTitle>간이 WBS</CardTitle>
-                    <CardDescription>워크플로우 단계를 WBS로 구현하여 조회 및 다운로드 할 수 있습니다.</CardDescription>
+                <Card className="bg-white/95 border border-[#dbd6f0] shadow-lg rounded-xl dark:bg-[#171616] dark:border-[#333333]">
+                  <CardHeader className="flex flex-row items-start justify-between gap-4 px-6 pt-[10px] pb-2 border-b border-[#ece8fa] dark:border-[#333333]">
+                    <div className="flex flex-col gap-1">
+                      <CardTitle className="text-lg font-bold tracking-tight text-[#1e1b4b] dark:text-[#e5e2e1]">간이 WBS</CardTitle>
+                      <CardDescription className="text-xs text-[#6360a0] dark:text-[#908fa0] mt-1">워크플로우 단계를 WBS로 구현하여 조회 및 다운로드 할 수 있습니다.</CardDescription>
+                    </div>
                   </CardHeader>
                   <CardContent className="p-6">
                     <div className="min-h-96 flex items-center">
@@ -2870,20 +3012,32 @@ export default function CustomerDetailPage({
         }}
       >
         <DialogContent
-          className="w-[95vw] max-w-[235rem] sm:max-w-[235rem] h-[82vh] max-h-[90vh] overflow-hidden resize dark:bg-[#1c1b1b] dark:border-[#464554]"
+            className="h-[84vh] max-h-[92vh] w-[96vw] max-w-[120rem] overflow-hidden resize rounded-2xl border border-[#dbe3ee] bg-white/95 shadow-[0_28px_70px_-40px_rgba(37,22,120,0.45)] dark:bg-[#1c1b1b] dark:border-[#464554]"
           style={{ resize: 'both' }}
         >
-          <DialogHeader className="dark:border-b dark:border-[#464554] pb-4">
-            <DialogTitle className="dark:text-[#e5e2e1]">{selectedFileForViewer?.fileName}</DialogTitle>
-            <DialogDescription className="dark:text-[#c7c4d7]">
-              {selectedFileForViewer && `크기: ${formatFileSize(selectedFileForViewer.fileSize)}`}
-            </DialogDescription>
+            <DialogHeader className="border-b border-[#e7e2f5] pb-3 dark:border-b dark:border-[#464554]">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <DialogTitle className="truncate text-base font-semibold text-[#1e1b4b] dark:text-[#e5e2e1]">
+                    {selectedFileForViewer?.fileName}
+                  </DialogTitle>
+                  <DialogDescription className="mt-1 flex flex-wrap items-center gap-2 text-xs dark:text-[#c7c4d7]">
+                    {selectedFileForViewer && `크기: ${formatFileSize(selectedFileForViewer.fileSize)}`}
+                    {selectedFileForViewer && (
+                      <span className="inline-flex items-center rounded-full border border-[#d3cef0] bg-white px-2 py-0.5 text-[#5b5785] dark:border-white/15 dark:bg-white/5 dark:text-[#c7c4d7]">
+                        .{getFileExtension(selectedFileForViewer.fileName)}
+                      </span>
+                    )}
+                  </DialogDescription>
+                </div>
+
+              </div>
           </DialogHeader>
-          <div className="mt-4 h-[calc(100%-5rem)] space-y-4 overflow-auto">
+            <div className="mt-3 flex h-[calc(100%-5rem)] min-h-0 flex-col">
             {selectedFileForViewer && (
               <>
                 {isImageFile(selectedFileForViewer.fileName) ? (
-                  <div className="flex h-[64vh] w-full items-center justify-center rounded-lg border border-border bg-muted/30 dark:bg-[#0e0e0e] dark:border-[#464554]">
+                    <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border border-[#ddd6f2] bg-[#f8f6ff] p-3 dark:bg-[#0e0e0e] dark:border-[#464554]">
                     {imageLoadError ? (
                       <div className="flex flex-col items-center gap-3 text-muted-foreground">
                         <FileText className="h-12 w-12" />
@@ -2896,14 +3050,14 @@ export default function CustomerDetailPage({
                           ? selectedFileForViewer.base64Content
                           : `/api/milestone-files/content?id=${encodeURIComponent(selectedFileForViewer.id)}`}
                         alt={selectedFileForViewer.fileName}
-                        className="h-full w-full object-contain"
+                        className="h-full w-full rounded-md object-contain"
                         onError={() => setImageLoadError(true)}
                       />
                     )}
                   </div>
                 ) : isPdfFile(selectedFileForViewer.fileName) ? (
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap items-center justify-end gap-2">
+                  <div className="flex min-h-0 flex-1 flex-col gap-3">
+                    <div className="flex flex-wrap items-center justify-end gap-2 rounded-lg border border-[#ddd6f2] bg-[#f8f6ff] p-2 dark:border-[#464554] dark:bg-[#0e0e0e]">
                       <Button
                         type="button"
                         variant="outline"
@@ -2940,7 +3094,7 @@ export default function CustomerDetailPage({
                     {pdfViewerSrc ? (
                       <iframe
                         src={`${pdfViewerSrc.split('#')[0]}#page=${pdfViewerPage}&toolbar=1&navpanes=1`}
-                        className="w-full h-[64vh] rounded-lg border border-border"
+                        className="min-h-0 flex-1 w-full rounded-xl border border-[#ddd6f2] bg-white dark:border-[#464554]"
                         title={selectedFileForViewer.fileName}
                       />
                     ) : (
@@ -2950,8 +3104,8 @@ export default function CustomerDetailPage({
                     )}
                   </div>
                 ) : isDocxFile(selectedFileForViewer.fileName) ? (
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap items-center justify-end gap-2">
+                  <div className="flex min-h-0 flex-1 flex-col gap-3">
+                    <div className="flex flex-wrap items-center justify-end gap-2 rounded-lg border border-[#ddd6f2] bg-[#f8f6ff] p-2 dark:border-[#464554] dark:bg-[#0e0e0e]">
                       <Button
                         type="button"
                         variant="outline"
@@ -3015,7 +3169,7 @@ export default function CustomerDetailPage({
                       </Button>
                     </div>
 
-                    <div className="relative rounded-lg border border-border bg-background p-4 h-[64vh] overflow-auto dark:bg-[#0e0e0e] dark:border-[#464554]">
+                    <div className="relative min-h-0 flex-1 overflow-auto rounded-xl border border-[#ddd6f2] bg-white p-4 dark:bg-[#0e0e0e] dark:border-[#464554]">
                       <div ref={docxContainerCallbackRef} className="min-h-full" />
                       {isLoadingDocxPreview && (
                         <div className="absolute inset-0 flex items-start p-4 pointer-events-none">
@@ -3030,7 +3184,7 @@ export default function CustomerDetailPage({
                     </div>
                   </div>
                 ) : isTextFile(selectedFileForViewer.fileName) ? (
-                  <div className="relative bg-muted/50 p-4 rounded-lg h-[64vh] overflow-auto dark:bg-[#0e0e0e] dark:border dark:border-[#464554]">
+                  <div className="relative min-h-0 flex-1 overflow-auto rounded-xl border border-[#ddd6f2] bg-[#fbfaff] p-4 dark:bg-[#0e0e0e] dark:border dark:border-[#464554]">
                     {isLoadingTextPreview && (
                       <p className="text-sm text-muted-foreground dark:text-[#908fa0]">파일 내용을 불러오는 중입니다...</p>
                     )}
@@ -3038,11 +3192,11 @@ export default function CustomerDetailPage({
                       <p className="text-sm text-muted-foreground dark:text-[#908fa0]">{textPreviewError}</p>
                     )}
                     {!isLoadingTextPreview && textFileContent !== null && (
-                      <pre className="text-sm whitespace-pre-wrap break-words font-mono dark:text-[#c7c4d7]">{textFileContent}</pre>
+                      <pre className="font-mono text-[13px] leading-6 whitespace-pre-wrap break-words text-[#2d2a45] dark:text-[#c7c4d7]">{textFileContent}</pre>
                     )}
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center p-8 bg-muted/50 rounded-lg dark:bg-[#0e0e0e] dark:border dark:border-[#464554]">
+                  <div className="flex min-h-0 flex-1 flex-col items-center justify-center rounded-xl border border-[#ddd6f2] bg-[#fbfaff] p-8 dark:bg-[#0e0e0e] dark:border dark:border-[#464554]">
                     <FileText className="h-12 w-12 text-muted-foreground mb-2" />
                     <p className="text-sm text-muted-foreground dark:text-[#c7c4d7]">
                       이 파일 형식은 미리보기를 지원하지 않습니다.
@@ -3052,7 +3206,7 @@ export default function CustomerDetailPage({
                     </p>
                   </div>
                 )}
-                <div className="flex justify-end pt-4">
+                <div className="mt-3 flex justify-end border-t border-[#e7e2f5] pt-3 dark:border-[#464554]">
                   <a
                     href={selectedFileForViewer.base64Content
                       ? selectedFileForViewer.base64Content
