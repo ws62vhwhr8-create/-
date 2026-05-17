@@ -19,7 +19,7 @@ interface AppState {
   deleteSolution: (id: string) => void
   
   // Customer actions
-  addCustomer: (customer: Omit<Customer, 'id' | 'createdAt' | 'milestones' | 'status' | 'solutionName'>) => string | undefined
+  addCustomer: (customer: Omit<Customer, 'id' | 'createdAt' | 'milestones' | 'status' | 'solutionName'> & { useCustomSchedule?: boolean; adjustedStageDurations?: Record<string, number>; totalProjectDays?: number; projectEndDate?: Date }) => string | undefined
   // Field renamed: contractStartDate -> salesStartDate, ownerEmail -> ownerName
   updateCustomer: (id: string, customer: Partial<Customer>) => void
   deleteCustomer: (id: string) => void
@@ -301,13 +301,14 @@ function getAllStagesFlattened(stages: any[]): any[] {
   return result
 }
 
-function generateMilestones(solution: Solution, contractStartDate: Date): Milestone[] {
+function generateMilestones(solution: Solution, contractStartDate: Date, adjustedStageDurations?: Record<string, number>): Milestone[] {
   let cumulativeDays = 0
   const today = startOfDay(new Date())
   const allStages = getAllStagesFlattened(solution.stages)
   
   return allStages.map((stage) => {
-    cumulativeDays += stage.durationDays
+    const stageDuration = adjustedStageDurations?.[stage.id] || stage.durationDays
+    cumulativeDays += stageDuration
     const dueDate = addDays(contractStartDate, cumulativeDays)
     const notifyDate = subDays(dueDate, stage.notifyDaysBefore)
     
@@ -463,7 +464,11 @@ export const useAppStore = create<AppState>()(
         const solution = get().solutions.find((s) => s.id === customerData.solutionId)
         if (!solution) return undefined
         
-        const milestones = generateMilestones(solution, new Date(customerData.salesStartDate))
+        const milestones = generateMilestones(
+          solution, 
+          new Date(customerData.salesStartDate),
+          customerData.useCustomSchedule ? customerData.adjustedStageDurations : undefined
+        )
         const status = calculateCustomerStatus(milestones)
         
         const newCustomer: Customer = {

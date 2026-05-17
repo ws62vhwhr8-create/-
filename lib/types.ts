@@ -70,6 +70,11 @@ export interface Customer {
   status: 'active' | 'completed' | 'at-risk'
   sharedUserIds?: string[]
   sharedGroupIds?: string[]
+  // 일정 관리
+  useCustomSchedule?: boolean  // true면 맞춤, false면 표준
+  adjustedStageDurations?: Record<string, number>  // stageId → 조정된 기간(일)
+  totalProjectDays?: number  // 전체 프로젝트 기간
+  projectEndDate?: Date  // 예상 완료일
 }
 
 export interface MilestoneFile {

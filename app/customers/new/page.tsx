@@ -69,6 +69,8 @@ export default function NewCustomerPage() {
   const [isLeaveDialogOpen, setIsLeaveDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedOwnerItems, setSelectedOwnerItems] = useState<SelectedItem[]>([])
+  const [useCustomSchedule, setUseCustomSchedule] = useState(false)
+  const [adjustedStageDurations, setAdjustedStageDurations] = useState<Record<string, number>>({})
 
   const currentUser = users.find((user) => user.id === currentUserId)
   const isAdmin = isAdminRole(currentUser?.role)
@@ -87,6 +89,18 @@ export default function NewCustomerPage() {
     ? flattenStagesWithDisplayOrder(selectedSolution.stages)
     : []
 
+  // 솔루션이 변경되면 adjustedStageDurations 초기화
+  useEffect(() => {
+    if (selectedSolution) {
+      const allStages = flattenStages(selectedSolution.stages)
+      const initial: Record<string, number> = {}
+      allStages.forEach(stage => {
+        initial[stage.id] = stage.durationDays
+      })
+      setAdjustedStageDurations(initial)
+    }
+  }, [solutionId])
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!companyName || !solutionId || !salesStartDate || !ownerName) {
@@ -96,6 +110,16 @@ export default function NewCustomerPage() {
     if (isSubmitting) return
     setIsSubmitting(true)
 
+    // 조정된 기간 기반 전체 프로젝트 기간 계산
+    const durationsBasis = useCustomSchedule ? adjustedStageDurations : 
+      flattenedSelectedStagesWithOrder.reduce((acc, stage) => {
+        acc[stage.id] = stage.durationDays
+        return acc
+      }, {} as Record<string, number>)
+    
+    const totalProjectDays = Object.values(durationsBasis).reduce((sum, days) => sum + days, 0)
+    const projectEndDate = addDays(salesStartDate, totalProjectDays)
+
     const customerId = addCustomer({
       companyName,
       solutionId,
@@ -103,6 +127,10 @@ export default function NewCustomerPage() {
       ownerId: ownerId || undefined,
       ownerName,
       ownerEmail: ownerEmail || undefined,
+      useCustomSchedule: useCustomSchedule || false,
+      adjustedStageDurations: useCustomSchedule ? adjustedStageDurations : undefined,
+      totalProjectDays,
+      projectEndDate,
     })
 
     if (customerId) {
@@ -134,12 +162,20 @@ export default function NewCustomerPage() {
   // Preview milestones
   const previewMilestones = selectedSolution && salesStartDate 
     ? flattenedSelectedStagesWithOrder.reduce((acc, stage, index) => {
+        const durationBasis = useCustomSchedule 
+          ? (adjustedStageDurations[stage.id] || stage.durationDays)
+          : stage.durationDays
         const previousDuration = flattenedSelectedStagesWithOrder
           .slice(0, index)
-          .reduce((sum, s) => sum + s.durationDays, 0)
-        const dueDate = addDays(salesStartDate, previousDuration + stage.durationDays)
-        return [...acc, { ...stage, dueDate }]
-      }, [] as Array<Stage & { dueDate: Date; displayOrder: string }>)
+          .reduce((sum, s) => {
+            const sDuration = useCustomSchedule 
+              ? (adjustedStageDurations[s.id] || s.durationDays)
+              : s.durationDays
+            return sum + sDuration
+          }, 0)
+        const dueDate = addDays(salesStartDate, previousDuration + durationBasis)
+        return [...acc, { ...stage, dueDate, adjustedDuration: durationBasis }]
+      }, [] as Array<Stage & { dueDate: Date; displayOrder: string; adjustedDuration?: number }>)
     : []
 
   return (
@@ -381,6 +417,170 @@ export default function NewCustomerPage() {
 
                 <Card className="bg-white border-[#dbd6f0] dark:bg-[#1E1E1E] dark:border-[#333333]">
             <CardHeader>
+              <CardTitle>일정 설정</CardTitle>
+              <CardDescription>
+                표준 일정을 사용하거나 프로젝트에 맞게 단계별 기간을 조정할 수 있습니다.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!selectedSolution ? (
+                <div className="flex flex-col items-center justify-center py-8 text-[#6360a0] dark:text-[#908fa0]">
+                  <p className="text-sm">솔루션을 선택하면 일정을 설정할 수 있습니다.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-[#f3f1ff] dark:bg-[#252525] border border-[#dbd6f0] dark:border-[#333333]">
+                    <input
+                      type="checkbox"
+                      id="useCustomSchedule"
+                      checked={useCustomSchedule}
+                      onChange={(e) => setUseCustomSchedule(e.target.checked)}
+                      className="w-4 h-4 rounded"
+                    />
+                    <label htmlFor="useCustomSchedule" className="flex-1 cursor-pointer text-sm font-medium text-[#1e1b4b] dark:text-[#e5e2e1]">
+                      맞춤 일정 설정
+                    </label>
+                    <span className="text-xs text-[#6360a0] dark:text-[#908fa0]">
+                      {useCustomSchedule ? "커스텀 기간 적용" : "표준 기간 사용"}
+                    </span>
+                  </div>
+
+                  {useCustomSchedule && (
+                    <div className="space-y-3 pt-2 border-t border-[#dbd6f0] dark:border-[#333333]">
+                      {flattenedSelectedStagesWithOrder.map((stage, index) => {
+                        const currentDuration = adjustedStageDurations[stage.id] || stage.durationDays
+                        return (
+                          <div key={stage.id} className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <label className="text-sm font-medium text-[#1e1b4b] dark:text-[#e5e2e1]">
+                                <Badge className="mr-2">{stage.displayOrder}</Badge>
+                                {stage.name}
+                              </label>
+                              <span className="text-xs text-[#6360a0] dark:text-[#908fa0]">
+                                표준: {stage.durationDays}일
+                              </span>
+                            </div>
+                            <div className="flex items-end gap-2">
+                              <div className="flex-1">
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  max="365"
+                                  value={currentDuration}
+                                  onChange={(e) => {
+                                    const val = Math.max(1, parseInt(e.target.value) || 1)
+                                    setAdjustedStageDurations(prev => ({
+                                      ...prev,
+                                      [stage.id]: val
+                                    }))
+                                  }}
+                                  className="h-9 dark:bg-[#1E1E1E] dark:border-[#464554]/50 dark:text-[#e5e2e1]"
+                                  placeholder="기간(일)"
+                                />
+                              </div>
+                              <span className="text-sm text-[#6360a0] dark:text-[#908fa0] whitespace-nowrap">일</span>
+                              {previewMilestones[index] && (
+                                <span className="text-xs text-[#8c88b4] dark:text-[#908fa0] whitespace-nowrap ml-2">
+                                  {format(previewMilestones[index].dueDate, "MM/dd", { locale: ko })} 완료
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                      
+                      <div className="pt-3 border-t border-[#dbd6f0] dark:border-[#333333]">
+                        <p className="text-sm text-[#6360a0] dark:text-[#908fa0]">
+                          예상 전체 기간: <span className="font-medium text-[#1e1b4b] dark:text-[#e5e2e1]">
+                            {Object.values(adjustedStageDurations).reduce((sum, days) => sum + days, 0)}일
+                          </span>
+                          {salesStartDate && previewMilestones.length > 0 && (
+                            <>
+                              <span className="text-[#6360a0] dark:text-[#908fa0]"> (약 </span>
+                              <span className="font-medium text-[#1e1b4b] dark:text-[#e5e2e1]">
+                                {Math.round(Object.values(adjustedStageDurations).reduce((sum, days) => sum + days, 0) / 30 * 10) / 10}개월
+                              </span>
+                              <span className="text-[#6360a0] dark:text-[#908fa0]">)</span>
+                            </>
+                          )}
+                        </p>
+                        {salesStartDate && previewMilestones.length > 0 && (
+                          <p className="text-xs text-[#8c88b4] dark:text-[#908fa0] mt-1">
+                            예상 완료일: <span className="font-medium text-[#1e1b4b] dark:text-[#e5e2e1]">
+                              {format(previewMilestones[previewMilestones.length - 1].dueDate, "yyyy.MM.dd", { locale: ko })}
+                            </span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {!useCustomSchedule && selectedSolution && (
+                    <div className="space-y-3">
+                      <div className="pt-2 border-t border-[#dbd6f0] dark:border-[#333333]">
+                        <p className="text-sm text-[#6360a0] dark:text-[#908fa0]">
+                          표준 소요 기간: <span className="font-medium text-[#1e1b4b] dark:text-[#e5e2e1]">
+                            {flattenedSelectedStages.reduce((sum, s) => sum + s.durationDays, 0)}일
+                          </span>
+                          {salesStartDate && previewMilestones.length > 0 && (
+                            <>
+                              <span className="text-[#6360a0] dark:text-[#908fa0]"> (약 </span>
+                              <span className="font-medium text-[#1e1b4b] dark:text-[#e5e2e1]">
+                                {Math.round(flattenedSelectedStages.reduce((sum, s) => sum + s.durationDays, 0) / 30 * 10) / 10}개월
+                              </span>
+                              <span className="text-[#6360a0] dark:text-[#908fa0]">)</span>
+                              <span className="text-[#8c88b4] dark:text-[#908fa0] ml-2">→ </span>
+                              <span className="font-medium text-[#1e1b4b] dark:text-[#e5e2e1]">
+                                {format(previewMilestones[previewMilestones.length - 1]?.dueDate || addDays(salesStartDate, flattenedSelectedStages.reduce((sum, s) => sum + s.durationDays, 0)), "yyyy.MM.dd", { locale: ko })}
+                              </span>
+                            </>
+                          )}
+                        </p>
+                      </div>
+
+                      {salesStartDate && previewMilestones.length > 0 && (
+                        <div className="space-y-3 pt-2">
+                          <p className="text-sm font-medium text-[#1e1b4b] dark:text-[#e5e2e1]">마일스톤 미리보기</p>
+                          {previewMilestones.map((milestone) => (
+                            <div 
+                              key={milestone.id}
+                              className="flex items-start gap-3 p-3 rounded-lg bg-[#f3f1ff] dark:bg-[#252525] border border-[#dbd6f0] dark:border-[#333333]"
+                            >
+                              <Badge variant="outline" className="mt-0.5 shrink-0">
+                                {milestone.displayOrder}
+                              </Badge>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm">{milestone.name}</p>
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-[#6360a0] dark:text-[#908fa0]">
+                                  <div className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    <span>{milestone.durationDays}일</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <User className="h-3 w-3" />
+                                    <span>{milestone.role}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <CalendarIcon className="h-3 w-3" />
+                                    <span>
+                                      {format(milestone.dueDate, "MM/dd", { locale: ko })}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+                <Card className="bg-white border-[#dbd6f0] dark:bg-[#1E1E1E] dark:border-[#333333]">
+            <CardHeader>
               <CardTitle>마일스톤 미리보기</CardTitle>
               <CardDescription>
                 선택한 솔루션에 따라 자동 생성될 마일스톤입니다.
@@ -407,7 +607,12 @@ export default function NewCustomerPage() {
                           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm text-[#6360a0] dark:text-[#908fa0]">
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            <span>{milestone.durationDays}일</span>
+                            <span>
+                              {milestone.adjustedDuration || milestone.durationDays}일
+                              {useCustomSchedule && milestone.adjustedDuration !== milestone.durationDays && (
+                                <span className="text-[#4f9c6c] dark:text-[#7fd4a6]"> (조정됨, 원래 {milestone.durationDays}일)</span>
+                              )}
+                            </span>
                           </div>
                           <div className="flex items-center gap-1">
                             <User className="h-3 w-3" />
@@ -429,9 +634,17 @@ export default function NewCustomerPage() {
                   {selectedSolution && (
                   <div className="pt-2 border-t border-[#dbd6f0] dark:border-[#333333]">
                       <p className="text-sm text-[#6360a0] dark:text-[#908fa0]">
-                        열 소요 기간: <span className="font-medium text-[#1b1b23] dark:text-[#e5e2e1]">
-                          {flattenedSelectedStages.reduce((sum, s) => sum + s.durationDays, 0)}일
+                        전체 소요 기간: <span className="font-medium text-[#1b1b23] dark:text-[#e5e2e1]">
+                          {useCustomSchedule 
+                            ? Object.values(adjustedStageDurations).reduce((sum, days) => sum + days, 0)
+                            : flattenedSelectedStages.reduce((sum, s) => sum + s.durationDays, 0)
+                          }일
                         </span>
+                        {useCustomSchedule && (
+                          <span className="text-xs text-[#8c88b4] dark:text-[#908fa0] ml-2">
+                            (조정됨, 표준 {flattenedSelectedStages.reduce((sum, s) => sum + s.durationDays, 0)}일)
+                          </span>
+                        )}
                       </p>
                     </div>
                   )}
