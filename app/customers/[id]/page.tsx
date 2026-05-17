@@ -28,7 +28,10 @@ import {
 } from "@/components/ui/select"
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -76,6 +79,7 @@ import {
   Download,
   Edit2,
   FileText,
+  Filter,
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
@@ -91,6 +95,7 @@ import {
   Upload,
   X,
   Users,
+  Search,
   Shield,
 } from "lucide-react"
 import Link from "next/link"
@@ -140,6 +145,8 @@ type FileLibraryTarget = {
   parentFolderId: string | null
   folderPath: string[]
 }
+
+type FileFilterOption = 'all' | 'folder' | 'pdf' | 'pptx' | 'ppsm' | 'docx' | 'xlsx' | 'html' | 'hwp' | 'hwpx' | 'png' | 'jpg'
 
 type EditableMilestone = Omit<Milestone, 'dueDate' | 'notifyDate'> & {
   dueDate: string
@@ -222,6 +229,7 @@ export default function CustomerDetailPage({
   const [selectedFileTarget, setSelectedFileTarget] = useState<FileLibraryTarget | null>(null)
   const [libraryByTarget, setLibraryByTarget] = useState<Record<string, MilestoneFile[]>>({})
   const [fileSearchQuery, setFileSearchQuery] = useState('')
+  const [fileFilterOption, setFileFilterOption] = useState<FileFilterOption>('all')
   const [fileSortOption, setFileSortOption] = useState<'uploaded-desc' | 'uploaded-asc' | 'size-desc' | 'size-asc'>('uploaded-desc')
   const [isStageFolderCollapsed, setIsStageFolderCollapsed] = useState(false)
   const [collapsedStageFolderParents, setCollapsedStageFolderParents] = useState<Set<string>>(new Set())
@@ -326,10 +334,6 @@ export default function CustomerDetailPage({
       isMountedRef.current = false
     }
   }, [])
-
-  if (customer && !hasCustomerAccess) {
-    return null
-  }
 
   // Initialize edit fields when customer loads or editing mode changes
   useEffect(() => {
@@ -819,6 +823,16 @@ export default function CustomerDetailPage({
     return textExtensions.includes(getFileExtension(filename))
   }
 
+  const getPreviewFileTypeLabel = (filename: string) => {
+    if (isImageFile(filename)) return '이미지'
+    if (isPdfFile(filename)) return 'PDF'
+    if (isDocxFile(filename)) return 'DOCX'
+    if (isTextFile(filename)) return '텍스트'
+
+    const extension = getFileExtension(filename)
+    return extension ? extension.toUpperCase() : '파일'
+  }
+
   const getDocxPageElements = useCallback(() => {
     const container = docxPreviewContainerRef.current
     if (!container) return [] as HTMLElement[]
@@ -1072,6 +1086,54 @@ export default function CustomerDetailPage({
     } catch (error) {
       console.error('Error downloading file:', error)
       toast.error('파일 다운로드 중 오류가 발생했습니다.')
+    }
+  }
+
+  const matchesFileFilter = (file: MilestoneFile, filter: FileFilterOption) => {
+    if (filter === 'all') return true
+    if (filter === 'folder') return file.isFolder
+
+    const extension = getFileExtension(file.fileName).toLowerCase()
+    if (filter === 'pdf') return extension === 'pdf'
+    if (filter === 'pptx') return extension === 'pptx'
+    if (filter === 'ppsm') return extension === 'ppsm'
+    if (filter === 'docx') return extension === 'docx'
+    if (filter === 'xlsx') return extension === 'xlsx'
+    if (filter === 'html') return extension === 'html'
+    if (filter === 'hwp') return extension === 'hwp'
+    if (filter === 'hwpx') return extension === 'hwpx'
+    if (filter === 'png') return extension === 'png'
+    if (filter === 'jpg') return extension === 'jpg' || extension === 'jpeg'
+
+    return true
+  }
+
+  const getFileFilterLabel = (filter: FileFilterOption) => {
+    switch (filter) {
+      case 'folder':
+        return 'Folder'
+      case 'pdf':
+        return 'PDF'
+      case 'pptx':
+        return 'PPTX'
+      case 'ppsm':
+        return 'PPSM'
+      case 'docx':
+        return 'docx'
+      case 'xlsx':
+        return 'xlsx'
+      case 'html':
+        return 'html'
+      case 'hwp':
+        return 'hwp'
+      case 'hwpx':
+        return 'hwpx'
+      case 'png':
+        return 'png'
+      case 'jpg':
+        return 'jpg'
+      default:
+        return '전체'
     }
   }
 
@@ -1939,6 +2001,10 @@ export default function CustomerDetailPage({
     .filter((x): x is { id: string; displayName: string; type: 'group'; role: 'user' } => !!x)
   const sharedItems = [...sharedUserItems, ...sharedGroupItems]
 
+  if (!customer || !hasCustomerAccess) {
+    return null
+  }
+
   return (
     <>
       <Navigation />
@@ -2505,6 +2571,8 @@ export default function CustomerDetailPage({
                                         noteId: null,
                                         kind: 'stage',
                                         label: milestone.stageName,
+                                        parentFolderId: null,
+                                        folderPath: [],
                                       })
                                     }}
                                     onDragOver={(e) => {
@@ -2734,7 +2802,8 @@ export default function CustomerDetailPage({
                       const searchedFiles = normalizedSearchQuery
                         ? files.filter((file) => file.fileName.toLowerCase().includes(normalizedSearchQuery))
                         : files
-                      const filteredFiles = [...searchedFiles].sort((a, b) => {
+                      const filterMatchedFiles = searchedFiles.filter((file) => matchesFileFilter(file, fileFilterOption))
+                      const filteredFiles = [...filterMatchedFiles].sort((a, b) => {
                         if (a.isFolder && !b.isFolder) return -1
                         if (!a.isFolder && b.isFolder) return 1
                         if (fileSortOption === 'size-desc') return b.fileSize - a.fileSize
@@ -2748,19 +2817,92 @@ export default function CustomerDetailPage({
                       const uploadPercent = isUploadingCurrentTarget && uploadProgress && uploadProgress.total > 0
                         ? Math.round((uploadProgress.completed / uploadProgress.total) * 100)
                         : 0
+                      const folderCount = files.filter((file) => file.isFolder).length
+                      const documentCount = files.filter((file) => !file.isFolder).length
+                      const quickFilterOptions: FileFilterOption[] = ['folder', 'pdf', 'pptx', 'ppsm', 'docx', 'xlsx', 'html', 'hwp', 'hwpx', 'png', 'jpg']
+                      const activeFilterResultCount = fileFilterOption === 'all'
+                        ? files.length
+                        : files.filter((file) => matchesFileFilter(file, fileFilterOption)).length
+                      const hasActiveSearch = normalizedSearchQuery.length > 0
+                      const hasActiveFilter = fileFilterOption !== 'all'
 
                       return (
                         <div className="flex flex-col gap-4">
-                          <div className="flex flex-col gap-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Input
-                                type="text"
-                                value={fileSearchQuery}
-                                onChange={(e) => setFileSearchQuery(e.target.value)}
-                                placeholder="파일명 검색"
-                                className="h-9 w-full sm:w-56 border-[#dbd6f0] bg-[#f3f1ff] text-sm focus:ring-2 focus:ring-indigo-200 dark:bg-[#23213a] dark:border-[#333333] dark:text-[#e5e2e1]"
-                              />
-
+                          <div className="flex flex-col gap-3 rounded-xl border border-[#dbd6f0] bg-white/80 p-3 shadow-sm dark:bg-[#171616] dark:border-[#333333]">
+                            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                              <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+                                <div className="relative w-full sm:max-w-xs">
+                                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8c88b4] dark:text-[#908fa0]" />
+                                  <Input
+                                    type="text"
+                                    value={fileSearchQuery}
+                                    onChange={(e) => setFileSearchQuery(e.target.value)}
+                                    placeholder="파일명 또는 확장자 검색"
+                                    className="h-10 w-full border-[#dbd6f0] bg-[#f7f5ff] pl-9 text-sm focus:ring-2 focus:ring-indigo-200 dark:bg-[#23213a] dark:border-[#333333] dark:text-[#e5e2e1]"
+                                  />
+                                </div>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      className="h-10 justify-between gap-2 border-[#dbd6f0] bg-[#f7f5ff] text-sm text-[#5b5785] hover:bg-[#ece8fa] dark:bg-[#23213a] dark:border-[#333333] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"
+                                    >
+                                      <span className="inline-flex items-center gap-2">
+                                        <Filter className="h-4 w-4" />
+                                        빠른 필터
+                                      </span>
+                                      <span className="inline-flex items-center gap-2 text-xs text-[#6360a0] dark:text-[#c7c4d7]">
+                                        {getFileFilterLabel(fileFilterOption)}
+                                        <ChevronDown className="h-3.5 w-3.5" />
+                                      </span>
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="start" className="w-[240px] border-[#dbd6f0] bg-white opacity-100 shadow-lg dark:border-[#dbd6f0] dark:bg-white dark:text-[#1e1b4b]">
+                                    <DropdownMenuLabel>빠른 필터</DropdownMenuLabel>
+                                    {quickFilterOptions.map((option) => (
+                                      <DropdownMenuCheckboxItem
+                                        key={option}
+                                        checked={fileFilterOption === option}
+                                        onCheckedChange={() => setFileFilterOption(option)}
+                                      >
+                                        <span className="flex flex-1 items-center justify-between gap-3">
+                                          <span>{getFileFilterLabel(option)}</span>
+                                          <span className="text-xs text-muted-foreground">
+                                            {files.filter((file) => matchesFileFilter(file, option)).length}
+                                          </span>
+                                        </span>
+                                      </DropdownMenuCheckboxItem>
+                                    ))}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Select value={fileSortOption} onValueChange={(value) => setFileSortOption(value as typeof fileSortOption)}>
+                                  <SelectTrigger className="h-10 w-full min-w-[160px] border-[#dbd6f0] bg-[#f7f5ff] text-sm text-[#1e1b4b] sm:w-auto dark:bg-[#23213a] dark:border-[#333333] dark:text-[#e5e2e1]">
+                                    <SelectValue placeholder="정렬" />
+                                  </SelectTrigger>
+                                  <SelectContent className="dark:bg-[#1c1b1b] dark:border-[#464554]">
+                                    <SelectItem value="uploaded-desc">최신 업로드순</SelectItem>
+                                    <SelectItem value="uploaded-asc">오래된 업로드순</SelectItem>
+                                    <SelectItem value="size-desc">파일 크기 큰 순</SelectItem>
+                                    <SelectItem value="size-asc">파일 크기 작은 순</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                {(hasActiveSearch || hasActiveFilter) && (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="h-10 border-[#dbd6f0] bg-white text-sm text-[#5b5785] hover:bg-[#f7f5ff] dark:bg-[#171616] dark:border-[#333333] dark:text-[#e5e2e1] dark:hover:bg-[#23213a]"
+                                    onClick={() => {
+                                      setFileSearchQuery('')
+                                      setFileFilterOption('all')
+                                    }}
+                                  >
+                                    필터 초기화
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                             <div className="flex flex-wrap items-center gap-2 min-w-0">
                               <Badge variant="outline" className="text-xs px-2 py-1 bg-[#ece8fa] border-[#dbd6f0] text-[#6360a0] dark:bg-[#23213a] dark:border-[#333333] dark:text-[#e5e2e1]">
@@ -2768,17 +2910,29 @@ export default function CustomerDetailPage({
                               </Badge>
                               <span className="text-sm font-medium text-[#1e1b4b] dark:text-[#e5e2e1] max-w-full truncate">{currentTarget.label}</span>
                               <Badge variant="secondary" className="text-xs tabular-nums bg-[#ece8fa] text-[#6360a0] dark:bg-[#23213a] dark:text-[#e5e2e1]">{files.length}개</Badge>
+                              <Badge variant="outline" className="text-xs px-2 py-1 border-[#dbd6f0] text-[#6360a0] dark:border-[#333333] dark:text-[#c7c4d7]">폴더 {folderCount}</Badge>
+                              <Badge variant="outline" className="text-xs px-2 py-1 border-[#dbd6f0] text-[#6360a0] dark:border-[#333333] dark:text-[#c7c4d7]">파일 {documentCount}</Badge>
+                              <Badge variant="outline" className="text-xs px-2 py-1 border-[#dbd6f0] text-[#6360a0] dark:border-[#333333] dark:text-[#c7c4d7]">필터 {getFileFilterLabel(fileFilterOption)}</Badge>
+                              {(hasActiveSearch || hasActiveFilter) && (
+                                <Badge variant="secondary" className="text-xs tabular-nums bg-[#eef4ff] text-[#3258a8] dark:bg-[#23213a] dark:text-[#e5e2e1]">
+                                  결과 {filteredFiles.length} / {activeFilterResultCount}
+                                </Badge>
+                              )}
+                              <span className="text-xs text-[#8c88b4] dark:text-[#908fa0]">현재 위치에 바로 업로드되며, 대용량 파일은 SharePoint로 저장됩니다.</span>
                             </div>
                           </div>
 
                           {isUploadingCurrentTarget && uploadProgress && (
-                            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 flex flex-col gap-2">
-                              <div className="flex items-center justify-between gap-3 text-xs sm:text-sm">
+                            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex flex-col gap-3 shadow-sm">
+                              <div className="flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
                                 <div className="flex items-center gap-2 text-primary">
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                   <span className="font-medium">파일 업로드 진행 중</span>
                                 </div>
-                                <span className="text-muted-foreground">{uploadPercent}%</span>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <span>{uploadProgress.completed} / {uploadProgress.total} 완료</span>
+                                  <span>{uploadPercent}%</span>
+                                </div>
                               </div>
                               <div className="h-1.5 w-full overflow-hidden rounded-full bg-primary/15">
                                 <div
@@ -2786,16 +2940,60 @@ export default function CustomerDetailPage({
                                   style={{ width: `${uploadPercent}%` }}
                                 />
                               </div>
-                              <p className="truncate text-xs text-muted-foreground">
-                                현재 파일: {uploadProgress.currentFileName}
-                              </p>
+                              <div className="flex flex-col gap-1 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                                <p className="truncate">현재 파일: {uploadProgress.currentFileName}</p>
+                                <p>업로드 중에는 이동/삭제 액션이 잠시 비활성화됩니다.</p>
+                              </div>
                             </div>
                           )}
 
                           <div className="rounded-lg border border-[#dbd6f0] bg-[#f3f1ff] p-0 overflow-hidden dark:bg-[#23213a] dark:border-[#333333]">
                             {filteredFiles.length === 0 ? (
-                              <div className="flex h-32 items-center justify-center text-base text-[#b3b0d7] dark:text-[#908fa0]">
-                                {files.length === 0 ? '업로드된 파일이 없습니다.' : '검색 결과가 없습니다.'}
+                              <div className="flex min-h-32 flex-col items-center justify-center gap-3 px-6 py-10 text-center">
+                                <div className="rounded-full bg-white p-4 shadow-sm dark:bg-[#171616]">
+                                  <FolderOpen className="h-8 w-8 text-[#8c88b4] dark:text-[#908fa0]" />
+                                </div>
+                                {files.length === 0 ? (
+                                  <>
+                                    <p className="text-base font-semibold text-[#5b5785] dark:text-[#e5e2e1]">아직 업로드된 파일이 없습니다.</p>
+                                    <p className="max-w-md text-sm text-[#8c88b4] dark:text-[#908fa0]">현재 단계 또는 폴더에 필요한 자료를 먼저 올리거나, 작업 구조를 만들 새 폴더를 생성하세요.</p>
+                                    <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                                      <Button
+                                        type="button"
+                                        className="h-9"
+                                        onClick={() => document.getElementById('file-upload-teams-style')?.click()}
+                                        disabled={isLoadingFiles}
+                                      >
+                                        <Upload className="mr-2 h-4 w-4" /> 파일 업로드
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="h-9 border-[#dbd6f0] bg-white hover:bg-[#f7f5ff] dark:bg-[#171616] dark:border-[#333333] dark:text-[#e5e2e1] dark:hover:bg-[#23213a]"
+                                        onClick={() => handleCreateFolder(currentTarget)}
+                                        disabled={isLoadingFiles}
+                                      >
+                                        <FolderPlus className="mr-2 h-4 w-4" /> 새 폴더
+                                      </Button>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="text-base font-semibold text-[#5b5785] dark:text-[#e5e2e1]">검색 결과가 없습니다.</p>
+                                    <p className="max-w-md text-sm text-[#8c88b4] dark:text-[#908fa0]">검색어를 바꾸거나 빠른 필터를 초기화해서 현재 위치의 파일을 다시 확인하세요.</p>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      className="h-9 border-[#dbd6f0] bg-white hover:bg-[#f7f5ff] dark:bg-[#171616] dark:border-[#333333] dark:text-[#e5e2e1] dark:hover:bg-[#23213a]"
+                                      onClick={() => {
+                                        setFileSearchQuery('')
+                                        setFileFilterOption('all')
+                                      }}
+                                    >
+                                      필터 초기화
+                                    </Button>
+                                  </>
+                                )}
                               </div>
                             ) : (
                               <div className="overflow-x-auto">
@@ -3012,32 +3210,59 @@ export default function CustomerDetailPage({
         }}
       >
         <DialogContent
-            className="h-[84vh] max-h-[92vh] w-[96vw] max-w-[120rem] overflow-hidden resize rounded-2xl border border-[#dbe3ee] bg-white/95 shadow-[0_28px_70px_-40px_rgba(37,22,120,0.45)] dark:bg-[#1c1b1b] dark:border-[#464554]"
+            className="h-[84vh] max-h-[92vh] w-[98vw] max-w-[140rem] overflow-hidden resize rounded-2xl border border-[#dbe3ee] bg-white/95 shadow-[0_28px_70px_-40px_rgba(37,22,120,0.45)] dark:bg-[#1c1b1b] dark:border-[#464554]"
           style={{ resize: 'both' }}
         >
-            <DialogHeader className="border-b border-[#e7e2f5] pb-3 dark:border-b dark:border-[#464554]">
+            <DialogHeader className="border-b border-[#e7e2f5] pb-2 dark:border-b dark:border-[#464554]">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <DialogTitle className="truncate text-base font-semibold text-[#1e1b4b] dark:text-[#e5e2e1]">
+                  <DialogTitle className="truncate text-lg font-semibold text-[#1e1b4b] dark:text-[#e5e2e1]">
                     {selectedFileForViewer?.fileName}
                   </DialogTitle>
                   <DialogDescription className="mt-1 flex flex-wrap items-center gap-2 text-xs dark:text-[#c7c4d7]">
-                    {selectedFileForViewer && `크기: ${formatFileSize(selectedFileForViewer.fileSize)}`}
+                    {selectedFileForViewer && (
+                      <span className="inline-flex items-center rounded-full border border-[#d3cef0] bg-white px-2 py-0.5 text-[#5b5785] dark:border-white/15 dark:bg-white/5 dark:text-[#c7c4d7]">
+                        {getPreviewFileTypeLabel(selectedFileForViewer.fileName)}
+                      </span>
+                    )}
+                    {selectedFileForViewer && (
+                      <span className="inline-flex items-center rounded-full border border-[#d3cef0] bg-white px-2 py-0.5 text-[#5b5785] dark:border-white/15 dark:bg-white/5 dark:text-[#c7c4d7]">
+                        크기 {formatFileSize(selectedFileForViewer.fileSize)}
+                      </span>
+                    )}
                     {selectedFileForViewer && (
                       <span className="inline-flex items-center rounded-full border border-[#d3cef0] bg-white px-2 py-0.5 text-[#5b5785] dark:border-white/15 dark:bg-white/5 dark:text-[#c7c4d7]">
                         .{getFileExtension(selectedFileForViewer.fileName)}
                       </span>
                     )}
+                    {selectedFileForViewer && (
+                      <span className="text-[#8c88b4] dark:text-[#908fa0]">
+                        업로드 {format(new Date(selectedFileForViewer.uploadedAt), 'yyyy.MM.dd HH:mm', { locale: ko })}
+                      </span>
+                    )}
                   </DialogDescription>
                 </div>
-
+                {selectedFileForViewer && (
+                  <a
+                    href={selectedFileForViewer.base64Content
+                      ? selectedFileForViewer.base64Content
+                      : `/api/milestone-files/content?id=${encodeURIComponent(selectedFileForViewer.id)}`}
+                    download={selectedFileForViewer.fileName}
+                    className="inline-flex h-10 items-center justify-center rounded-md border border-[#dbd6f0] bg-white px-4 text-sm font-medium text-[#4b4678] hover:bg-[#f7f5ff] dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    다운로드
+                  </a>
+                )}
               </div>
           </DialogHeader>
-            <div className="mt-3 flex h-[calc(100%-5rem)] min-h-0 flex-col">
+            <div className="mt-2 flex h-[calc(100%-5rem)] min-h-0 flex-col">
             {selectedFileForViewer && (
               <>
+                <div className="flex min-h-0 flex-1 gap-4">
+                <div className="min-h-0 flex-1">
                 {isImageFile(selectedFileForViewer.fileName) ? (
-                    <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border border-[#ddd6f2] bg-[#f8f6ff] p-3 dark:bg-[#0e0e0e] dark:border-[#464554]">
+                    <div className="flex min-h-0 h-full items-center justify-center rounded-xl border border-[#ddd6f2] bg-[#f8f6ff] p-4 shadow-inner dark:bg-[#0e0e0e] dark:border-[#464554]">
                     {imageLoadError ? (
                       <div className="flex flex-col items-center gap-3 text-muted-foreground">
                         <FileText className="h-12 w-12" />
@@ -3050,14 +3275,16 @@ export default function CustomerDetailPage({
                           ? selectedFileForViewer.base64Content
                           : `/api/milestone-files/content?id=${encodeURIComponent(selectedFileForViewer.id)}`}
                         alt={selectedFileForViewer.fileName}
-                        className="h-full w-full rounded-md object-contain"
+                        className="h-full w-full rounded-xl object-contain"
                         onError={() => setImageLoadError(true)}
                       />
                     )}
                   </div>
                 ) : isPdfFile(selectedFileForViewer.fileName) ? (
-                  <div className="flex min-h-0 flex-1 flex-col gap-3">
-                    <div className="flex flex-wrap items-center justify-end gap-2 rounded-lg border border-[#ddd6f2] bg-[#f8f6ff] p-2 dark:border-[#464554] dark:bg-[#0e0e0e]">
+                  <div className="flex min-h-0 h-full flex-col gap-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#ddd6f2] bg-[#f8f6ff] p-3 dark:border-[#464554] dark:bg-[#0e0e0e]">
+                      <div className="text-xs text-[#736f99] dark:text-[#908fa0]">페이지 이동으로 원하는 구간을 바로 확인할 수 있습니다.</div>
+                      <div className="flex flex-wrap items-center justify-end gap-2">
                       <Button
                         type="button"
                         variant="outline"
@@ -3090,11 +3317,12 @@ export default function CustomerDetailPage({
                       >
                         다음 페이지
                       </Button>
+                      </div>
                     </div>
                     {pdfViewerSrc ? (
                       <iframe
                         src={`${pdfViewerSrc.split('#')[0]}#page=${pdfViewerPage}&toolbar=1&navpanes=1`}
-                        className="min-h-0 flex-1 w-full rounded-xl border border-[#ddd6f2] bg-white dark:border-[#464554]"
+                        className="min-h-0 flex-1 w-full rounded-xl border border-[#ddd6f2] bg-white shadow-sm dark:border-[#464554]"
                         title={selectedFileForViewer.fileName}
                       />
                     ) : (
@@ -3104,8 +3332,10 @@ export default function CustomerDetailPage({
                     )}
                   </div>
                 ) : isDocxFile(selectedFileForViewer.fileName) ? (
-                  <div className="flex min-h-0 flex-1 flex-col gap-3">
-                    <div className="flex flex-wrap items-center justify-end gap-2 rounded-lg border border-[#ddd6f2] bg-[#f8f6ff] p-2 dark:border-[#464554] dark:bg-[#0e0e0e]">
+                  <div className="flex min-h-0 h-full flex-col gap-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#ddd6f2] bg-[#f8f6ff] p-3 dark:border-[#464554] dark:bg-[#0e0e0e]">
+                      <div className="text-xs text-[#736f99] dark:text-[#908fa0]">페이지 이동과 확대/축소를 한 곳에서 조절합니다.</div>
+                      <div className="flex flex-wrap items-center justify-end gap-2">
                       <Button
                         type="button"
                         variant="outline"
@@ -3167,9 +3397,10 @@ export default function CustomerDetailPage({
                       >
                         확대
                       </Button>
+                      </div>
                     </div>
 
-                    <div className="relative min-h-0 flex-1 overflow-auto rounded-xl border border-[#ddd6f2] bg-white p-4 dark:bg-[#0e0e0e] dark:border-[#464554]">
+                    <div className="relative min-h-0 flex-1 overflow-auto rounded-xl border border-[#ddd6f2] bg-white p-4 shadow-sm dark:bg-[#0e0e0e] dark:border-[#464554]">
                       <div ref={docxContainerCallbackRef} className="min-h-full" />
                       {isLoadingDocxPreview && (
                         <div className="absolute inset-0 flex items-start p-4 pointer-events-none">
@@ -3184,7 +3415,11 @@ export default function CustomerDetailPage({
                     </div>
                   </div>
                 ) : isTextFile(selectedFileForViewer.fileName) ? (
-                  <div className="relative min-h-0 flex-1 overflow-auto rounded-xl border border-[#ddd6f2] bg-[#fbfaff] p-4 dark:bg-[#0e0e0e] dark:border dark:border-[#464554]">
+                  <div className="flex min-h-0 h-full flex-col gap-3">
+                    <div className="rounded-xl border border-[#ddd6f2] bg-[#f8f6ff] px-4 py-3 text-xs text-[#736f99] dark:border-[#464554] dark:bg-[#0e0e0e] dark:text-[#908fa0]">
+                      줄바꿈이 유지된 상태로 내용을 읽을 수 있습니다.
+                    </div>
+                    <div className="relative min-h-0 flex-1 overflow-auto rounded-xl border border-[#ddd6f2] bg-[#fbfaff] p-4 shadow-sm dark:bg-[#0e0e0e] dark:border dark:border-[#464554]">
                     {isLoadingTextPreview && (
                       <p className="text-sm text-muted-foreground dark:text-[#908fa0]">파일 내용을 불러오는 중입니다...</p>
                     )}
@@ -3195,8 +3430,9 @@ export default function CustomerDetailPage({
                       <pre className="font-mono text-[13px] leading-6 whitespace-pre-wrap break-words text-[#2d2a45] dark:text-[#c7c4d7]">{textFileContent}</pre>
                     )}
                   </div>
+                  </div>
                 ) : (
-                  <div className="flex min-h-0 flex-1 flex-col items-center justify-center rounded-xl border border-[#ddd6f2] bg-[#fbfaff] p-8 dark:bg-[#0e0e0e] dark:border dark:border-[#464554]">
+                  <div className="flex min-h-0 h-full flex-col items-center justify-center rounded-xl border border-[#ddd6f2] bg-[#fbfaff] p-8 shadow-sm dark:bg-[#0e0e0e] dark:border dark:border-[#464554]">
                     <FileText className="h-12 w-12 text-muted-foreground mb-2" />
                     <p className="text-sm text-muted-foreground dark:text-[#c7c4d7]">
                       이 파일 형식은 미리보기를 지원하지 않습니다.
@@ -3206,17 +3442,7 @@ export default function CustomerDetailPage({
                     </p>
                   </div>
                 )}
-                <div className="mt-3 flex justify-end border-t border-[#e7e2f5] pt-3 dark:border-[#464554]">
-                  <a
-                    href={selectedFileForViewer.base64Content
-                      ? selectedFileForViewer.base64Content
-                      : `/api/milestone-files/content?id=${encodeURIComponent(selectedFileForViewer.id)}`}
-                    download={selectedFileForViewer.fileName}
-                    className="inline-flex items-center justify-center rounded-md border border-input bg-background hover:bg-accent px-3 py-2 text-sm font-medium dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    다운로드
-                  </a>
+                </div>
                 </div>
               </>
             )}
