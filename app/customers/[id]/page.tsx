@@ -98,6 +98,9 @@ import {
   Users,
   Search,
   Shield,
+  Image,
+  FileCode,
+  FileSpreadsheet,
 } from "lucide-react"
 import Link from "next/link"
 import * as XLSX from "xlsx"
@@ -1135,6 +1138,35 @@ export default function CustomerDetailPage({
         return 'jpg'
       default:
         return '전체'
+    }
+  }
+
+  const getFileFilterIcon = (filter: FileFilterOption) => {
+    switch (filter) {
+      case 'folder':
+        return <Folder className="h-4 w-4 text-amber-500 dark:text-amber-400" />
+      case 'pdf':
+        return <FileText className="h-4 w-4 text-red-500 dark:text-red-400" />
+      case 'pptx':
+        return <FileText className="h-4 w-4 text-orange-500 dark:text-orange-400" />
+      case 'ppsm':
+        return <FileText className="h-4 w-4 text-orange-500 dark:text-orange-400" />
+      case 'docx':
+        return <FileText className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+      case 'xlsx':
+        return <FileSpreadsheet className="h-4 w-4 text-green-500 dark:text-green-400" />
+      case 'html':
+        return <FileCode className="h-4 w-4 text-cyan-500 dark:text-cyan-400" />
+      case 'hwp':
+        return <FileText className="h-4 w-4 text-purple-500 dark:text-purple-400" />
+      case 'hwpx':
+        return <FileText className="h-4 w-4 text-purple-500 dark:text-purple-400" />
+      case 'png':
+        return <Image className="h-4 w-4 text-pink-500 dark:text-pink-400" />
+      case 'jpg':
+        return <Image className="h-4 w-4 text-pink-500 dark:text-pink-400" />
+      default:
+        return <FileText className="h-4 w-4 text-gray-500 dark:text-gray-400" />
     }
   }
 
@@ -2874,7 +2906,10 @@ export default function CustomerDetailPage({
                                         onCheckedChange={() => setFileFilterOption(option)}
                                       >
                                         <span className="flex flex-1 items-center justify-between gap-3">
-                                          <span>{getFileFilterLabel(option)}</span>
+                                          <span className="flex items-center gap-2">
+                                            {getFileFilterIcon(option)}
+                                            <span>{getFileFilterLabel(option)}</span>
+                                          </span>
                                           <span className="text-xs text-muted-foreground">
                                             {files.filter((file) => matchesFileFilter(file, option)).length}
                                           </span>
