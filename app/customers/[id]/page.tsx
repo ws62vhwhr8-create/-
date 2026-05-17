@@ -62,6 +62,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { format, differenceInDays, startOfDay, min, max, eachMonthOfInterval, startOfMonth, endOfMonth } from "date-fns"
 import { ko } from "date-fns/locale"
@@ -2496,144 +2497,150 @@ export default function CustomerDetailPage({
               </TabsContent>
 
               <TabsContent value="milestone-detail">
-                {/* 단계(폴더) 영역 복원 */}
-                <div className="mb-4">
-                  <Card className="bg-white/95 border border-[#dbd6f0] shadow-lg rounded-xl dark:bg-[#171616] dark:border-[#333333]">
-                    <CardHeader className="flex flex-row items-start justify-between gap-4 px-6 pt-[10px] pb-2 border-b border-[#ece8fa] dark:border-[#333333]">
-                      <div className="flex flex-col gap-1">
-                        <CardTitle className="text-lg font-bold tracking-tight text-[#1e1b4b] dark:text-[#e5e2e1]">단계 (폴더)</CardTitle>
-                        <CardDescription className="text-xs text-[#6360a0] dark:text-[#908fa0] mt-1">단계별 폴더를 한눈에 관리하고 파일을 드래그하여 이동할 수 있습니다.</CardDescription>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => setIsStageFolderCollapsed((prev) => !prev)}
-                      >
-                        {isStageFolderCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                      </Button>
-                    </CardHeader>
-                    {!isStageFolderCollapsed && (
-                      <CardContent className="pt-2 pb-2 px-6">
-                        <div className="group/folder relative">
-                          <div
-                            className="space-y-2 overflow-y-auto pr-1"
-                            style={{ height: stageFolderHeight }}
-                          >
-                            {customer.milestones.map((milestone, index) => {
-                              const level = milestone.stageLevel ?? 0
-                              // 부모가 접혀 있으면 이 항목을 숨김
-                              const isHidden = customer.milestones.some((m, i) => {
-                                if (i >= index) return false
-                                const ml = m.stageLevel ?? 0
-                                if (ml >= level) return false
-                                if (collapsedStageFolderParents.has(m.id)) {
-                                  for (let j = i + 1; j < index; j++) {
-                                    if ((customer.milestones[j].stageLevel ?? 0) <= ml) return false
+                <ResizablePanelGroup direction="horizontal" className="w-full gap-0">
+                  {/* Left Panel: Stages/Folders */}
+                  <ResizablePanel defaultSize={30} minSize={20} maxSize={50}>
+                    <Card className="bg-white/95 border border-[#dbd6f0] shadow-lg rounded-xl dark:bg-[#171616] dark:border-[#333333] h-full flex flex-col">
+                      <CardHeader className="flex flex-row items-start justify-between gap-4 px-6 pt-[10px] pb-2 border-b border-[#ece8fa] dark:border-[#333333]">
+                        <div className="flex flex-col gap-1">
+                          <CardTitle className="text-lg font-bold tracking-tight text-[#1e1b4b] dark:text-[#e5e2e1]">단계 (폴더)</CardTitle>
+                          <CardDescription className="text-xs text-[#6360a0] dark:text-[#908fa0] mt-1">단계별 폴더를 한눈에 관리하고 파일을 드래그하여 이동할 수 있습니다.</CardDescription>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => setIsStageFolderCollapsed((prev) => !prev)}
+                        >
+                          {isStageFolderCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </Button>
+                      </CardHeader>
+                      {!isStageFolderCollapsed && (
+                        <CardContent className="pt-2 pb-2 px-6 flex-1 overflow-hidden">
+                          <div className="group/folder relative h-full flex flex-col">
+                            <div
+                              className="space-y-2 overflow-y-auto pr-1 flex-1"
+                              style={{ height: stageFolderHeight }}
+                            >
+                              {customer.milestones.map((milestone, index) => {
+                                const level = milestone.stageLevel ?? 0
+                                // 부모가 접혀 있으면 이 항목을 숨김
+                                const isHidden = customer.milestones.some((m, i) => {
+                                  if (i >= index) return false
+                                  const ml = m.stageLevel ?? 0
+                                  if (ml >= level) return false
+                                  if (collapsedStageFolderParents.has(m.id)) {
+                                    for (let j = i + 1; j < index; j++) {
+                                      if ((customer.milestones[j].stageLevel ?? 0) <= ml) return false
+                                    }
+                                    return true
                                   }
-                                  return true
-                                }
-                                return false
-                              })
-                              if (isHidden) return null
-                              const hasChildren = index + 1 < customer.milestones.length &&
-                                (customer.milestones[index + 1].stageLevel ?? 0) > level
-                              const isParentCollapsed = collapsedStageFolderParents.has(milestone.id)
-                              return (
-                                <div key={milestone.id} className="flex items-center gap-1">
-                                  {hasChildren ? (
+                                  return false
+                                })
+                                if (isHidden) return null
+                                const hasChildren = index + 1 < customer.milestones.length &&
+                                  (customer.milestones[index + 1].stageLevel ?? 0) > level
+                                const isParentCollapsed = collapsedStageFolderParents.has(milestone.id)
+                                return (
+                                  <div key={milestone.id} className="flex items-center gap-1">
+                                    {hasChildren ? (
+                                      <button
+                                        type="button"
+                                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-[#ece8fa] dark:hover:bg-[#23213a]"
+                                        onClick={() => setCollapsedStageFolderParents((prev) => {
+                                          const next = new Set(prev)
+                                          if (next.has(milestone.id)) next.delete(milestone.id)
+                                          else next.add(milestone.id)
+                                          return next
+                                        })}
+                                      >
+                                        {isParentCollapsed
+                                          ? <ChevronRight className="h-3 w-3" />
+                                          : <ChevronDown className="h-3 w-3" />}
+                                      </button>
+                                    ) : (
+                                      <span className="h-5 w-5 shrink-0" />
+                                    )}
                                     <button
                                       type="button"
-                                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-[#ece8fa] dark:hover:bg-[#23213a]"
-                                      onClick={() => setCollapsedStageFolderParents((prev) => {
-                                        const next = new Set(prev)
-                                        if (next.has(milestone.id)) next.delete(milestone.id)
-                                        else next.add(milestone.id)
-                                        return next
-                                      })}
-                                    >
-                                      {isParentCollapsed
-                                        ? <ChevronRight className="h-3 w-3" />
-                                        : <ChevronDown className="h-3 w-3" />}
-                                    </button>
-                                  ) : (
-                                    <span className="h-5 w-5 shrink-0" />
-                                  )}
-                                  <button
-                                    type="button"
-                                    className={`min-w-0 flex-1 rounded-md border border-[#dbd6f0] bg-[#f3f1ff] px-3 py-2 text-left text-sm hover:bg-[#e9e6fa] dark:bg-[#23213a] dark:border-[#333333] dark:hover:bg-[#323232] transition-colors${milestone.id === selectedMilestoneId ? ' border-primary/50 dark:bg-[#323232]' : ''}${dragOverMilestoneId === milestone.id ? ' ring-2 ring-primary/50 bg-primary/5 dark:bg-primary/10' : ''}`}
-                                    style={{ paddingLeft: `${12 + (level * 16)}px` }}
-                                    onClick={() => {
-                                      setSelectedMilestoneId(milestone.id)
-                                      setSelectedFileTarget({
-                                        milestoneId: milestone.id,
-                                        noteId: null,
-                                        kind: 'stage',
-                                        label: milestone.stageName,
-                                        parentFolderId: null,
-                                        folderPath: [],
-                                      })
-                                    }}
-                                    onDragOver={(e) => {
-                                      e.preventDefault()
-                                      e.dataTransfer.dropEffect = 'move'
-                                      setDragOverMilestoneId(milestone.id)
-                                    }}
-                                    onDragLeave={(e) => {
-                                      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                                      className={`min-w-0 flex-1 rounded-md border border-[#dbd6f0] bg-[#f3f1ff] px-3 py-2 text-left text-sm hover:bg-[#e9e6fa] dark:bg-[#23213a] dark:border-[#333333] dark:hover:bg-[#323232] transition-colors${milestone.id === selectedMilestoneId ? ' border-primary/50 dark:bg-[#323232]' : ''}${dragOverMilestoneId === milestone.id ? ' ring-2 ring-primary/50 bg-primary/5 dark:bg-primary/10' : ''}`}
+                                      style={{ paddingLeft: `${12 + (level * 16)}px` }}
+                                      onClick={() => {
+                                        setSelectedMilestoneId(milestone.id)
+                                        setSelectedFileTarget({
+                                          milestoneId: milestone.id,
+                                          noteId: null,
+                                          kind: 'stage',
+                                          label: milestone.stageName,
+                                          parentFolderId: null,
+                                          folderPath: [],
+                                        })
+                                      }}
+                                      onDragOver={(e) => {
+                                        e.preventDefault()
+                                        e.dataTransfer.dropEffect = 'move'
+                                        setDragOverMilestoneId(milestone.id)
+                                      }}
+                                      onDragLeave={(e) => {
+                                        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                                          setDragOverMilestoneId(null)
+                                        }
+                                      }}
+                                      onDrop={(e) => {
+                                        e.preventDefault()
                                         setDragOverMilestoneId(null)
-                                      }
-                                    }}
-                                    onDrop={(e) => {
-                                      e.preventDefault()
-                                      setDragOverMilestoneId(null)
-                                      const fileId = e.dataTransfer.getData('fileId')
-                                      const sourceKey = e.dataTransfer.getData('sourceKey')
-                                      if (fileId && sourceKey) {
-                                        void handleMoveFile(fileId, sourceKey, milestone)
-                                      }
-                                    }}
-                                  >
-                                    <span className="mr-2 inline-flex rounded border border-[#dbd6f0] bg-[#ece8fa] px-1 font-mono text-[11px] dark:bg-[#23213a] dark:border-[#333333]">{getStageLabel(customer.milestones, index)}</span>
-                                    <span className="inline-flex items-center gap-2 align-middle">
-                                      {milestone.id === selectedMilestoneId
-                                        ? <FolderOpen className={`h-4 w-4 ${level === 0 ? 'text-amber-500 dark:text-amber-400' : 'text-amber-400/80 dark:text-amber-400/70'}`} />
-                                        : <Folder className={`h-4 w-4 ${level === 0 ? 'text-amber-500 dark:text-amber-400' : 'text-amber-400/80 dark:text-amber-400/70'}`} />}
-                                      <span className="truncate">{milestone.stageName}</span>
-                                    </span>
-                                  </button>
-                                </div>
-                              )
-                            })}
+                                        const fileId = e.dataTransfer.getData('fileId')
+                                        const sourceKey = e.dataTransfer.getData('sourceKey')
+                                        if (fileId && sourceKey) {
+                                          void handleMoveFile(fileId, sourceKey, milestone)
+                                        }
+                                      }}
+                                    >
+                                      <span className="mr-2 inline-flex rounded border border-[#dbd6f0] bg-[#ece8fa] px-1 font-mono text-[11px] dark:bg-[#23213a] dark:border-[#333333]">{getStageLabel(customer.milestones, index)}</span>
+                                      <span className="inline-flex items-center gap-2 align-middle">
+                                        {milestone.id === selectedMilestoneId
+                                          ? <FolderOpen className={`h-4 w-4 ${level === 0 ? 'text-amber-500 dark:text-amber-400' : 'text-amber-400/80 dark:text-amber-400/70'}`} />
+                                          : <Folder className={`h-4 w-4 ${level === 0 ? 'text-amber-500 dark:text-amber-400' : 'text-amber-400/80 dark:text-amber-400/70'}`} />}
+                                        <span className="truncate">{milestone.stageName}</span>
+                                      </span>
+                                    </button>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                            <div
+                              className="absolute bottom-0 left-0 right-0 h-2 cursor-row-resize opacity-0 transition-opacity group-hover/folder:opacity-100 flex items-center justify-center"
+                              onMouseDown={(e) => {
+                                e.preventDefault()
+                                const startY = e.clientY
+                                const startH = stageFolderHeight
+                                const onMove = (ev: MouseEvent) => {
+                                  const next = Math.max(64, startH + ev.clientY - startY)
+                                  setStageFolderHeight(next)
+                                }
+                                const onUp = () => {
+                                  window.removeEventListener('mousemove', onMove)
+                                  window.removeEventListener('mouseup', onUp)
+                                }
+                                window.addEventListener('mousemove', onMove)
+                                window.addEventListener('mouseup', onUp)
+                              }}
+                            >
+                              <div className="h-1 w-10 rounded-full bg-[#dbd6f0] dark:bg-[#333333]" />
+                            </div>
                           </div>
-                          <div
-                            className="absolute bottom-0 left-0 right-0 h-2 cursor-row-resize opacity-0 transition-opacity group-hover/folder:opacity-100 flex items-center justify-center"
-                            onMouseDown={(e) => {
-                              e.preventDefault()
-                              const startY = e.clientY
-                              const startH = stageFolderHeight
-                              const onMove = (ev: MouseEvent) => {
-                                const next = Math.max(64, startH + ev.clientY - startY)
-                                setStageFolderHeight(next)
-                              }
-                              const onUp = () => {
-                                window.removeEventListener('mousemove', onMove)
-                                window.removeEventListener('mouseup', onUp)
-                              }
-                              window.addEventListener('mousemove', onMove)
-                              window.addEventListener('mouseup', onUp)
-                            }}
-                          >
-                            <div className="h-1 w-10 rounded-full bg-[#dbd6f0] dark:bg-[#333333]" />
-                          </div>
-                        </div>
-                      </CardContent>
-                    )}
-                  </Card>
-                </div>
-                {/* Teams-style File Library UI redesign start */}
-                <Card className="bg-white/95 border border-[#dbd6f0] shadow-lg rounded-xl dark:bg-[#171616] dark:border-[#333333]">
+                        </CardContent>
+                      )}
+                    </Card>
+                  </ResizablePanel>
+
+                  {/* Resizable Divider */}
+                  <ResizableHandle withHandle />
+
+                  {/* Right Panel: File Library */}
+                  <ResizablePanel defaultSize={70} minSize={50} maxSize={80}>
+                    <Card className="bg-white/95 border border-[#dbd6f0] shadow-lg rounded-xl dark:bg-[#171616] dark:border-[#333333] h-full flex flex-col">
                   <CardHeader className="flex flex-row items-start justify-between gap-4 px-6 pt-[10px] pb-2 border-b border-[#ece8fa] dark:border-[#333333]">
                     <div className="flex flex-col gap-1">
                       {/* Robust Breadcrumb for 단계(폴더) navigation */}
@@ -3131,7 +3138,8 @@ export default function CustomerDetailPage({
                     })()}
                   </CardContent>
                 </Card>
-                {/* Teams-style File Library UI redesign end */}
+                  </ResizablePanel>
+                </ResizablePanelGroup>
               </TabsContent>
               
               <TabsContent value="gantt">
