@@ -11,6 +11,7 @@ const ERROR_MESSAGE_MAP: Record<string, string> = {
   AccessDenied: "Your account is not authorized for this workspace.",
   Configuration: "Authentication is not configured correctly.",
   Verification: "Verification failed. Please try signing in again.",
+  "azure-ad": "Microsoft sign-in requires additional verification. Approve the request in Authenticator and try again.",
   Default: "Sign in failed. Please try again.",
 }
 
