@@ -14,6 +14,7 @@ export interface Solution {
   name: string
   description: string
   stages: Stage[]
+  templateVersion?: number
   userIds?: string[]
   groupIds?: string[]
   createdAt: Date
@@ -61,6 +62,7 @@ export interface Customer {
   companyName: string
   solutionId: string
   solutionName: string
+  solutionTemplateVersion?: number
   salesStartDate: Date
   ownerId?: string
   ownerName: string

@@ -3,9 +3,10 @@ import { NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
 
 const adminRoutePrefixes = ["/admin-dashboard", "/solutions", "/users"]
+const publicRoutes = ["/auth/signin"]
 
 function redirectToSignIn(request: NextRequest) {
-  const signInUrl = new URL("/api/auth/signin", request.url)
+  const signInUrl = new URL("/auth/signin", request.url)
   signInUrl.searchParams.set("callbackUrl", request.nextUrl.pathname)
   return NextResponse.redirect(signInUrl)
 }
@@ -42,6 +43,11 @@ export const config = {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  if (publicRoutes.some((route) => pathname.startsWith(route))) {
+    return NextResponse.next()
+  }
+
   const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith("https://") ?? false
   const token = await getToken({
     req: request,

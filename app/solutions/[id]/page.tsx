@@ -19,6 +19,7 @@ import { EntraUserSelectDialog } from "@/components/entra-user-select-dialog"
 import type { SelectedItem } from "@/components/entra-user-select-dialog"
 import type { Stage } from "@/lib/types"
 import { isAdminRole } from "@/lib/permissions"
+import { logAccessDenied } from "@/lib/audit"
 
 const createEmptyStage = (parentStageId: string | null = null, level: number = 0): Stage => ({
   id: crypto.randomUUID(),
@@ -58,6 +59,7 @@ export default function SolutionDetailPage({
   const [accessMeta, setAccessMeta] = useState<Map<string, string>>(new Map())
   const [isBasicInfoOpen, setIsBasicInfoOpen] = useState(true)
   const [isWorkflowOpen, setIsWorkflowOpen] = useState(true)
+  const [isPublishingVersion, setIsPublishingVersion] = useState(false)
   const [formData, setFormData] = useState<{
     name: string
     description: string
@@ -206,6 +208,50 @@ export default function SolutionDetailPage({
     toast.success("솔루션 정보가 저장되었습니다.")
   }
 
+  const handlePublishVersion = async () => {
+    if (!solution) return
+    if (isPublishingVersion) return
+
+    try {
+      setIsPublishingVersion(true)
+      const response = await fetch(`/api/solutions/${solution.id}/publish`, {
+        method: 'POST',
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        updateSolution(solution.id, {
+          templateVersion: data.templateVersion,
+          updatedAt: new Date(data.updatedAt),
+        })
+        toast.success(`템플릿 버전이 v${data.templateVersion}로 발행되었습니다.`)
+        return
+      }
+
+      if (response.status === 503) {
+        const nextVersion = (solution.templateVersion ?? 1) + 1
+        updateSolution(solution.id, {
+          templateVersion: nextVersion,
+        })
+        toast.warning(`DB 연결 이슈로 로컬 버전만 v${nextVersion}로 갱신했습니다.`)
+        return
+      }
+
+      const errorData = await response.json().catch(() => ({}))
+      const message = errorData.error || `템플릿 발행 실패 (${response.status})`
+      toast.error(message)
+    } catch (error) {
+      console.error('템플릿 버전 발행 오류:', error)
+      const nextVersion = (solution.templateVersion ?? 1) + 1
+      updateSolution(solution.id, {
+        templateVersion: nextVersion,
+      })
+      toast.warning(`네트워크 오류로 로컬 버전만 v${nextVersion}로 갱신했습니다.`)
+    } finally {
+      setIsPublishingVersion(false)
+    }
+  }
+
   if (!solution) {
     return (
       <>
@@ -235,6 +281,14 @@ export default function SolutionDetailPage({
   }
 
   if (!hasAccess) {
+    logAccessDenied({
+      userId: currentUserId,
+      userName: currentUser?.displayName,
+      resourceType: "solution",
+      resourceId: id,
+      action: "view",
+      reason: "User does not have access to this solution",
+    })
     return (
       <>
         <Navigation />
@@ -565,6 +619,18 @@ export default function SolutionDetailPage({
             </Card>
 
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Badge variant="outline" className="h-10 w-full justify-center border-[#d3cef0] bg-white/90 text-[#4b4678] sm:w-auto">
+                템플릿 v{solution.templateVersion ?? 1}
+              </Badge>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-[#d3cef0] bg-white/90 text-[#4b4678] hover:bg-[#f4f1ff] sm:w-auto"
+                onClick={handlePublishVersion}
+                disabled={isPublishingVersion}
+              >
+                {isPublishingVersion ? '발행 중...' : '버전 발행'}
+              </Button>
               <Button variant="outline" className="w-full border-[#d3cef0] bg-white/90 text-[#4b4678] hover:bg-[#f4f1ff] sm:w-auto" onClick={() => router.push("/solutions")}>목록으로</Button>
               <Button onClick={handleSave} className="w-full gap-2 sm:w-auto">
                 <Save className="h-4 w-4" /> 저장

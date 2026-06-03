@@ -62,6 +62,9 @@ async function hasManagedUsers() {
 
 export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV === "development",
+  pages: {
+    signIn: "/auth/signin",
+  },
   providers: [
     AzureADProvider({
       clientId: process.env.ENTRA_CLIENT_ID || "",

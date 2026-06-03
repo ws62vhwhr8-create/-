@@ -101,6 +101,8 @@ import {
   Image,
   FileCode,
   FileSpreadsheet,
+  RotateCcw,
+  RotateCw,
 } from "lucide-react"
 import Link from "next/link"
 import * as XLSX from "xlsx"
@@ -109,6 +111,7 @@ import EntraPicker from "@/components/entra-picker"
 import type { PickerUser } from "@/components/entra-picker"
 import dynamic from 'next/dynamic'
 import { canAccessCustomer, isAdminRole } from "@/lib/permissions"
+import { logAccessDenied } from "@/lib/audit"
 
 const GanttChart = dynamic(() => import('@/components/gantt-chart'), {
   ssr: false,
@@ -170,6 +173,76 @@ const StatusIcon = ({ status }: { status: Milestone['status'] }) => {
   }
 }
 
+type ApiMilestoneNote = Omit<MilestoneNote, 'createdAt' | 'dueDate' | 'notifyDate'> & {
+  createdAt: string | Date
+  dueDate?: string | Date | null
+  notifyDate?: string | Date | null
+}
+
+type ApiMilestone = Omit<Milestone, 'dueDate' | 'notifyDate' | 'notes'> & {
+  dueDate: string | Date
+  notifyDate: string | Date
+  notes?: ApiMilestoneNote[]
+}
+
+type ApiCustomer = Omit<Customer, 'salesStartDate' | 'createdAt' | 'projectEndDate' | 'milestones'> & {
+  salesStartDate: string | Date
+  createdAt: string | Date
+  projectEndDate?: string | Date | null
+  milestones?: ApiMilestone[]
+}
+
+type UpgradePreview = {
+  customerId: string
+  solutionId: string
+  currentTemplateVersion: number
+  latestTemplateVersion: number
+  summary: {
+    addCount: number
+    staleCount: number
+  }
+  toAdd: Array<{
+    stageId: string
+    stageName: string
+    role: string
+    stageLevel: number
+  }>
+  stale: Array<{
+    id: string
+    stageId: string
+    stageName: string
+  }>
+}
+
+const toDate = (value: string | Date | null | undefined, fallback: Date = new Date()): Date => {
+  if (!value) return fallback
+  if (value instanceof Date) return value
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? fallback : parsed
+}
+
+const normalizeNote = (note: ApiMilestoneNote): MilestoneNote => ({
+  ...note,
+  createdAt: toDate(note.createdAt),
+  dueDate: note.dueDate ? toDate(note.dueDate) : undefined,
+  notifyDate: note.notifyDate ? toDate(note.notifyDate) : undefined,
+})
+
+const normalizeMilestone = (milestone: ApiMilestone): Milestone => ({
+  ...milestone,
+  dueDate: toDate(milestone.dueDate),
+  notifyDate: toDate(milestone.notifyDate),
+  notes: (milestone.notes ?? []).map(normalizeNote),
+})
+
+const normalizeCustomer = (customer: ApiCustomer, milestones: ApiMilestone[]): Customer => ({
+  ...customer,
+  salesStartDate: toDate(customer.salesStartDate),
+  createdAt: toDate(customer.createdAt),
+  projectEndDate: customer.projectEndDate ? toDate(customer.projectEndDate) : undefined,
+  milestones: milestones.map(normalizeMilestone),
+})
+
 export default function CustomerDetailPage({ 
   params 
 }: { 
@@ -195,6 +268,18 @@ export default function CustomerDetailPage({
     dueDate: format(milestone.dueDate, 'yyyy-MM-dd'),
     notifyDate: format(milestone.notifyDate, 'yyyy-MM-dd'),
   })
+
+  const cloneEditableMilestones = useCallback((milestones: EditableMilestone[]): EditableMilestone[] => {
+    return milestones.map((milestone) => ({
+      ...milestone,
+      notes: (milestone.notes ?? []).map((note) => ({
+        ...note,
+        createdAt: new Date(note.createdAt),
+        dueDate: note.dueDate ? new Date(note.dueDate) : undefined,
+        notifyDate: note.notifyDate ? new Date(note.notifyDate) : undefined,
+      })),
+    }))
+  }, [])
 
   const calculateCustomerStatus = (milestones: Milestone[]): Customer['status'] => {
     const hasOverdue = milestones.some((milestone) => milestone.status === 'overdue')
@@ -283,8 +368,92 @@ export default function CustomerDetailPage({
   const [deleteNoteTarget, setDeleteNoteTarget] = useState<{ milestone: Milestone; noteId: string } | null>(null)
   const [isOwnerPickerOpen, setIsOwnerPickerOpen] = useState(false)
   const isMountedRef = useRef(true)
-  
-  const customer = customers.find(c => c.id === id)
+  const [undoStack, setUndoStack] = useState<EditableMilestone[][]>([])
+  const [redoStack, setRedoStack] = useState<EditableMilestone[][]>([])
+  const [serverCustomer, setServerCustomer] = useState<Customer | null>(null)
+  const [isLoadingCustomer, setIsLoadingCustomer] = useState(true)
+  const [isServerFallbackMode, setIsServerFallbackMode] = useState(false)
+  const [serverRetryAttempt, setServerRetryAttempt] = useState(0)
+  const [isUpgradingTemplate, setIsUpgradingTemplate] = useState(false)
+  const [isUpgradePreviewOpen, setIsUpgradePreviewOpen] = useState(false)
+  const [isLoadingUpgradePreview, setIsLoadingUpgradePreview] = useState(false)
+  const [upgradePreview, setUpgradePreview] = useState<UpgradePreview | null>(null)
+
+  const localCustomer = customers.find((c) => c.id === id)
+  const customer = serverCustomer ?? localCustomer
+
+  const loadCustomerFromApi = useCallback(async () => {
+    try {
+      setIsLoadingCustomer(true)
+
+      const customerResponse = await fetch(`/api/customers/${id}`, { cache: 'no-store' })
+      if (!customerResponse.ok) {
+        if (customerResponse.status === 404) {
+          if (isMountedRef.current) {
+            setServerCustomer(null)
+            setIsServerFallbackMode(false)
+            setServerRetryAttempt(0)
+          }
+          return
+        }
+
+        // DB 미기동 등 서버 오류 시에는 로컬 스토어 데이터로 폴백한다.
+        if (customerResponse.status >= 500) {
+          console.warn(`고객 API 일시 장애(${customerResponse.status}) - 로컬 데이터로 폴백합니다.`)
+          if (isMountedRef.current) {
+            setServerCustomer(null)
+            setIsServerFallbackMode(true)
+          }
+          return
+        }
+
+        console.warn(`고객 조회 실패: ${customerResponse.status}`)
+        if (isMountedRef.current) {
+          setServerCustomer(null)
+          setIsServerFallbackMode(false)
+          setServerRetryAttempt(0)
+        }
+        return
+      }
+
+      const customerData = (await customerResponse.json()) as ApiCustomer
+      const milestonesResponse = await fetch(`/api/milestones?customerId=${id}`, { cache: 'no-store' })
+
+      if (!milestonesResponse.ok) {
+        if (milestonesResponse.status >= 500) {
+          console.warn(`마일스톤 API 일시 장애(${milestonesResponse.status}) - 고객 기본 정보만 사용합니다.`)
+          if (isMountedRef.current) {
+            setServerCustomer(normalizeCustomer(customerData, []))
+            setIsServerFallbackMode(true)
+          }
+          return
+        }
+
+        console.warn(`마일스톤 조회 실패: ${milestonesResponse.status}`)
+        if (isMountedRef.current) {
+          setServerCustomer(normalizeCustomer(customerData, []))
+          setIsServerFallbackMode(false)
+          setServerRetryAttempt(0)
+        }
+        return
+      }
+
+      const milestonesData = (await milestonesResponse.json()) as ApiMilestone[]
+
+      if (isMountedRef.current) {
+        setServerCustomer(normalizeCustomer(customerData, milestonesData))
+        setIsServerFallbackMode(false)
+        setServerRetryAttempt(0)
+      }
+    } catch (error) {
+      console.error('고객 상세 로드 실패:', error)
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoadingCustomer(false)
+      }
+    }
+  }, [id])
+
   const currentUser = users.find((user) => user.id === currentUserId)
   const isAdmin = isAdminRole(currentUser?.role)
   const hasCustomerAccess = customer
@@ -296,6 +465,40 @@ export default function CustomerDetailPage({
       })
     : false
   const displayedMilestones = isEditing ? editingMilestones : (customer?.milestones ?? [])
+
+  const pushUndoSnapshot = useCallback((milestones: EditableMilestone[]) => {
+    setUndoStack((prev) => {
+      const next = [...prev, cloneEditableMilestones(milestones)]
+      return next.length > 50 ? next.slice(next.length - 50) : next
+    })
+    setRedoStack([])
+  }, [cloneEditableMilestones])
+
+  const handleUndo = useCallback(() => {
+    if (!isEditing) return
+
+    setUndoStack((prevUndo) => {
+      if (prevUndo.length === 0) return prevUndo
+
+      const previousSnapshot = prevUndo[prevUndo.length - 1]
+      setRedoStack((prevRedo) => [...prevRedo, cloneEditableMilestones(editingMilestones)])
+      setEditingMilestones(cloneEditableMilestones(previousSnapshot))
+      return prevUndo.slice(0, -1)
+    })
+  }, [cloneEditableMilestones, editingMilestones, isEditing])
+
+  const handleRedo = useCallback(() => {
+    if (!isEditing) return
+
+    setRedoStack((prevRedo) => {
+      if (prevRedo.length === 0) return prevRedo
+
+      const nextSnapshot = prevRedo[prevRedo.length - 1]
+      setUndoStack((prevUndo) => [...prevUndo, cloneEditableMilestones(editingMilestones)])
+      setEditingMilestones(cloneEditableMilestones(nextSnapshot))
+      return prevRedo.slice(0, -1)
+    })
+  }, [cloneEditableMilestones, editingMilestones, isEditing])
   
   // Get available users based on actual shared users and groups
   const availableUsers = useMemo(() => {
@@ -334,6 +537,24 @@ export default function CustomerDetailPage({
   }, [customer, hasCustomerAccess, router])
 
   useEffect(() => {
+    void loadCustomerFromApi()
+  }, [loadCustomerFromApi])
+
+  useEffect(() => {
+    if (!isServerFallbackMode) return
+
+    const delayMs = Math.min(2000 * (2 ** serverRetryAttempt), 30000)
+    const timer = window.setTimeout(() => {
+      setServerRetryAttempt((prev) => prev + 1)
+      void loadCustomerFromApi()
+    }, delayMs)
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [isServerFallbackMode, loadCustomerFromApi, serverRetryAttempt])
+
+  useEffect(() => {
     return () => {
       isMountedRef.current = false
     }
@@ -346,8 +567,36 @@ export default function CustomerDetailPage({
       setEditedStartDate(startDateStr)
       setEditedOwner(customer.ownerName)
       setEditingMilestones(customer.milestones.map(toEditableMilestone))
+      setUndoStack([])
+      setRedoStack([])
     }
   }, [customer, isEditing])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!isEditing) return
+
+      const isMeta = event.metaKey || event.ctrlKey
+      if (!isMeta) return
+
+      const key = event.key.toLowerCase()
+      const isUndo = key === 'z' && !event.shiftKey
+      const isRedo = (key === 'z' && event.shiftKey) || key === 'y'
+
+      if (isUndo) {
+        event.preventDefault()
+        handleUndo()
+      }
+
+      if (isRedo) {
+        event.preventDefault()
+        handleRedo()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [handleRedo, handleUndo, isEditing])
 
   useEffect(() => {
     if (!customer) return
@@ -484,6 +733,7 @@ export default function CustomerDetailPage({
       setEditedOwner(customer.ownerName)
       setIsEditing(true)
     }
+    pushUndoSnapshot(editingMilestones)
     setEditingMilestones(merged)
     setExcelImportPending(null)
     setIsExcelConfirmOpen(false)
@@ -518,31 +768,182 @@ export default function CustomerDetailPage({
     XLSX.writeFile(wb, `${customer.companyName}_로드맵.xlsx`)
   }
 
-  const handleDelete = () => {
-    deleteCustomer(id)
-    router.push("/")
+  const handleDelete = async () => {
+    try {
+      const response = await fetch(`/api/customers/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error(`고객 삭제 실패: ${response.status}`)
+      }
+
+      deleteCustomer(id)
+      toast.success('고객이 삭제되었습니다.')
+      router.push('/')
+    } catch (error) {
+      console.error('고객 삭제 오류:', error)
+      toast.error('고객 삭제 중 오류가 발생했습니다.')
+    }
+  }
+
+  const openUpgradePreview = async () => {
+    if (!customer) return
+    if (isLoadingUpgradePreview) return
+
+    try {
+      setIsLoadingUpgradePreview(true)
+      const response = await fetch(`/api/solutions/${customer.solutionId}/upgrade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: customer.id,
+          apply: false,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `업그레이드 미리보기 실패: ${response.status}`)
+      }
+
+      const preview = (await response.json()) as UpgradePreview
+      setUpgradePreview(preview)
+      setIsUpgradePreviewOpen(true)
+    } catch (error) {
+      console.error('워크플로우 업그레이드 미리보기 오류:', error)
+      toast.error(error instanceof Error ? error.message : '업그레이드 미리보기 중 오류가 발생했습니다.')
+    } finally {
+      setIsLoadingUpgradePreview(false)
+    }
+  }
+
+  const handleUpgradeTemplate = async () => {
+    if (!customer) return
+    if (isUpgradingTemplate) return
+
+    try {
+      setIsUpgradingTemplate(true)
+      const response = await fetch(`/api/solutions/${customer.solutionId}/upgrade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: customer.id,
+          apply: true,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || `워크플로우 업그레이드 실패: ${response.status}`)
+      }
+
+      await loadCustomerFromApi()
+      setIsUpgradePreviewOpen(false)
+      setUpgradePreview(null)
+      toast.success('워크플로우 템플릿 업그레이드가 완료되었습니다.')
+    } catch (error) {
+      console.error('워크플로우 업그레이드 오류:', error)
+      toast.error(error instanceof Error ? error.message : '워크플로우 업그레이드 중 오류가 발생했습니다.')
+    } finally {
+      setIsUpgradingTemplate(false)
+    }
   }
   
-  const handleSaveEdits = () => {
+  const handleSaveEdits = async () => {
     if (!customer) return
 
-    const updatedMilestones = editingMilestones.map((milestone) => ({
+    const updatedMilestones: Milestone[] = editingMilestones.map((milestone) => ({
       ...milestone,
       dueDate: new Date(milestone.dueDate),
       notifyDate: new Date(milestone.notifyDate),
     }))
-    
-    updateCustomer(customer.id, {
-      salesStartDate: editedStartDate ? new Date(editedStartDate) : customer.salesStartDate,
-      ownerName: editedOwner,
-      milestones: updatedMilestones,
-      status: calculateCustomerStatus(updatedMilestones),
-    })
-    
-    setIsEditing(false)
-    // Remove edit query parameter
-    router.push(`/customers/${customer.id}`)
-    toast.success("변경사항이 저장되었습니다")
+
+    const nextSalesStartDate = editedStartDate ? new Date(editedStartDate) : customer.salesStartDate
+    const nextStatus = calculateCustomerStatus(updatedMilestones)
+
+    try {
+      const customerPatchResponse = await fetch(`/api/customers/${customer.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          salesStartDate: nextSalesStartDate.toISOString(),
+          ownerName: editedOwner,
+          ownerEmail: customer.ownerEmail,
+          status: nextStatus,
+        }),
+      })
+
+      if (!customerPatchResponse.ok) {
+        throw new Error(`고객 수정 실패: ${customerPatchResponse.status}`)
+      }
+
+      const existingIds = new Set(customer.milestones.map((milestone) => milestone.id))
+      const nextIds = new Set(updatedMilestones.map((milestone) => milestone.id))
+
+      for (const milestone of updatedMilestones) {
+        const payload = {
+          stageId: milestone.stageId,
+          stageName: milestone.stageName,
+          stageLevel: milestone.stageLevel,
+          dueDate: milestone.dueDate.toISOString(),
+          notifyDate: milestone.notifyDate.toISOString(),
+          role: milestone.role,
+          status: milestone.status,
+        }
+
+        if (existingIds.has(milestone.id)) {
+          const patchResponse = await fetch(`/api/milestones/${milestone.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
+          if (!patchResponse.ok) {
+            throw new Error(`마일스톤 수정 실패: ${milestone.stageName}`)
+          }
+        } else {
+          const postResponse = await fetch('/api/milestones', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...payload,
+              customerId: customer.id,
+            }),
+          })
+          if (!postResponse.ok) {
+            throw new Error(`마일스톤 생성 실패: ${milestone.stageName}`)
+          }
+        }
+      }
+
+      for (const milestone of customer.milestones) {
+        if (nextIds.has(milestone.id)) continue
+
+        const deleteResponse = await fetch(`/api/milestones/${milestone.id}`, {
+          method: 'DELETE',
+        })
+        if (!deleteResponse.ok) {
+          throw new Error(`마일스톤 삭제 실패: ${milestone.stageName}`)
+        }
+      }
+
+      updateCustomer(customer.id, {
+        salesStartDate: nextSalesStartDate,
+        ownerName: editedOwner,
+        milestones: updatedMilestones,
+        status: nextStatus,
+      })
+
+      await loadCustomerFromApi()
+      setIsEditing(false)
+      setUndoStack([])
+      setRedoStack([])
+      router.push(`/customers/${customer.id}`)
+      toast.success('변경사항이 저장되었습니다')
+    } catch (error) {
+      console.error('고객 저장 오류:', error)
+      toast.error('저장 중 오류가 발생했습니다.')
+    }
   }
   
   const handleCancelEdits = () => {
@@ -556,16 +957,73 @@ export default function CustomerDetailPage({
   const handleCancelConfirmed = () => {
     setIsEditing(false)
     setEditingMilestones([])
+    setUndoStack([])
+    setRedoStack([])
     setIsCancelConfirmOpen(false)
   }
 
   const updateEditingMilestone = (milestoneId: string, updates: Partial<EditableMilestone>) => {
+    pushUndoSnapshot(editingMilestones)
     setEditingMilestones((prev) => prev.map((milestone) => (
       milestone.id === milestoneId ? { ...milestone, ...updates } : milestone
     )))
   }
 
+  const handleMilestoneStatusChange = async (
+    milestone: { id: string; status: Milestone['status'] },
+    nextStatus: Milestone['status'],
+  ) => {
+    if (milestone.status === nextStatus) return
+
+    // D3 규칙(B안): 편집 모드에서는 임시 저장, 비편집 모드에서는 즉시 저장
+    if (isEditing) {
+      updateEditingMilestone(milestone.id, { status: nextStatus })
+      return
+    }
+
+    if (!customer) return
+
+    const previousStatus = milestone.status
+
+    updateMilestoneStatus(customer.id, milestone.id, nextStatus)
+    setServerCustomer((prev) => {
+      if (!prev || prev.id !== customer.id) return prev
+      return {
+        ...prev,
+        milestones: prev.milestones.map((item) =>
+          item.id === milestone.id ? { ...item, status: nextStatus } : item,
+        ),
+      }
+    })
+
+    try {
+      const response = await fetch(`/api/milestones/${milestone.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`마일스톤 상태 저장 실패: ${response.status}`)
+      }
+    } catch (error) {
+      console.error('마일스톤 상태 저장 오류:', error)
+      updateMilestoneStatus(customer.id, milestone.id, previousStatus)
+      setServerCustomer((prev) => {
+        if (!prev || prev.id !== customer.id) return prev
+        return {
+          ...prev,
+          milestones: prev.milestones.map((item) =>
+            item.id === milestone.id ? { ...item, status: previousStatus } : item,
+          ),
+        }
+      })
+      toast.error('마일스톤 상태 저장 중 오류가 발생했습니다.')
+    }
+  }
+
   const handleEditingMilestoneDueDateChange = (milestoneId: string, nextDueDate: string) => {
+    pushUndoSnapshot(editingMilestones)
     setEditingMilestones((prev) => prev.map((milestone) => {
       if (milestone.id !== milestoneId) return milestone
 
@@ -584,8 +1042,8 @@ export default function CustomerDetailPage({
   }
 
   const addChildMilestone = (parentMilestoneId: string) => {
-    console.log('DEBUG addChildMilestone called, isEditing=', isEditing, 'parentMilestoneId=', parentMilestoneId)
     if (isEditing) {
+      pushUndoSnapshot(editingMilestones)
       setEditingMilestones((prev) => {
         const parentIndex = prev.findIndex((milestone) => milestone.id === parentMilestoneId)
         if (parentIndex < 0) return prev
@@ -618,14 +1076,13 @@ export default function CustomerDetailPage({
       return
     }
 
-    if (!customer) { console.log('DEBUG: no customer'); return }
+    if (!customer) return
 
     const parentIndex = customer.milestones.findIndex((milestone) => milestone.id === parentMilestoneId)
-    if (parentIndex < 0) { console.log('DEBUG: parentIndex < 0, parentMilestoneId=', parentMilestoneId, 'milestones=', customer.milestones.map(m => m.id)); return }
+    if (parentIndex < 0) return
 
     const parentMilestone = customer.milestones[parentIndex]
-    if ((parentMilestone.stageLevel ?? 0) >= 2) { console.log('DEBUG: stageLevel >= 2', parentMilestone.stageLevel); return }
-    console.log('DEBUG: calling updateCustomer, parentIndex=', parentIndex, 'stageLevel=', parentMilestone.stageLevel)
+    if ((parentMilestone.stageLevel ?? 0) >= 2) return
 
     const childMilestone: Milestone = {
       ...parentMilestone,
@@ -655,6 +1112,32 @@ export default function CustomerDetailPage({
       milestones: nextMilestones,
       status: calculateCustomerStatus(nextMilestones),
     })
+
+    void (async () => {
+      try {
+        const response = await fetch('/api/milestones', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerId: customer.id,
+            stageId: childMilestone.stageId,
+            stageName: childMilestone.stageName,
+            stageLevel: childMilestone.stageLevel,
+            dueDate: childMilestone.dueDate.toISOString(),
+            notifyDate: childMilestone.notifyDate.toISOString(),
+            role: childMilestone.role,
+            status: childMilestone.status,
+          }),
+        })
+        if (!response.ok) {
+          throw new Error(`하위 마일스톤 생성 실패: ${response.status}`)
+        }
+        await loadCustomerFromApi()
+      } catch (error) {
+        console.error('하위 마일스톤 생성 오류:', error)
+        toast.error('하위 마일스톤 생성 중 오류가 발생했습니다.')
+      }
+    })()
 
     setExpandedMilestones((prev) => new Set(prev).add(parentMilestoneId))
   }
@@ -699,6 +1182,7 @@ export default function CustomerDetailPage({
     if (!milestoneId) return
 
     if (isEditing) {
+      pushUndoSnapshot(editingMilestones)
       const { nextMilestones, removedIds } = removeMilestoneBranch(editingMilestones, milestoneId)
       setEditingMilestones(nextMilestones)
       setExpandedMilestones((prev) => {
@@ -716,6 +1200,23 @@ export default function CustomerDetailPage({
       milestones: nextMilestones,
       status: calculateCustomerStatus(nextMilestones),
     })
+
+    void (async () => {
+      try {
+        for (const removedId of removedIds) {
+          const response = await fetch(`/api/milestones/${removedId}`, {
+            method: 'DELETE',
+          })
+          if (!response.ok && response.status !== 404) {
+            throw new Error(`마일스톤 삭제 실패: ${removedId}`)
+          }
+        }
+        await loadCustomerFromApi()
+      } catch (error) {
+        console.error('마일스톤 삭제 오류:', error)
+        toast.error('마일스톤 삭제 중 오류가 발생했습니다.')
+      }
+    })()
 
     setExpandedMilestones((prev) => {
       const next = new Set(prev)
@@ -778,12 +1279,12 @@ export default function CustomerDetailPage({
     setExpandedMilestones((prev) => new Set(prev).add(milestoneId))
   }
 
-  const getFileTargetKey = (target: FileLibraryTarget) => (
-    [
+  function getFileTargetKey(target: FileLibraryTarget) {
+    return [
       target.noteId ? `${target.milestoneId}::note::${target.noteId}` : `${target.milestoneId}::stage`,
       target.parentFolderId ?? 'root',
     ].join('::')
-  )
+  }
 
   const openActionItemFileLibrary = (milestone: Milestone, note: MilestoneNote) => {
     setSelectedMilestoneId(milestone.id)
@@ -1170,7 +1671,7 @@ export default function CustomerDetailPage({
     }
   }
 
-  const fetchMilestoneFiles = async (target: FileLibraryTarget): Promise<MilestoneFile[]> => {
+  async function fetchMilestoneFiles(target: FileLibraryTarget): Promise<MilestoneFile[]> {
     const params = new URLSearchParams({
       milestoneId: target.milestoneId,
       ...(target.noteId && { noteId: target.noteId }),
@@ -1205,10 +1706,108 @@ export default function CustomerDetailPage({
 
   const handleFileUpload = async (target: FileLibraryTarget, files: FileList | null) => {
     if (!files || files.length === 0) return
-    
+
+    const MAX_SINGLE_FILE = 100 * 1024 * 1024 // 100MB
+    const LARGE_FILE_THRESHOLD = 1 * 1024 * 1024 // 1MB
+    const MAX_RETRIES = 3
+
+    const fileList = Array.from(files)
+    const oversizedFiles = fileList.filter((file) => file.size > MAX_SINGLE_FILE)
+    if (oversizedFiles.length > 0) {
+      const previewNames = oversizedFiles.slice(0, 3).map((file) => file.name).join(', ')
+      const overflowLabel = oversizedFiles.length > 3 ? ' 외 추가 파일' : ''
+      toast.error(`100MB를 초과한 파일은 업로드할 수 없습니다: ${previewNames}${overflowLabel}`)
+      return
+    }
+
+    const uploadSingleFile = async (file: File) => {
+      if (file.size > LARGE_FILE_THRESHOLD) {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('milestoneId', target.milestoneId)
+        if (target.noteId) formData.append('noteId', target.noteId)
+        formData.append('kind', target.kind)
+        formData.append('parentFolderId', target.parentFolderId ?? '')
+        formData.append('folderPath', JSON.stringify(target.folderPath))
+
+        const response = await fetch('/api/milestone-files/upload', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          const errorMessage = errorData.error || `HTTP ${response.status}`
+          throw new Error(`파일 업로드 실패: ${errorMessage}`)
+        }
+        return
+      }
+
+      const reader = new FileReader()
+      const base64Content = await new Promise<string>((resolve, reject) => {
+        const onloadHandler = () => {
+          if (reader.result) {
+            resolve(reader.result as string)
+          } else {
+            reject(new Error('FileReader result is empty'))
+          }
+        }
+        const onerrorHandler = () => {
+          reject(new Error(`FileReader error: ${reader.error?.message || 'Unknown error'}`))
+        }
+        reader.onload = onloadHandler
+        reader.onerror = onerrorHandler
+        reader.onabort = () => reject(new Error('FileReader aborted'))
+        reader.readAsDataURL(file)
+      })
+
+      const uploadPayload = {
+        milestoneId: target.milestoneId,
+        noteId: target.noteId,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type || 'application/octet-stream',
+        isFolder: false,
+        base64Content,
+        kind: target.kind,
+        parentFolderId: target.parentFolderId,
+        folderPath: target.folderPath,
+      }
+
+      const response = await fetch('/api/milestone-files', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(uploadPayload),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        const errorMessage = errorData.error || `HTTP ${response.status}`
+        throw new Error(`파일 업로드 실패: ${errorMessage}`)
+      }
+    }
+
+    const uploadWithRetry = async (file: File) => {
+      let lastError: Error | null = null
+
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt += 1) {
+        try {
+          await uploadSingleFile(file)
+          return
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error('Unknown upload error')
+          if (attempt === MAX_RETRIES - 1) break
+
+          const delayMs = Math.min(1000 * (2 ** attempt), 10000)
+          await new Promise((resolve) => setTimeout(resolve, delayMs))
+        }
+      }
+
+      throw lastError ?? new Error('파일 업로드 실패')
+    }
+
     try {
       setIsLoadingFiles(true)
-      const fileList = Array.from(files)
       const targetKey = getFileTargetKey(target)
       setUploadProgress({
         targetKey,
@@ -1216,7 +1815,10 @@ export default function CustomerDetailPage({
         completed: 0,
         currentFileName: fileList[0]?.name ?? '',
       })
-      
+
+      const failedFiles: Array<{ name: string; reason: string }> = []
+      let completedCount = 0
+
       for (let index = 0; index < fileList.length; index += 1) {
         const file = fileList[index]
         setUploadProgress((prev) =>
@@ -1228,32 +1830,14 @@ export default function CustomerDetailPage({
             : prev
         )
 
-        // Cosmos DB has a 2MB per-document limit. Base64 encoding inflates size by ~33%,
-        // so files larger than ~1MB would exceed the limit. Route those through the
-        // chunked upload API (SharePoint) which stores only a URL in Cosmos.
-        const LARGE_FILE_THRESHOLD = 1 * 1024 * 1024 // 1MB
-
-        if (file.size > LARGE_FILE_THRESHOLD) {
-          // Large file: multipart upload → SharePoint → stores contentUrl in Cosmos
-          const formData = new FormData()
-          formData.append('file', file)
-          formData.append('milestoneId', target.milestoneId)
-          if (target.noteId) formData.append('noteId', target.noteId)
-          formData.append('kind', target.kind)
-          formData.append('parentFolderId', target.parentFolderId ?? '')
-          formData.append('folderPath', JSON.stringify(target.folderPath))
-
-          const response = await fetch('/api/milestone-files/upload', {
-            method: 'POST',
-            body: formData,
-          })
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}))
-            const errorMessage = errorData.error || `HTTP ${response.status}`
-            throw new Error(`파일 업로드 실패: ${errorMessage}`)
-          }
-
+        try {
+          await uploadWithRetry(file)
+          completedCount += 1
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : '알 수 없는 오류'
+          failedFiles.push({ name: file.name, reason })
+          console.error(`파일 업로드 실패 (${file.name}):`, error)
+        } finally {
           setUploadProgress((prev) =>
             prev
               ? {
@@ -1262,70 +1846,18 @@ export default function CustomerDetailPage({
                 }
               : prev
           )
-          continue
         }
-
-        let base64Content: string | undefined
-        try {
-          const reader = new FileReader()
-          base64Content = await new Promise<string>((resolve, reject) => {
-            const onloadHandler = () => {
-              if (reader.result) {
-                resolve(reader.result as string)
-              } else {
-                reject(new Error('FileReader result is empty'))
-              }
-            }
-            const onerrorHandler = () => {
-              reject(new Error(`FileReader error: ${reader.error?.message || 'Unknown error'}`))
-            }
-            reader.onload = onloadHandler
-            reader.onerror = onerrorHandler
-            reader.onabort = () => reject(new Error('FileReader aborted'))
-            reader.readAsDataURL(file)
-          })
-        } catch (readerError) {
-          console.error('FileReader error:', readerError)
-          throw readerError
-        }
-        
-        const uploadPayload = {
-          milestoneId: target.milestoneId,
-          noteId: target.noteId,
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type || 'application/octet-stream',
-          isFolder: false,
-          base64Content: base64Content,
-          kind: target.kind,
-          parentFolderId: target.parentFolderId,
-          folderPath: target.folderPath,
-        }
-        
-        const response = await fetch('/api/milestone-files', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(uploadPayload),
-        })
-        
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}))
-          const errorMessage = errorData.error || `HTTP ${response.status}`
-          throw new Error(`파일 업로드 실패: ${errorMessage}`)
-        }
-
-        setUploadProgress((prev) =>
-          prev
-            ? {
-                ...prev,
-                completed: index + 1,
-              }
-            : prev
-        )
       }
 
       await reloadFilesForTarget(target)
-      toast.success('파일이 성공적으로 업로드되었습니다.')
+
+      if (failedFiles.length === 0) {
+        toast.success(`파일 업로드 완료: ${completedCount}/${fileList.length}`)
+      } else {
+        const failedNames = failedFiles.slice(0, 3).map((item) => item.name).join(', ')
+        const overflowLabel = failedFiles.length > 3 ? ' 외 추가 실패 파일' : ''
+        toast.warning(`업로드 완료: ${completedCount}/${fileList.length} 성공, ${failedFiles.length} 실패 (${failedNames}${overflowLabel})`)
+      }
     } catch (error) {
       console.error('Error uploading file:', error)
       const errorMessage = error instanceof Error ? error.message : '파일 업로드 중 오류가 발생했습니다.'
@@ -1547,39 +2079,47 @@ export default function CustomerDetailPage({
     }
   }
 
-  const saveMilestoneNote = (milestone: Milestone, parentNoteId?: string | null) => {
+  const saveMilestoneNote = async (milestone: Milestone, parentNoteId?: string | null) => {
     if (!customer) return
     const draftKey = getDraftKey(milestone.id, parentNoteId)
     const content = (noteDrafts[draftKey] || '').trim()
     if (!content) return
     const metaDraft = noteMetaDrafts[draftKey] ?? getDefaultNoteMeta(milestone)
 
-    const currentNotes = milestone.notes ?? []
-    const newNote: MilestoneNote = {
-      id: Math.random().toString(36).substring(2, 15),
-      content,
-      createdAt: new Date(),
-      parentNoteId: parentNoteId ?? null,
-      ownerName: metaDraft.ownerName,
-      dueDate: new Date(metaDraft.dueDate),
-      notifyDate: new Date(metaDraft.notifyDate),
-      status: metaDraft.status,
-    }
+    try {
+      const response = await fetch('/api/milestone-notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          milestoneId: milestone.id,
+          content,
+          parentNoteId: parentNoteId ?? null,
+          ownerName: metaDraft.ownerName,
+          dueDate: new Date(metaDraft.dueDate).toISOString(),
+          notifyDate: new Date(metaDraft.notifyDate).toISOString(),
+          status: metaDraft.status,
+        }),
+      })
 
-    updateMilestone(customer.id, milestone.id, {
-      notes: [...currentNotes, newNote],
-    })
+      if (!response.ok) {
+        throw new Error(`노트 저장 실패: ${response.status}`)
+      }
 
-    setNoteDrafts((prev) => ({ ...prev, [draftKey]: '' }))
-    setNoteMetaDrafts((prev) => {
-      const next = { ...prev }
-      delete next[draftKey]
-      return next
-    })
-    if (parentNoteId) {
-      setReplyTarget(null)
-    } else {
-      setNoteEditTarget(null)
+      setNoteDrafts((prev) => ({ ...prev, [draftKey]: '' }))
+      setNoteMetaDrafts((prev) => {
+        const next = { ...prev }
+        delete next[draftKey]
+        return next
+      })
+      if (parentNoteId) {
+        setReplyTarget(null)
+      } else {
+        setNoteEditTarget(null)
+      }
+      await loadCustomerFromApi()
+    } catch (error) {
+      console.error('노트 저장 오류:', error)
+      toast.error('노트 저장 중 오류가 발생했습니다.')
     }
   }
 
@@ -1591,23 +2131,53 @@ export default function CustomerDetailPage({
         note.id === noteId ? { ...note, ...updates } : note
       ),
     })
+
+    void (async () => {
+      try {
+        const response = await fetch(`/api/milestone-notes/${noteId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ownerName: updates.ownerName,
+            dueDate: updates.dueDate ? new Date(updates.dueDate).toISOString() : undefined,
+            notifyDate: updates.notifyDate ? new Date(updates.notifyDate).toISOString() : undefined,
+            status: updates.status,
+          }),
+        })
+        if (!response.ok) {
+          throw new Error(`노트 메타데이터 수정 실패: ${response.status}`)
+        }
+      } catch (error) {
+        console.error('노트 메타데이터 수정 오류:', error)
+        toast.error('노트 메타데이터 수정 중 오류가 발생했습니다.')
+      }
+    })()
   }
 
-  const saveEditedNote = (milestone: Milestone, noteId: string) => {
+  const saveEditedNote = async (milestone: Milestone, noteId: string) => {
     if (!customer) return
     const draftKey = getEditDraftKey(milestone.id, noteId)
     const content = (noteDrafts[draftKey] || '').trim()
     if (!content) return
 
-    const currentNotes = milestone.notes ?? []
-    updateMilestone(customer.id, milestone.id, {
-      notes: currentNotes.map((note) =>
-        note.id === noteId ? { ...note, content } : note
-      ),
-    })
+    try {
+      const response = await fetch(`/api/milestone-notes/${noteId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      })
 
-    setEditingExistingNote(null)
-    setNoteDrafts((prev) => ({ ...prev, [draftKey]: '' }))
+      if (!response.ok) {
+        throw new Error(`노트 수정 실패: ${response.status}`)
+      }
+
+      setEditingExistingNote(null)
+      setNoteDrafts((prev) => ({ ...prev, [draftKey]: '' }))
+      await loadCustomerFromApi()
+    } catch (error) {
+      console.error('노트 수정 오류:', error)
+      toast.error('노트 수정 중 오류가 발생했습니다.')
+    }
   }
 
   const getDescendantIds = (notes: MilestoneNote[], parentId: string): string[] => {
@@ -1622,7 +2192,7 @@ export default function CustomerDetailPage({
     setIsDeleteNoteConfirmOpen(true)
   }
 
-  const deleteNoteConfirmed = () => {
+  const deleteNoteConfirmed = async () => {
     if (!deleteNoteTarget || !customer) return
     const { milestone, noteId } = deleteNoteTarget
     setIsDeleteNoteConfirmOpen(false)
@@ -1645,6 +2215,19 @@ export default function CustomerDetailPage({
       targetIds.forEach((id) => next.delete(id))
       return next
     })
+
+    try {
+      const response = await fetch(`/api/milestone-notes/${noteId}`, {
+        method: 'DELETE',
+      })
+      if (!response.ok && response.status !== 404) {
+        throw new Error(`노트 삭제 실패: ${response.status}`)
+      }
+      await loadCustomerFromApi()
+    } catch (error) {
+      console.error('노트 삭제 오류:', error)
+      toast.error('노트 삭제 중 오류가 발생했습니다.')
+    }
   }
 
   const toggleNoteChildrenAccordion = (noteId: string) => {
@@ -1951,6 +2534,26 @@ export default function CustomerDetailPage({
     })
   }
 
+  if (isLoadingCustomer && !customer) {
+    return (
+      <>
+        <Navigation />
+        <SidebarInset>
+          <header className="sticky top-0 z-40 border-b border-border bg-background/95">
+            <div className="flex h-14 items-center gap-4 px-4">
+              {/* empty header to match layout */}
+            </div>
+          </header>
+          <main className="flex-1 px-6 py-6 lg:px-10">
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">고객 데이터를 불러오는 중입니다...</p>
+            </div>
+          </main>
+        </SidebarInset>
+      </>
+    )
+  }
+
   if (!customer) {
     return (
       <>
@@ -1964,6 +2567,35 @@ export default function CustomerDetailPage({
           <main className="flex-1 px-6 py-6 lg:px-10">
             <div className="text-center py-12">
               <p className="text-muted-foreground">고객을 찾을 수 없습니다.</p>
+            </div>
+          </main>
+        </SidebarInset>
+      </>
+    )
+  }
+
+  // 권한 체크: 고객에 접근할 권한이 없으면 404 표시
+  if (!hasCustomerAccess) {
+    logAccessDenied({
+      userId: currentUserId,
+      userName: currentUser?.displayName,
+      resourceType: "customer",
+      resourceId: id,
+      action: "view",
+      reason: "User does not have access to this customer",
+    })
+    return (
+      <>
+        <Navigation />
+        <SidebarInset>
+          <header className="sticky top-0 z-40 border-b border-border bg-background/95">
+            <div className="flex h-14 items-center gap-4 px-4">
+              {/* empty header to match layout */}
+            </div>
+          </header>
+          <main className="flex-1 px-6 py-6 lg:px-10">
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">이 고객에 접근할 권한이 없습니다.</p>
             </div>
           </main>
         </SidebarInset>
@@ -1987,6 +2619,13 @@ export default function CustomerDetailPage({
     completed: customer.milestones.filter(m => m.status === 'completed').length,
     total: customer.milestones.length,
   }
+
+  const selectedSolution = solutions.find((solution) => solution.id === customer.solutionId)
+  const currentTemplateVersion = customer.solutionTemplateVersion ?? 1
+  const latestTemplateVersion = selectedSolution?.templateVersion ?? currentTemplateVersion
+  const canUpgradeTemplate = latestTemplateVersion > currentTemplateVersion
+  const canUndo = isEditing && undoStack.length > 0
+  const canRedo = isEditing && redoStack.length > 0
 
   // 계층 단계 번호 생성 (1 / 1-1 / 1-1-1)
   const getStageLabel = (milestones: Array<{ stageLevel: number }>, idx: number): string => {
@@ -2057,6 +2696,33 @@ export default function CustomerDetailPage({
           <div className="w-full space-y-6 animate-page-in">
             <div className="rounded-2xl border border-[#dbe3ee] bg-white/88 px-4 py-5 shadow-[0_20px_48px_-36px_rgba(37,22,120,0.35)] sm:px-6 sm:py-6 dark:border-white/10 dark:bg-[#1E1E1E]/60">
               <span className="menu-kicker">Customer Detail</span>
+              {canUpgradeTemplate && (
+                <div className="mt-3 flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2 text-xs text-amber-800 dark:border-amber-300/30 dark:bg-amber-950/20 dark:text-amber-200 sm:flex-row sm:items-center sm:justify-between">
+                  <p>
+                    워크플로우 템플릿 업데이트가 있습니다. 현재 v{currentTemplateVersion} / 최신 v{latestTemplateVersion}
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={openUpgradePreview}
+                    disabled={isLoadingUpgradePreview || isEditing}
+                    className="h-8 border-amber-300 bg-white/90 text-amber-900 hover:bg-amber-100 dark:border-amber-300/30 dark:bg-amber-900/30 dark:text-amber-200"
+                  >
+                    {isLoadingUpgradePreview ? (
+                      <>
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                        미리보기 로딩 중
+                      </>
+                    ) : (
+                      <>
+                        <Shield className="mr-2 h-3.5 w-3.5" />
+                        템플릿 업그레이드
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
               <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <div className="flex items-center gap-3">
@@ -2085,6 +2751,26 @@ export default function CustomerDetailPage({
                   )}
                   {isEditing && (
                     <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleUndo}
+                        disabled={!canUndo}
+                        className="w-full border-[#d3cef0] bg-white/90 text-[#4b4678] hover:bg-[#f4f1ff] sm:w-auto"
+                      >
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                        Undo
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRedo}
+                        disabled={!canRedo}
+                        className="w-full border-[#d3cef0] bg-white/90 text-[#4b4678] hover:bg-[#f4f1ff] sm:w-auto"
+                      >
+                        <RotateCw className="mr-2 h-4 w-4" />
+                        Redo
+                      </Button>
                       <Button variant="outline" size="sm" onClick={handleSaveEdits} className="w-full border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 sm:w-auto">
                         <Check className="mr-2 h-4 w-4" />
                         저장
@@ -2429,9 +3115,8 @@ export default function CustomerDetailPage({
                               <TableCell className="py-3">
                                 <Select
                                   value={milestone.status}
-                                  disabled={!isEditing}
                                   onValueChange={(value) => {
-                                    updateEditingMilestone(milestone.id, { status: value as Milestone['status'] })
+                                    void handleMilestoneStatusChange(milestone, value as Milestone['status'])
                                   }}
                                 >
 
@@ -3531,6 +4216,83 @@ export default function CustomerDetailPage({
             </Button>
             <Button type="button" onClick={handleExcelImportConfirm}>
               적용
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isUpgradePreviewOpen} onOpenChange={setIsUpgradePreviewOpen}>
+        <DialogContent className="max-w-xl dark:bg-[#1c1b1b] dark:border-[#464554]">
+          <DialogHeader>
+            <DialogTitle className="dark:text-[#e5e2e1]">워크플로우 업그레이드 미리보기</DialogTitle>
+            <DialogDescription className="dark:text-[#c7c4d7]">
+              현재 고객에 최신 템플릿을 적용하기 전에 변경 내용을 확인합니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          {upgradePreview && (
+            <div className="space-y-4 py-1">
+              <div className="rounded-lg border border-[#ddd6f2] bg-[#f8f6ff] p-3 text-sm dark:border-[#464554] dark:bg-[#0e0e0e]">
+                <p className="text-[#4b4678] dark:text-[#c7c4d7]">
+                  버전: v{upgradePreview.currentTemplateVersion} → v{upgradePreview.latestTemplateVersion}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground dark:text-[#908fa0]">
+                  신규 단계 {upgradePreview.summary.addCount}개 추가, 템플릿에서 제거된 단계 {upgradePreview.summary.staleCount}개 감지
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium dark:text-[#e5e2e1]">추가 예정 단계</p>
+                {upgradePreview.toAdd.length === 0 ? (
+                  <p className="text-xs text-muted-foreground dark:text-[#908fa0]">추가할 단계가 없습니다.</p>
+                ) : (
+                  <div className="max-h-40 overflow-auto rounded border border-[#ddd6f2] bg-white p-2 dark:border-[#464554] dark:bg-[#0e0e0e]">
+                    {upgradePreview.toAdd.slice(0, 20).map((stage) => (
+                      <div key={stage.stageId} className="flex items-center justify-between py-1 text-xs">
+                        <span className="text-[#4b4678] dark:text-[#c7c4d7]">{stage.stageName}</span>
+                        <span className="text-muted-foreground dark:text-[#908fa0]">Lv.{stage.stageLevel}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium dark:text-[#e5e2e1]">템플릿에서 제거된 단계(참고)</p>
+                {upgradePreview.stale.length === 0 ? (
+                  <p className="text-xs text-muted-foreground dark:text-[#908fa0]">제거 감지된 단계가 없습니다.</p>
+                ) : (
+                  <div className="max-h-32 overflow-auto rounded border border-[#f2d9d9] bg-rose-50/60 p-2 dark:border-[#5a3a3a] dark:bg-rose-950/20">
+                    {upgradePreview.stale.slice(0, 20).map((stage) => (
+                      <div key={stage.id} className="flex items-center justify-between py-1 text-xs">
+                        <span className="text-rose-800 dark:text-rose-200">{stage.stageName}</span>
+                        <span className="text-rose-600 dark:text-rose-300">{stage.stageId}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsUpgradePreviewOpen(false)}
+              className="dark:bg-[#0e0e0e] dark:border-[#464554] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"
+            >
+              닫기
+            </Button>
+            <Button type="button" onClick={handleUpgradeTemplate} disabled={isUpgradingTemplate}>
+              {isUpgradingTemplate ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  적용 중
+                </>
+              ) : (
+                '업그레이드 적용'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

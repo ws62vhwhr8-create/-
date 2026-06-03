@@ -461,18 +461,49 @@ export const useAppStore = create<AppState>()(
       setCurrentEntraId: (id) => set(() => ({ currentEntraId: id })),
       
       addCustomer: (customerData) => {
+        const companyName = customerData.companyName.trim()
+        const ownerName = customerData.ownerName.trim()
+        const ownerEmail = customerData.ownerEmail?.trim() || undefined
+
+        if (!companyName) {
+          console.error('Failed to add customer: companyName is required')
+          return undefined
+        }
+
+        if (!ownerName) {
+          console.error('Failed to add customer: ownerName is required')
+          return undefined
+        }
+
         const solution = get().solutions.find((s) => s.id === customerData.solutionId)
-        if (!solution) return undefined
+        if (!solution) {
+          console.error('Failed to add customer: solution not found', {
+            solutionId: customerData.solutionId,
+          })
+          return undefined
+        }
+
+        const salesStartDate = new Date(customerData.salesStartDate)
+        if (Number.isNaN(salesStartDate.getTime())) {
+          console.error('Failed to add customer: invalid salesStartDate', {
+            salesStartDate: customerData.salesStartDate,
+          })
+          return undefined
+        }
         
         const milestones = generateMilestones(
           solution, 
-          new Date(customerData.salesStartDate),
+          salesStartDate,
           customerData.useCustomSchedule ? customerData.adjustedStageDurations : undefined
         )
         const status = calculateCustomerStatus(milestones)
         
         const newCustomer: Customer = {
           ...customerData,
+          companyName,
+          ownerName,
+          ownerEmail,
+          salesStartDate,
           id: generateId(),
           solutionName: solution.name,
           milestones,
@@ -487,11 +518,58 @@ export const useAppStore = create<AppState>()(
       },
       
       updateCustomer: (id, updates) => {
-        set((state) => ({
-          customers: state.customers.map((c) =>
-            c.id === id ? { ...c, ...updates } : c
-          ),
-        }))
+        set((state) => {
+          const hasTarget = state.customers.some((c) => c.id === id)
+          if (!hasTarget) {
+            console.error('Failed to update customer: customer not found', { id })
+            return state
+          }
+
+          const normalizedUpdates: Partial<Customer> = { ...updates }
+
+          if (typeof updates.companyName === 'string') {
+            const companyName = updates.companyName.trim()
+            if (!companyName) {
+              console.error('Failed to update customer: companyName cannot be empty', { id })
+              delete normalizedUpdates.companyName
+            } else {
+              normalizedUpdates.companyName = companyName
+            }
+          }
+
+          if (typeof updates.ownerName === 'string') {
+            const ownerName = updates.ownerName.trim()
+            if (!ownerName) {
+              console.error('Failed to update customer: ownerName cannot be empty', { id })
+              delete normalizedUpdates.ownerName
+            } else {
+              normalizedUpdates.ownerName = ownerName
+            }
+          }
+
+          if (typeof updates.ownerEmail === 'string') {
+            normalizedUpdates.ownerEmail = updates.ownerEmail.trim() || undefined
+          }
+
+          if (updates.salesStartDate !== undefined) {
+            const salesStartDate = new Date(updates.salesStartDate)
+            if (Number.isNaN(salesStartDate.getTime())) {
+              console.error('Failed to update customer: invalid salesStartDate', {
+                id,
+                salesStartDate: updates.salesStartDate,
+              })
+              delete normalizedUpdates.salesStartDate
+            } else {
+              normalizedUpdates.salesStartDate = salesStartDate
+            }
+          }
+
+          return {
+            customers: state.customers.map((c) =>
+              c.id === id ? { ...c, ...normalizedUpdates } : c
+            ),
+          }
+        })
       },
       
       deleteCustomer: (id) => {

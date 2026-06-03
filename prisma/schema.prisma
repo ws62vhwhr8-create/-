@@ -50,6 +50,8 @@ model Solution {
   id            String            @id @default(cuid())
   name          String
   description   String?
+  templateVersion Int             @default(1)
+  lastPublishedAt DateTime?
   
   // JSON 형식의 단계 데이터 (마이그레이션 이후 별도 테이블로 변환 가능)
   stages        Json              @default("[]")
@@ -93,15 +95,23 @@ model Customer {
   solutionId    String
   solution      Solution          @relation("SolutionId", fields: [solutionId], references: [id])
   solutionName  String
+  solutionTemplateVersion Int?    @default(1)
   salesStartDate DateTime
   
   // 담당자 - User와의 관계
   ownerName     String
+  ownerEmail    String?           // 소유자 이메일 (알림용)
   userId        String?
   user          User?             @relation("OwnerName", fields: [userId], references: [id])
   
   // 상태
   status        String            @default("active") // active, completed, at-risk
+  
+  // 일정 관리
+  useCustomSchedule       Boolean?              // true면 맞춤, false면 표준
+  adjustedStageDurations  Json?                 // stageId → 조정된 기간(일)
+  totalProjectDays        Int?                  // 전체 프로젝트 기간
+  projectEndDate          DateTime?             // 예상 완료일
   
   // Relations
   milestones    Milestone[]
@@ -128,6 +138,13 @@ model Milestone {
   
   // 상태: pending, in-progress, completed, overdue
   status        String            @default("pending")
+  
+  // 일정 관리
+  useCustomSchedule       Boolean?              // true면 맞춤, false면 표준
+  adjustedStageDurations  Json?                 // stageId → 조정된 기간(일)
+  
+  // Relations
+  notes         MilestoneNote[]   @relation("MilestoneNotes")
   
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
@@ -172,4 +189,27 @@ model VerificationToken {
 
   @@unique([identifier, token])
   @@map("verification_tokens")
+}
+
+// 마일스톤 노트 (마일스톤 내 댓글/작업 항목)
+model MilestoneNote {
+  id              String            @id @default(cuid())
+  milestoneId     String
+  milestone       Milestone         @relation("MilestoneNotes", fields: [milestoneId], references: [id], onDelete: Cascade)
+  
+  content         String            @db.Text
+  ownerName       String?
+  status          String?           // pending, in-progress, completed, blocked
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  dueDate         DateTime?         // 노트별 마감일
+  notifyDate      DateTime?         // 노트별 알림일
+  
+  // 계층 관계 (답신 구조)
+  parentNoteId    String?
+  parentNote      MilestoneNote?    @relation("NoteHierarchy", fields: [parentNoteId], references: [id], onDelete: Cascade)
+  childNotes      MilestoneNote[]   @relation("NoteHierarchy")
+  
+  @@index([milestoneId])
+  @@index([parentNoteId])
 }
