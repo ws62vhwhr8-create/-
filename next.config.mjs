@@ -5,6 +5,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async redirects() {
+    return [
+      {
+        source: '/api/auth/signin/azure-ad',
+        destination: '/api/auth/signin/azuread',
+        permanent: false,
+      },
+    ]
+  },
   images: {
     unoptimized: true,
   },
