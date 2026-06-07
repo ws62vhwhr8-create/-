@@ -30,7 +30,7 @@ interface AppState {
   addUser: (user: Omit<User, 'id'>) => void
   updateUser: (id: string, updates: Partial<User>) => void
   deleteUser: (id: string) => void
-  addGroup: (group: Omit<Group, 'id'>) => void
+  addGroup: (group: Omit<Group, 'id'> & { id?: string }) => void
   setCurrentUserId: (id?: string) => void
   setCurrentEntraId: (id?: string) => void
 }
@@ -453,7 +453,7 @@ export const useAppStore = create<AppState>()(
       },
 
       addGroup: (groupData) => {
-        const newGroup: Group = { id: generateId(), ...groupData }
+        const newGroup: Group = { id: groupData.id ?? generateId(), name: groupData.name }
         set((state) => ({ groups: [...state.groups, newGroup] }))
       },
 

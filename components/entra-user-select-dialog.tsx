@@ -137,6 +137,12 @@ export function EntraUserSelectDialog({
     }
   }
 
+  const addAllVisibleUsers = () => {
+    const usersToAdd = userResults.filter((user) => !isSelectedUser(user.id))
+    if (usersToAdd.length === 0) return
+    setSelected((prev) => [...prev, ...usersToAdd.map((user) => ({ type: "user" as const, user, role: "user" as const }))])
+  }
+
   const toggleGroup = (group: EntraGroup) => {
     if (isSelectedGroup(group.id)) {
       setSelected((s) => s.filter((x) => !(x.type === "group" && x.group.id === group.id)))
@@ -240,6 +246,18 @@ export function EntraUserSelectDialog({
               >
                 사용자
               </Button>
+              {tab === "user" ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={addAllVisibleUsers}
+                  disabled={loading || userResults.length === 0}
+                  className="ml-auto text-xs dark:text-[#c7c4d7] dark:hover:bg-[#2a2a2a]"
+                >
+                  모든 사용자 추가
+                </Button>
+              ) : null}
             </div>
 
             <div className="border rounded-lg bg-secondary/30 dark:bg-[#0e0e0e] dark:border-[#464554]">

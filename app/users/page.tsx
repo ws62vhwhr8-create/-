@@ -68,7 +68,7 @@ export default function UsersPage() {
         // 이미 등록된 그룹이면 스킵
         const exists = groups.find((g) => g.id === group.id || g.name === group.displayName)
         if (!exists) {
-          addGroup({ name: group.displayName })
+          addGroup({ id: group.id, name: group.displayName })
         }
         return
       }
