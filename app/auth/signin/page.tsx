@@ -12,6 +12,7 @@ const ERROR_MESSAGE_MAP: Record<string, string> = {
   Configuration: "Authentication is not configured correctly.",
   Verification: "Verification failed. Please try signing in again.",
   "azure-ad": "Microsoft sign-in requires additional verification. Approve the request in Authenticator and try again.",
+  azuread: "Microsoft sign-in requires additional verification. Approve the request in Authenticator and try again.",
   Default: "Sign in failed. Please try again.",
 }
 
@@ -36,7 +37,7 @@ function SignInContent() {
 
   const onSignIn = async () => {
     setIsSigningIn(true)
-    await signIn("azure-ad", { callbackUrl })
+    await signIn("azuread", { callbackUrl })
     setIsSigningIn(false)
   }
 

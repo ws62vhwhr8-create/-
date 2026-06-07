@@ -67,6 +67,7 @@ export const authOptions: NextAuthOptions = {
   },
   providers: [
     AzureADProvider({
+      id: "azuread",
       clientId: process.env.ENTRA_CLIENT_ID || "",
       clientSecret: process.env.ENTRA_CLIENT_SECRET || "",
       tenantId: signInTenantId,
