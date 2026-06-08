@@ -3413,7 +3413,7 @@ export default function CustomerDetailPage({
                                 <button
                                   type="button"
                                   className={folderIndex === folderTrail.length - 1
-                                    ? 'inline-flex items-center rounded-md bg-indigo-100 px-2 py-0.5 font-semibold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200 cursor-default'
+                                    ? 'inline-flex items-center rounded-md border border-indigo-200 bg-indigo-100 px-2.5 py-1 font-semibold text-indigo-800 shadow-sm dark:border-indigo-400/40 dark:bg-indigo-500/20 dark:text-indigo-100 cursor-default'
                                     : 'cursor-pointer hover:underline hover:text-indigo-600 dark:hover:text-indigo-300'}
                                   disabled={folderIndex === folderTrail.length - 1}
                                   onClick={() => {
@@ -3668,7 +3668,13 @@ export default function CustomerDetailPage({
                             </div>
                           )}
 
-                          <div className="rounded-lg border border-[#dbd6f0] bg-[#f3f1ff] p-0 overflow-hidden dark:bg-[#23213a] dark:border-[#333333]">
+                          <div
+                            className={`rounded-lg p-0 overflow-hidden ${
+                              currentTarget.parentFolderId
+                                ? 'border border-indigo-300 bg-indigo-50/50 dark:border-indigo-500/40 dark:bg-indigo-950/20'
+                                : 'border border-[#dbd6f0] bg-[#f3f1ff] dark:bg-[#23213a] dark:border-[#333333]'
+                            }`}
+                          >
                             {filteredFiles.length === 0 ? (
                               <div className="flex min-h-32 flex-col items-center justify-center gap-3 px-6 py-10 text-center">
                                 <div className="rounded-full bg-white p-4 shadow-sm dark:bg-[#171616]">
