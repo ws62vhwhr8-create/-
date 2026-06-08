@@ -3357,8 +3357,8 @@ export default function CustomerDetailPage({
 
                   {/* Right Panel: File Library */}
                   <ResizablePanel defaultSize={70} minSize={50} maxSize={80}>
-                    <Card className="bg-white/95 border border-[#dbd6f0] shadow-lg rounded-xl dark:bg-[#171616] dark:border-[#333333] h-full flex flex-col">
-                  <CardHeader className="flex flex-row items-start justify-between gap-4 px-6 pt-[10px] pb-2 border-b border-[#ece8fa] dark:border-[#333333]">
+                    <Card className="h-full flex flex-col rounded-xl border border-[#dbd6f0] bg-white shadow-sm dark:border-[#333333] dark:bg-[#171616]">
+                  <CardHeader className="flex flex-row items-start justify-between gap-3 border-b border-[#ece8fa] px-5 pb-3 pt-3 dark:border-[#333333]">
                     <div className="flex flex-col gap-1">
                       {/* Robust Breadcrumb for 단계(폴더) navigation */}
                       {selectedMilestoneId && customer && (() => {
@@ -3451,14 +3451,14 @@ export default function CustomerDetailPage({
                           </nav>
                         );
                       })()}
-                      <CardTitle className="text-lg font-bold tracking-tight text-[#1e1b4b] dark:text-[#e5e2e1]">파일 라이브러리</CardTitle>
-                      <CardDescription className="text-xs text-[#6360a0] dark:text-[#908fa0] mt-1">폴더/파일을 한눈에 관리하고 업로드할 수 있습니다.</CardDescription>
+                      <CardTitle className="text-base font-semibold tracking-tight text-[#1e1b4b] dark:text-[#e5e2e1]">파일 라이브러리</CardTitle>
+                      <CardDescription className="mt-0.5 text-xs text-[#6a678f] dark:text-[#908fa0]">단계별 자료를 업로드하고 폴더 구조로 정리합니다.</CardDescription>
                     </div>
                     <div className="flex w-full sm:w-auto flex-wrap gap-2">
                       <Button
                         type="button"
                         variant="outline"
-                        className="h-9 flex-1 sm:flex-none min-w-[120px] px-4 text-sm font-medium border-[#dbd6f0] bg-[#f3f1ff] hover:bg-[#e9e6fa] dark:bg-[#23213a] dark:border-[#333333] dark:text-[#e5e2e1]"
+                        className="h-9 min-w-[120px] flex-1 border-[#d7d2ef] bg-white px-4 text-sm font-medium text-[#4d4a73] hover:bg-[#f7f5ff] sm:flex-none dark:border-[#333333] dark:bg-[#23213a] dark:text-[#e5e2e1]"
                         onClick={() => {
                           if (!selectedMilestoneId) return;
                           const milestone = customer.milestones.find(m => m.id === selectedMilestoneId);
@@ -3472,7 +3472,7 @@ export default function CustomerDetailPage({
                       >
                         <FolderPlus className="h-4 w-4 mr-2" /> 새 폴더
                       </Button>
-                      <label htmlFor={`file-upload-teams-style`} className="h-9 flex-1 sm:flex-none min-w-[120px] px-4 flex items-center justify-center gap-2 rounded-md border border-[#dbd6f0] bg-[#f3f1ff] text-sm font-medium cursor-pointer hover:bg-[#e9e6fa] dark:bg-[#23213a] dark:border-[#333333] dark:text-[#e5e2e1]">
+                      <label htmlFor={`file-upload-teams-style`} className="h-9 min-w-[120px] flex-1 sm:flex-none px-4 flex items-center justify-center gap-2 rounded-md border border-transparent bg-indigo-600 text-sm font-medium text-white cursor-pointer hover:bg-indigo-700 dark:bg-[#6366f1] dark:text-[#0f1030] dark:hover:bg-[#7c7fff]">
                         <Upload className="h-4 w-4" /> 파일 업로드
                         <input
                           id={`file-upload-teams-style`}
@@ -3552,7 +3552,7 @@ export default function CustomerDetailPage({
 
                       return (
                         <div className="flex flex-col gap-4">
-                          <div className="flex flex-col gap-3 rounded-xl border border-[#dbd6f0] bg-white/80 p-3 shadow-sm dark:bg-[#171616] dark:border-[#333333]">
+                          <div className="flex flex-col gap-3 rounded-lg border border-[#e7e2f7] bg-[#fcfbff] p-3 dark:border-[#333333] dark:bg-[#1b1a1a]">
                             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                               <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
                                 <div className="relative w-full sm:max-w-xs">
@@ -3562,7 +3562,7 @@ export default function CustomerDetailPage({
                                     value={fileSearchQuery}
                                     onChange={(e) => setFileSearchQuery(e.target.value)}
                                     placeholder="파일명 또는 확장자 검색"
-                                    className="h-10 w-full border-[#dbd6f0] bg-[#f7f5ff] pl-9 text-sm focus:ring-2 focus:ring-indigo-200 dark:bg-[#23213a] dark:border-[#333333] dark:text-[#e5e2e1]"
+                                    className="h-10 w-full border-[#ddd8f0] bg-white pl-9 text-sm focus:ring-2 focus:ring-indigo-200 dark:border-[#333333] dark:bg-[#23213a] dark:text-[#e5e2e1]"
                                   />
                                 </div>
                                 <DropdownMenu>
@@ -3570,7 +3570,7 @@ export default function CustomerDetailPage({
                                     <Button
                                       type="button"
                                       variant="outline"
-                                      className="h-10 justify-between gap-2 border-[#dbd6f0] bg-[#f7f5ff] text-sm text-[#5b5785] hover:bg-[#ece8fa] dark:bg-[#23213a] dark:border-[#333333] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"
+                                      className="h-10 justify-between gap-2 border-[#ddd8f0] bg-white text-sm text-[#4d4a73] hover:bg-[#f7f5ff] dark:border-[#333333] dark:bg-[#23213a] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"
                                     >
                                       <span className="inline-flex items-center gap-2">
                                         <Filter className="h-4 w-4" />
@@ -3606,7 +3606,7 @@ export default function CustomerDetailPage({
                               </div>
                               <div className="flex flex-wrap items-center gap-2">
                                 <Select value={fileSortOption} onValueChange={(value) => setFileSortOption(value as typeof fileSortOption)}>
-                                  <SelectTrigger className="h-10 w-full min-w-[160px] border-[#dbd6f0] bg-[#f7f5ff] text-sm text-[#1e1b4b] sm:w-auto dark:bg-[#23213a] dark:border-[#333333] dark:text-[#e5e2e1]">
+                                  <SelectTrigger className="h-10 w-full min-w-[160px] border-[#ddd8f0] bg-white text-sm text-[#1e1b4b] sm:w-auto dark:border-[#333333] dark:bg-[#23213a] dark:text-[#e5e2e1]">
                                     <SelectValue placeholder="정렬" />
                                   </SelectTrigger>
                                   <SelectContent className="dark:bg-[#1c1b1b] dark:border-[#464554]">
@@ -3620,7 +3620,7 @@ export default function CustomerDetailPage({
                                   <Button
                                     type="button"
                                     variant="outline"
-                                    className="h-10 border-[#dbd6f0] bg-white text-sm text-[#5b5785] hover:bg-[#f7f5ff] dark:bg-[#171616] dark:border-[#333333] dark:text-[#e5e2e1] dark:hover:bg-[#23213a]"
+                                    className="h-10 border-[#ddd8f0] bg-white text-sm text-[#4d4a73] hover:bg-[#f7f5ff] dark:border-[#333333] dark:bg-[#171616] dark:text-[#e5e2e1] dark:hover:bg-[#23213a]"
                                     onClick={() => {
                                       setFileSearchQuery('')
                                       setFileFilterOption('all')
@@ -3632,21 +3632,19 @@ export default function CustomerDetailPage({
                               </div>
                             </div>
                             <div className="flex flex-wrap items-center gap-2 min-w-0">
-                              <Badge variant="outline" className="text-xs px-2 py-1 bg-[#ece8fa] border-[#dbd6f0] text-[#6360a0] dark:bg-[#23213a] dark:border-[#333333] dark:text-[#e5e2e1]">
+                              <Badge variant="outline" className="text-xs px-2 py-1 border-[#dbd6f0] bg-white text-[#5f5b8a] dark:border-[#333333] dark:bg-[#23213a] dark:text-[#e5e2e1]">
                                 {currentTarget.kind === 'stage' ? '단계' : '액션아이템'}
                               </Badge>
                               <span className="text-sm font-medium text-[#1e1b4b] dark:text-[#e5e2e1] max-w-full truncate">{currentTarget.label}</span>
-                              <Badge variant="secondary" className="text-xs tabular-nums bg-[#ece8fa] text-[#6360a0] dark:bg-[#23213a] dark:text-[#e5e2e1]">{files.length}개</Badge>
-                              <Badge variant="outline" className="text-xs px-2 py-1 border-[#dbd6f0] text-[#6360a0] dark:border-[#333333] dark:text-[#c7c4d7]">폴더 {folderCount}</Badge>
-                              <Badge variant="outline" className="text-xs px-2 py-1 border-[#dbd6f0] text-[#6360a0] dark:border-[#333333] dark:text-[#c7c4d7]">파일 {documentCount}</Badge>
-                              <Badge variant="outline" className="text-xs px-2 py-1 border-[#dbd6f0] text-[#6360a0] dark:border-[#333333] dark:text-[#c7c4d7]">필터 {getFileFilterLabel(fileFilterOption)}</Badge>
+                              <Badge variant="secondary" className="text-xs tabular-nums bg-[#ece8fa] text-[#6360a0] dark:bg-[#23213a] dark:text-[#e5e2e1]">총 {files.length}개</Badge>
+                              <Badge variant="outline" className="text-xs px-2 py-1 border-[#dbd6f0] text-[#6360a0] dark:border-[#333333] dark:text-[#c7c4d7]">폴더 {folderCount} · 파일 {documentCount}</Badge>
                               {(hasActiveSearch || hasActiveFilter) && (
                                 <Badge variant="secondary" className="text-xs tabular-nums bg-[#eef4ff] text-[#3258a8] dark:bg-[#23213a] dark:text-[#e5e2e1]">
                                   결과 {filteredFiles.length} / {activeFilterResultCount}
                                 </Badge>
                               )}
-                              <span className="text-xs text-[#8c88b4] dark:text-[#908fa0]">현재 위치에 바로 업로드되며, 대용량 파일은 SharePoint로 저장됩니다.</span>
                             </div>
+                            <p className="text-xs text-[#8c88b4] dark:text-[#908fa0]">현재 위치에 바로 업로드되며, 대용량 파일은 SharePoint에 저장됩니다.</p>
                           </div>
 
                           {isUploadingCurrentTarget && uploadProgress && (
