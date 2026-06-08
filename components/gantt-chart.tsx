@@ -391,22 +391,22 @@ export default function GanttChart({ customer }: { customer: Customer }) {
         </div>
       </div>
       
-      <div className="flex items-center justify-center gap-6 pt-6 text-xs text-slate-300">
+      <div className="flex items-center justify-center gap-6 pt-6 text-xs text-slate-700 dark:text-slate-200">
         <div className="flex items-center gap-2">
           <div className="h-3 w-3 rounded" style={{ backgroundColor: '#4ade80' }} />
-          <span>완료</span>
+          <span className="font-medium">완료</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="h-3 w-3 rounded" style={{ backgroundColor: '#60a5fa' }} />
-          <span>진행중</span>
+          <span className="font-medium">진행중</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="h-3 w-3 rounded" style={{ backgroundColor: '#f87171' }} />
-          <span>지연</span>
+          <span className="font-medium">지연</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="h-3 w-3 rounded" style={{ backgroundColor: '#64748b' }} />
-          <span>대기</span>
+          <span className="font-medium">대기</span>
         </div>
       </div>
     </div>
