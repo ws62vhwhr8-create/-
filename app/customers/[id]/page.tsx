@@ -2884,18 +2884,17 @@ export default function CustomerDetailPage({
                     </Card>
 
                     {/* 공유 대상 카드 - 사용자/그룹별 카드 UI 및 역할 드롭다운 */}
-                    <Card className="bg-white border-[#dbd6f0] shadow-sm dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)] min-h-24 flex items-center py-0">
+                    <Card className="sm:col-span-3 bg-white border-[#dbd6f0] shadow-sm dark:bg-[#1E1E1E] dark:border-[#333333] dark:bg-[#1E1E1E]/60 dark:border-white/15 dark:backdrop-blur-2xl dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(255,255,255,0.06),0_10px_30px_rgba(0,0,0,0.35)] min-h-24 flex items-center py-0">
                       <CardContent className="h-full w-full px-4 py-3">
                         <p className="text-xs text-muted-foreground mb-2">공유 대상</p>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                           {sharedItems.length === 0 && (
                             <span className="text-sm text-muted-foreground">없음</span>
                           )}
                           {sharedItems.map((item) => (
                             <div
                               key={item.id}
-                              className="flex items-center gap-2 p-2 rounded-lg border dark:border-[#464554] dark:bg-[#1c1b1b] bg-white"
-                              style={{ minWidth: 180 }}
+                              className="flex items-center gap-2 rounded-lg border bg-white p-2 dark:border-[#464554] dark:bg-[#1c1b1b] min-w-0"
                             >
                               <div className="flex items-center justify-center h-7 w-7 rounded-full bg-primary/20 dark:bg-[#353534]">
                                 {item.type === 'group' ? (
@@ -2914,7 +2913,7 @@ export default function CustomerDetailPage({
                                 value={item.role}
                                 disabled
                               >
-                                <SelectTrigger className="h-6 text-xs mt-0.5 px-2 border-none dark:bg-[#0e0e0e] dark:border-none dark:text-[#e5e2e1] focus:ring-0 focus:ring-offset-0 shadow-none">
+                                <SelectTrigger className="h-7 w-[88px] shrink-0 text-xs mt-0.5 px-2 border-none dark:bg-[#0e0e0e] dark:border-none dark:text-[#e5e2e1] focus:ring-0 focus:ring-offset-0 shadow-none">
                                   <div className="flex items-center gap-1">
                                     <Shield className="h-3 w-3" />
                                     <SelectValue />
