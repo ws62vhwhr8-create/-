@@ -3413,7 +3413,9 @@ export default function CustomerDetailPage({
                                 <ChevronRight className="inline h-3.5 w-3.5 mx-0.5 text-[#b3b0d7] dark:text-[#908fa0]/60" />
                                 <button
                                   type="button"
-                                  className={`hover:underline hover:text-indigo-600 dark:hover:text-indigo-300 ${folderIndex === folderTrail.length - 1 ? 'font-semibold text-[#1e1b4b] dark:text-[#e5e2e1] cursor-default' : 'cursor-pointer'}`}
+                                  className={folderIndex === folderTrail.length - 1
+                                    ? 'inline-flex items-center rounded-md bg-indigo-100 px-2 py-0.5 font-semibold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-200 cursor-default'
+                                    : 'cursor-pointer hover:underline hover:text-indigo-600 dark:hover:text-indigo-300'}
                                   disabled={folderIndex === folderTrail.length - 1}
                                   onClick={() => {
                                     if (!selectedFileTarget || selectedFileTarget.kind !== 'stage') return
@@ -3635,7 +3637,6 @@ export default function CustomerDetailPage({
                               <Badge variant="outline" className="text-xs px-2 py-1 border-[#dbd6f0] bg-white text-[#5f5b8a] dark:border-[#333333] dark:bg-[#23213a] dark:text-[#e5e2e1]">
                                 {currentTarget.kind === 'stage' ? '단계' : '액션아이템'}
                               </Badge>
-                              <span className="text-sm font-medium text-[#1e1b4b] dark:text-[#e5e2e1] max-w-full truncate">{currentTarget.label}</span>
                               <Badge variant="secondary" className="text-xs tabular-nums bg-[#ece8fa] text-[#6360a0] dark:bg-[#23213a] dark:text-[#e5e2e1]">총 {files.length}개</Badge>
                               <Badge variant="outline" className="text-xs px-2 py-1 border-[#dbd6f0] text-[#6360a0] dark:border-[#333333] dark:text-[#c7c4d7]">폴더 {folderCount} · 파일 {documentCount}</Badge>
                               {(hasActiveSearch || hasActiveFilter) && (
