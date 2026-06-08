@@ -3456,11 +3456,11 @@ export default function CustomerDetailPage({
                       <CardTitle className="text-base font-semibold tracking-tight text-[#1e1b4b] dark:text-[#e5e2e1]">파일 라이브러리</CardTitle>
                       <CardDescription className="mt-0.5 text-xs text-[#6a678f] dark:text-[#908fa0]">단계별 자료를 업로드하고 폴더 구조로 정리합니다.</CardDescription>
                     </div>
-                    <div className="flex w-full sm:w-auto flex-wrap gap-2">
+                    <div className="flex w-full flex-wrap justify-end gap-1.5 sm:w-auto">
                       <Button
                         type="button"
                         variant="outline"
-                        className="h-9 min-w-[120px] flex-1 border-[#d7d2ef] bg-white px-4 text-sm font-medium text-[#4d4a73] hover:bg-[#f7f5ff] sm:flex-none dark:border-[#333333] dark:bg-[#23213a] dark:text-[#e5e2e1]"
+                        className="h-8 flex-none border-[#d7d2ef] bg-white px-3 text-xs font-medium text-[#4d4a73] hover:bg-[#f7f5ff] sm:text-sm dark:border-[#333333] dark:bg-[#23213a] dark:text-[#e5e2e1]"
                         onClick={() => {
                           if (!selectedMilestoneId) return;
                           const milestone = customer.milestones.find(m => m.id === selectedMilestoneId);
@@ -3474,7 +3474,7 @@ export default function CustomerDetailPage({
                       >
                         <FolderPlus className="h-4 w-4 mr-2" /> 새 폴더
                       </Button>
-                      <label htmlFor={`file-upload-teams-style`} className="h-9 min-w-[120px] flex-1 sm:flex-none px-4 flex items-center justify-center gap-2 rounded-md border border-transparent bg-indigo-600 text-sm font-medium text-white cursor-pointer hover:bg-indigo-700 dark:bg-[#6366f1] dark:text-[#0f1030] dark:hover:bg-[#7c7fff]">
+                      <label htmlFor={`file-upload-teams-style`} className="h-8 flex-none px-3 flex items-center justify-center gap-1.5 rounded-md border border-transparent bg-indigo-600 text-xs font-medium text-white cursor-pointer hover:bg-indigo-700 sm:text-sm dark:bg-[#6366f1] dark:text-[#0f1030] dark:hover:bg-[#7c7fff]">
                         <Upload className="h-4 w-4" /> 파일 업로드
                         <input
                           id={`file-upload-teams-style`}
@@ -3556,7 +3556,7 @@ export default function CustomerDetailPage({
                         <div className="flex flex-col gap-4">
                           <div className="flex flex-col gap-3 rounded-lg border border-[#e7e2f7] bg-[#fcfbff] p-3 dark:border-[#333333] dark:bg-[#1b1a1a]">
                             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                              <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+                              <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
                                 <div className="relative w-full sm:max-w-xs">
                                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8c88b4] dark:text-[#908fa0]" />
                                   <Input
@@ -3564,7 +3564,7 @@ export default function CustomerDetailPage({
                                     value={fileSearchQuery}
                                     onChange={(e) => setFileSearchQuery(e.target.value)}
                                     placeholder="파일명 또는 확장자 검색"
-                                    className="h-10 w-full border-[#ddd8f0] bg-white pl-9 text-sm focus:ring-2 focus:ring-indigo-200 dark:border-[#333333] dark:bg-[#23213a] dark:text-[#e5e2e1]"
+                                    className="h-9 w-full border-[#ddd8f0] bg-white pl-9 text-sm focus:ring-2 focus:ring-indigo-200 dark:border-[#333333] dark:bg-[#23213a] dark:text-[#e5e2e1]"
                                   />
                                 </div>
                                 <DropdownMenu>
@@ -3572,16 +3572,13 @@ export default function CustomerDetailPage({
                                     <Button
                                       type="button"
                                       variant="outline"
-                                      className="h-10 justify-between gap-2 border-[#ddd8f0] bg-white text-sm text-[#4d4a73] hover:bg-[#f7f5ff] dark:border-[#333333] dark:bg-[#23213a] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"
+                                      className="h-9 gap-1.5 border-[#ddd8f0] bg-white px-3 text-xs text-[#4d4a73] hover:bg-[#f7f5ff] sm:text-sm dark:border-[#333333] dark:bg-[#23213a] dark:text-[#e5e2e1] dark:hover:bg-[#2a2a2a]"
                                     >
                                       <span className="inline-flex items-center gap-2">
                                         <Filter className="h-4 w-4" />
                                         빠른 필터
                                       </span>
-                                      <span className="inline-flex items-center gap-2 text-xs text-[#6360a0] dark:text-[#c7c4d7]">
-                                        {getFileFilterLabel(fileFilterOption)}
-                                        <ChevronDown className="h-3.5 w-3.5" />
-                                      </span>
+                                      <ChevronDown className="h-3.5 w-3.5 text-[#6360a0] dark:text-[#c7c4d7]" />
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="start" className="w-[240px] border-[#dbd6f0] bg-white opacity-100 shadow-lg dark:border-[#dbd6f0] dark:bg-white dark:text-[#1e1b4b]">
@@ -3606,9 +3603,9 @@ export default function CustomerDetailPage({
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </div>
-                              <div className="flex flex-wrap items-center gap-2">
+                              <div className="flex flex-wrap items-center gap-1.5">
                                 <Select value={fileSortOption} onValueChange={(value) => setFileSortOption(value as typeof fileSortOption)}>
-                                  <SelectTrigger className="h-10 w-full min-w-[160px] border-[#ddd8f0] bg-white text-sm text-[#1e1b4b] sm:w-auto dark:border-[#333333] dark:bg-[#23213a] dark:text-[#e5e2e1]">
+                                  <SelectTrigger className="h-9 w-full min-w-[132px] border-[#ddd8f0] bg-white px-3 text-xs text-[#1e1b4b] sm:w-[132px] sm:text-sm dark:border-[#333333] dark:bg-[#23213a] dark:text-[#e5e2e1]">
                                     <SelectValue placeholder="정렬" />
                                   </SelectTrigger>
                                   <SelectContent className="dark:bg-[#1c1b1b] dark:border-[#464554]">
@@ -3622,7 +3619,7 @@ export default function CustomerDetailPage({
                                   <Button
                                     type="button"
                                     variant="outline"
-                                    className="h-10 border-[#ddd8f0] bg-white text-sm text-[#4d4a73] hover:bg-[#f7f5ff] dark:border-[#333333] dark:bg-[#171616] dark:text-[#e5e2e1] dark:hover:bg-[#23213a]"
+                                    className="h-9 border-[#ddd8f0] bg-white px-3 text-xs text-[#4d4a73] hover:bg-[#f7f5ff] sm:text-sm dark:border-[#333333] dark:bg-[#171616] dark:text-[#e5e2e1] dark:hover:bg-[#23213a]"
                                     onClick={() => {
                                       setFileSearchQuery('')
                                       setFileFilterOption('all')
@@ -3645,7 +3642,6 @@ export default function CustomerDetailPage({
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-xs text-[#8c88b4] dark:text-[#908fa0]">현재 위치에 바로 업로드되며, 대용량 파일은 SharePoint에 저장됩니다.</p>
                           </div>
 
                           {isUploadingCurrentTarget && uploadProgress && (
